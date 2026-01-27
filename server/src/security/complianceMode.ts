@@ -284,7 +284,11 @@ class ComplianceModeManager {
    * Check specific flag
    */
   check<K extends keyof ComplianceConfig>(flag: K): ComplianceConfig[K] {
-    return this.overrides[flag] ?? this.config[flag];
+    const overrideVal = this.overrides[flag];
+    if (overrideVal !== undefined) {
+      return overrideVal as ComplianceConfig[K];
+    }
+    return this.config[flag];
   }
 
   /**

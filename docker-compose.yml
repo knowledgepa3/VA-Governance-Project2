@@ -6,8 +6,6 @@
 #
 # =============================================================================
 
-version: '3.8'
-
 services:
   # ===========================================================================
   # ACE Governance API Server
@@ -21,6 +19,9 @@ services:
 
     ports:
       - "${PORT:-3001}:3001"
+
+    env_file:
+      - ./.env
 
     environment:
       - NODE_ENV=${NODE_ENV:-development}
@@ -45,6 +46,8 @@ services:
 
       # Optional: Rate limit bypass for development
       - RATE_LIMIT_BYPASS_KEY=${RATE_LIMIT_BYPASS_KEY:-}
+
+      # Anthropic API is loaded from env_file (.env)
 
     volumes:
       # Persist audit logs

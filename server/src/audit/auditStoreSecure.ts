@@ -179,6 +179,14 @@ export class SecureAuditStore {
   private async openWriteStream(): Promise<void> {
     const filePath = join(this.basePath, this.currentFile);
 
+    // Ensure file exists before opening stream
+    try {
+      await fs.access(filePath);
+    } catch {
+      // File doesn't exist, create it with proper permissions
+      await fs.writeFile(filePath, '', { mode: 0o600 });
+    }
+
     this.writeStream = createWriteStream(filePath, {
       flags: 'a',
       mode: 0o600, // Owner read/write only
@@ -192,8 +200,13 @@ export class SecureAuditStore {
       this.writeStream = null;
     });
 
-    // Set file permissions explicitly
-    await fs.chmod(filePath, 0o600);
+    // Set file permissions explicitly (file now exists)
+    try {
+      await fs.chmod(filePath, 0o600);
+    } catch (chmodErr) {
+      // chmod may fail in some environments (e.g., Windows, some Docker volumes)
+      log.warn('Could not set audit file permissions', { error: (chmodErr as Error).message });
+    }
 
     this.currentFileCreated = new Date();
   }

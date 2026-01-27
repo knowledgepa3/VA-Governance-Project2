@@ -10,23 +10,27 @@
  * - Egress controls
  */
 
-// Key Management
-export {
-  keyManager,
+// Key Management - import for local use and re-export
+import {
+  keyManager as km,
   KeyPurpose,
   KeyMetadata,
   KeyProvider
 } from './keyManager';
 
-// Compliance Modes
-export {
-  complianceMode,
+export { km as keyManager, KeyPurpose, KeyMetadata, KeyProvider };
+
+// Compliance Modes - import for local use and re-export
+import {
+  complianceMode as cm,
   ComplianceLevel,
   ComplianceConfig,
-  isProduction,
+  isProduction as isProd,
   isFedRAMP,
   checkCompliance
 } from './complianceMode';
+
+export { cm as complianceMode, ComplianceLevel, ComplianceConfig, isProd as isProduction, isFedRAMP, checkCompliance };
 
 // Rate Limiting
 export {
@@ -86,14 +90,14 @@ export async function initializeSecurity(): Promise<void> {
   log.info('Initializing security modules');
 
   // Check key manager health
-  const keyHealthy = await keyManager.isHealthy();
+  const keyHealthy = await km.isHealthy();
   if (!keyHealthy) {
     throw new Error('Key manager failed health check');
   }
-  log.info('Key manager ready', { provider: keyManager.getProviderName() });
+  log.info('Key manager ready', { provider: km.getProviderName() });
 
   // Log compliance mode
-  const complianceReport = complianceMode.getComplianceReport();
+  const complianceReport = cm.getComplianceReport();
   log.info('Compliance mode active', {
     level: complianceReport.level,
     enforceHTTPS: complianceReport.config.enforceHTTPS,
@@ -101,7 +105,7 @@ export async function initializeSecurity(): Promise<void> {
   });
 
   // Validate production settings
-  if (isProduction()) {
+  if (isProd()) {
     log.info('Production mode validations passed');
   }
 
@@ -118,10 +122,10 @@ export async function securityHealthCheck(): Promise<{
   const details: Record<string, boolean | string> = {};
 
   try {
-    details.keyManager = await keyManager.isHealthy();
-    details.complianceLevel = complianceMode.getLevel();
+    details.keyManager = await km.isHealthy();
+    details.complianceLevel = cm.getLevel();
     details.rateLimiter = true; // Always healthy
-    details.tenantIsolation = complianceMode.check('enforceTenanIsolation');
+    details.tenantIsolation = cm.check('enforceTenanIsolation');
 
     const healthy = Object.values(details).every(v => v !== false);
 
