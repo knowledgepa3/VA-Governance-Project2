@@ -1,0 +1,287 @@
+{
+  "$schema": "https://ace-governance.com/schemas/playbook-v1.0.json",
+  "id": "bd-rfp-pipeline",
+  "name": "Business Development RFP Pipeline",
+  "description": "Complete BD workflow: Opportunity qualification, competitive intel, past performance, pricing analysis, teaming strategy, and bid/no-bid recommendation",
+  "industry": "Procurement",
+  "jobRole": "Business Development Manager",
+  "version": "1.0.0",
+  "riskLevel": "low",
+  "defaultClassification": "ADVISORY",
+  "tags": ["bd", "business-development", "rfp", "procurement", "opportunity-qualification", "competitive-intel"],
+
+  "complianceBoundaries": {
+    "noAuthentication": true,
+    "noCaptcha": true,
+    "noFinalSubmission": true,
+    "requiresConsent": false,
+    "requiresAttestation": false,
+    "dataClassification": "public",
+    "retentionPolicy": "90 days"
+  },
+
+  "domainPolicy": {
+    "allowedDomains": [
+      "sam.gov",
+      "beta.sam.gov",
+      "*.sam.gov",
+      "usaspending.gov",
+      "fpds.gov",
+      "govtribe.com",
+      "bgov.com"
+    ],
+    "blockedDomains": [],
+    "requireApprovalFor": []
+  },
+
+  "evidenceRequirements": [
+    {
+      "id": "opportunity-brief",
+      "type": "data",
+      "required": true,
+      "description": "Executive opportunity brief with key facts",
+      "format": "json",
+      "validation": {
+        "requiredFields": [
+          "solicitation_number",
+          "agency",
+          "deadline",
+          "estimated_value",
+          "naics_code",
+          "set_aside_type"
+        ]
+      }
+    },
+    {
+      "id": "rfp-documents",
+      "type": "document",
+      "required": true,
+      "description": "Downloaded RFP PDFs and attachments",
+      "format": "pdf"
+    },
+    {
+      "id": "competitive-landscape",
+      "type": "data",
+      "required": true,
+      "description": "Competitive intelligence: likely competitors, past winners, pricing ranges",
+      "format": "json"
+    },
+    {
+      "id": "past-performance-analysis",
+      "type": "data",
+      "required": true,
+      "description": "Past awards in this NAICS/agency with values and winners",
+      "format": "json"
+    },
+    {
+      "id": "capability-gap-analysis",
+      "type": "data",
+      "required": true,
+      "description": "Gap analysis: what we have vs what's required",
+      "format": "json"
+    },
+    {
+      "id": "teaming-recommendations",
+      "type": "data",
+      "required": true,
+      "description": "Potential teaming partners with rationale",
+      "format": "json"
+    },
+    {
+      "id": "bd-decision-memo",
+      "type": "report",
+      "required": true,
+      "description": "Executive BD memo: Bid/No-Bid recommendation with full justification",
+      "format": "markdown"
+    }
+  ],
+
+  "variables": [
+    {
+      "name": "RFP_NUMBER",
+      "description": "RFP/Solicitation Number (e.g., 140D0423R0003)",
+      "required": true,
+      "validation": {
+        "pattern": "^[A-Z0-9]+$"
+      }
+    },
+    {
+      "name": "AGENCY",
+      "description": "Government Agency Name",
+      "required": false,
+      "default": "All Agencies"
+    },
+    {
+      "name": "OUR_NAICS_CODES",
+      "description": "Comma-separated NAICS codes we hold (e.g., 541511,541512)",
+      "required": false,
+      "default": ""
+    },
+    {
+      "name": "OUR_CERTIFICATIONS",
+      "description": "Our certifications (e.g., 8(a), SDVOSB, HUBZone)",
+      "required": false,
+      "default": ""
+    },
+    {
+      "name": "MIN_CONTRACT_VALUE",
+      "description": "Minimum contract value to pursue (e.g., 100000)",
+      "required": false,
+      "default": "100000"
+    },
+    {
+      "name": "MAX_CONTRACT_VALUE",
+      "description": "Maximum contract value we can handle (e.g., 10000000)",
+      "required": false,
+      "default": "10000000"
+    }
+  ],
+
+  "steps": [
+    {
+      "id": "navigate-sam",
+      "stepType": "NAVIGATE",
+      "instruction": "Navigate to SAM.gov contract opportunities search",
+      "expectedOutcome": "On SAM.gov search page",
+      "classification": "INFORMATIONAL",
+      "action": {
+        "type": "NAVIGATE",
+        "target": "https://sam.gov/content/opportunities"
+      },
+      "allowedDomains": ["sam.gov"],
+      "maxRetries": 3,
+      "timeout": 30000
+    },
+    {
+      "id": "search-rfp",
+      "stepType": "NAVIGATE",
+      "instruction": "Search for solicitation number ${RFP_NUMBER}",
+      "expectedOutcome": "RFP listing displayed with full details",
+      "classification": "INFORMATIONAL",
+      "maxRetries": 2,
+      "timeout": 15000
+    },
+    {
+      "id": "extract-opportunity-brief",
+      "stepType": "EXTRACT",
+      "instruction": "Extract core opportunity data: solicitation number, title, agency, sub-agency, NAICS code, set-aside type, response deadline, estimated value (if listed), point of contact",
+      "expectedOutcome": "Structured opportunity brief captured",
+      "classification": "INFORMATIONAL",
+      "evidenceOutputs": ["opportunity-brief"]
+    },
+    {
+      "id": "qualification-check",
+      "stepType": "VERIFY",
+      "instruction": "Qualification check: (1) Is contract value in our range (${MIN_CONTRACT_VALUE} - ${MAX_CONTRACT_VALUE})? (2) Do we hold the required NAICS code? (3) Can we meet the set-aside requirements? (4) Is deadline realistic (>30 days preferred)?",
+      "expectedOutcome": "GO/NO-GO preliminary qualification",
+      "classification": "INFORMATIONAL",
+      "conditions": {
+        "skipIf": "Qualification fails"
+      }
+    },
+    {
+      "id": "download-documents",
+      "stepType": "DOWNLOAD",
+      "instruction": "Download all RFP attachments: solicitation document, statement of work, amendments, Q&A responses",
+      "expectedOutcome": "All documents downloaded to controlled storage",
+      "classification": "ADVISORY",
+      "evidenceOutputs": ["rfp-documents"],
+      "maxRetries": 2
+    },
+    {
+      "id": "extract-technical-requirements",
+      "stepType": "EXTRACT",
+      "instruction": "Parse solicitation document to extract: technical requirements, deliverables, performance period, key personnel requirements, required certifications, security clearance needs, evaluation criteria",
+      "expectedOutcome": "Structured technical requirements captured",
+      "classification": "INFORMATIONAL"
+    },
+    {
+      "id": "capability-gap-analysis",
+      "stepType": "VERIFY",
+      "instruction": "Compare our capabilities (NAICS: ${OUR_NAICS_CODES}, Certifications: ${OUR_CERTIFICATIONS}) against requirements. Identify gaps: missing certifications, staffing needs, teaming needs",
+      "expectedOutcome": "Gap analysis with specific missing capabilities",
+      "classification": "INFORMATIONAL",
+      "evidenceOutputs": ["capability-gap-analysis"]
+    },
+    {
+      "id": "navigate-past-performance",
+      "stepType": "NAVIGATE",
+      "instruction": "Navigate to USASpending.gov to research past awards",
+      "expectedOutcome": "On USASpending.gov awards search",
+      "classification": "INFORMATIONAL",
+      "action": {
+        "type": "NAVIGATE",
+        "target": "https://usaspending.gov"
+      },
+      "allowedDomains": ["usaspending.gov"]
+    },
+    {
+      "id": "research-past-awards",
+      "stepType": "EXTRACT",
+      "instruction": "Search for past awards to ${AGENCY} in the same NAICS code over last 3 years. Extract: winner companies, contract values, award dates, contract types (FFP, T&M, CPFF)",
+      "expectedOutcome": "List of comparable past awards with values and winners",
+      "classification": "INFORMATIONAL",
+      "evidenceOutputs": ["past-performance-analysis"]
+    },
+    {
+      "id": "competitive-intelligence",
+      "stepType": "EXTRACT",
+      "instruction": "Analyze past winners to identify likely competitors. For top 3-5 competitors, extract: company size, geographic presence, past performance with this agency, typical contract values",
+      "expectedOutcome": "Competitive landscape analysis with likely bidders",
+      "classification": "INFORMATIONAL",
+      "evidenceOutputs": ["competitive-landscape"]
+    },
+    {
+      "id": "pricing-intelligence",
+      "stepType": "EXTRACT",
+      "instruction": "From past awards data, calculate: median award value, min/max range, typical contract type, average period of performance. Use this for pricing guidance.",
+      "expectedOutcome": "Pricing intelligence with budget range recommendation",
+      "classification": "INFORMATIONAL"
+    },
+    {
+      "id": "teaming-strategy",
+      "stepType": "SUMMARIZE",
+      "instruction": "Based on capability gaps, identify potential teaming partners. Prioritize partners who: (1) Fill our gaps, (2) Have past performance with this agency, (3) Have complementary capabilities, (4) Are not direct competitors",
+      "expectedOutcome": "Teaming recommendations with rationale",
+      "classification": "ADVISORY",
+      "evidenceOutputs": ["teaming-recommendations"]
+    },
+    {
+      "id": "win-probability-assessment",
+      "stepType": "SUMMARIZE",
+      "instruction": "Calculate win probability based on: (1) Past performance with agency (0-25 pts), (2) Technical capability match (0-25 pts), (3) Competitive positioning (0-25 pts), (4) Price competitiveness (0-25 pts). Score 0-100.",
+      "expectedOutcome": "Win probability score with breakdown",
+      "classification": "INFORMATIONAL"
+    },
+    {
+      "id": "risk-assessment",
+      "stepType": "SUMMARIZE",
+      "instruction": "Identify risks: (1) Capability gaps, (2) Aggressive timeline, (3) Strong competition, (4) Pricing uncertainty, (5) Teaming complexity. Rate each risk as Low/Medium/High.",
+      "expectedOutcome": "Risk matrix with mitigation strategies",
+      "classification": "INFORMATIONAL"
+    },
+    {
+      "id": "generate-bd-memo",
+      "stepType": "SUMMARIZE",
+      "instruction": "Generate Executive BD Decision Memo with sections: (1) EXECUTIVE SUMMARY (Bid/No-Bid recommendation), (2) OPPORTUNITY OVERVIEW, (3) QUALIFICATION ANALYSIS, (4) COMPETITIVE LANDSCAPE, (5) CAPABILITY GAP ANALYSIS, (6) TEAMING STRATEGY, (7) PRICING GUIDANCE, (8) WIN PROBABILITY, (9) RISK ASSESSMENT, (10) RECOMMENDATION & NEXT STEPS",
+      "expectedOutcome": "Formatted BD memo ready for executive review",
+      "classification": "MANDATORY",
+      "evidenceOutputs": ["bd-decision-memo"]
+    }
+  ],
+
+  "requiredSkillPacks": ["procurement-intel-pack"],
+
+  "estimatedDuration": "12-18 minutes",
+
+  "_bd_workflow_notes": {
+    "parallel_execution": "Steps 8-11 (past performance, competitive intel, pricing) can run in parallel for speed",
+    "qualification_gates": "If qualification fails at step 4, skip to final memo with NO-BID recommendation",
+    "teaming_triggers": "If capability gaps > 30%, teaming is REQUIRED",
+    "bid_thresholds": {
+      "auto_no_bid": "Win probability < 30%",
+      "requires_executive_approval": "Contract value > $5M or win probability < 50%",
+      "fast_track": "Win probability > 70% and no major gaps"
+    }
+  }
+}

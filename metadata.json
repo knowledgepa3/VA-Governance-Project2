@@ -1,0 +1,5 @@
+{
+  "name": "ACE - Autonomous Compliance Engine",
+  "description": "Governed AI workforce orchestration platform for regulated environments. Features multi-agent workflows with mandatory human oversight gates, immutable audit trails, and NIST AI RMF/CMMC 2.0 compliance reporting. Demonstrates VA disability claims and financial audit use cases.",
+  "requestFramePermissions": []
+}

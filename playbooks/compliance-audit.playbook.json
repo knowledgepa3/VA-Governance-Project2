@@ -1,0 +1,125 @@
+{
+  "$schema": "https://ace-governance.com/schemas/playbook-v1.0.json",
+  "id": "compliance-audit-trail",
+  "name": "Compliance Audit Trail Builder",
+  "description": "Navigate regulatory portals, collect evidence, build audit-ready documentation",
+  "industry": "Compliance",
+  "jobRole": "Compliance Officer",
+  "version": "1.0.0",
+  "riskLevel": "medium",
+  "defaultClassification": "MANDATORY",
+  "tags": ["compliance", "audit", "regulatory", "documentation"],
+
+  "complianceBoundaries": {
+    "noAuthentication": true,
+    "noCaptcha": true,
+    "noFinalSubmission": true,
+    "requiresConsent": false,
+    "requiresAttestation": true,
+    "lawfulBasis": "Legitimate business interest - internal compliance audit",
+    "dataClassification": "internal",
+    "retentionPolicy": "7 years"
+  },
+
+  "domainPolicy": {
+    "allowedDomains": ["nist.gov", "fedramp.gov", "iso.org", "*.compliance-portal.internal"],
+    "blockedDomains": [],
+    "requireApprovalFor": ["*.internal"]
+  },
+
+  "evidenceRequirements": [
+    {
+      "id": "control-requirements",
+      "type": "data",
+      "required": true,
+      "description": "Extracted control requirements and testing procedures",
+      "format": "json"
+    },
+    {
+      "id": "evidence-artifacts",
+      "type": "document",
+      "required": true,
+      "description": "Collected evidence files (configs, logs, screenshots)",
+      "format": "multiple"
+    },
+    {
+      "id": "audit-package",
+      "type": "report",
+      "required": true,
+      "description": "Complete audit evidence package",
+      "format": "pdf"
+    }
+  ],
+
+  "attestations": [
+    {
+      "id": "audit-authority",
+      "prompt": "I attest that I have authority to conduct this audit and access these systems",
+      "required": true
+    }
+  ],
+  "variables": [
+    {
+      "name": "REGULATION_ID",
+      "description": "Regulation or standard identifier (e.g., CMMC 2.0, SOC 2, HIPAA)",
+      "required": true
+    },
+    {
+      "name": "CONTROL_ID",
+      "description": "Specific control number to audit",
+      "required": true
+    },
+    {
+      "name": "DATE_RANGE",
+      "description": "Audit period (e.g., 2024-Q1)",
+      "required": true
+    }
+  ],
+  "steps": [
+    {
+      "id": "navigate-portal",
+      "instruction": "Navigate to compliance portal or regulatory database for ${REGULATION_ID}",
+      "expectedOutcome": "On regulatory portal homepage",
+      "classification": "INFORMATIONAL",
+      "maxRetries": 3
+    },
+    {
+      "id": "locate-control",
+      "instruction": "Search for control ${CONTROL_ID} and open detailed requirements",
+      "expectedOutcome": "Control requirements displayed",
+      "classification": "INFORMATIONAL"
+    },
+    {
+      "id": "extract-requirements",
+      "instruction": "Extract: control objective, evidence requirements, testing procedures, acceptable artifacts",
+      "expectedOutcome": "Structured control requirements captured",
+      "classification": "INFORMATIONAL"
+    },
+    {
+      "id": "collect-evidence",
+      "instruction": "Navigate internal systems to collect required evidence artifacts for ${DATE_RANGE}",
+      "expectedOutcome": "Evidence files downloaded/linked",
+      "classification": "ADVISORY"
+    },
+    {
+      "id": "screenshot-evidence",
+      "instruction": "Take timestamped screenshots of system configurations as evidence",
+      "expectedOutcome": "Screenshots captured with metadata",
+      "classification": "INFORMATIONAL"
+    },
+    {
+      "id": "check-updates",
+      "instruction": "Check for regulation updates or amendments since last audit",
+      "expectedOutcome": "List of changes/amendments",
+      "classification": "INFORMATIONAL"
+    },
+    {
+      "id": "generate-package",
+      "instruction": "Generate audit evidence package: control mapping, evidence matrix, gap analysis, recommendations",
+      "expectedOutcome": "Audit package ready for auditor review",
+      "classification": "MANDATORY"
+    }
+  ],
+  "requiredExtensions": ["regulation-tracker", "evidence-collector", "audit-logger", "screenshot-annotator"],
+  "estimatedDuration": "15-20 minutes"
+}

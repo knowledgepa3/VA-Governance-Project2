@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ACE Governance Platform</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 900px;
+      width: 100%;
+    }
+
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 3rem;
+    }
+
+    .logo {
+      font-size: 4rem;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.5rem;
+      text-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .tagline {
+      font-size: 1.5rem;
+      font-weight: 300;
+      opacity: 0.95;
+    }
+
+    .subtitle {
+      font-size: 1rem;
+      opacity: 0.85;
+      margin-top: 0.5rem;
+    }
+
+    .apps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+    }
+
+    .app-card {
+      background: white;
+      border-radius: 16px;
+      padding: 2.5rem;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+      transition: all 0.3s;
+      text-decoration: none;
+      color: #1a1a1a;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 15px 50px rgba(0, 0, 0, 0.25);
+    }
+
+    .app-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .app-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+
+    .app-description {
+      color: #666;
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
+      flex: 1;
+    }
+
+    .app-features {
+      list-style: none;
+      margin-bottom: 1.5rem;
+    }
+
+    .app-features li {
+      font-size: 0.875rem;
+      color: #666;
+      margin-bottom: 0.5rem;
+      padding-left: 1.5rem;
+      position: relative;
+    }
+
+    .app-features li:before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: #10b981;
+      font-weight: bold;
+    }
+
+    .app-button {
+      background: #3b82f6;
+      color: white;
+      padding: 0.875rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 600;
+      text-align: center;
+      transition: all 0.2s;
+      border: none;
+      cursor: pointer;
+    }
+
+    .app-button:hover {
+      background: #2563eb;
+    }
+
+    .app-card.prototype .app-button {
+      background: #10b981;
+    }
+
+    .app-card.prototype .app-button:hover {
+      background: #059669;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      background: #10b981;
+      color: white;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+
+    .footer {
+      text-align: center;
+      color: white;
+      margin-top: 3rem;
+      opacity: 0.85;
+    }
+
+    .footer a {
+      color: white;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+    }
+
+    .footer a:hover {
+      border-bottom-color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">ACE</div>
+      <div class="tagline">Governed Workforce Runtime</div>
+      <div class="subtitle">Accelerate regulated workflows without automating accountability</div>
+    </div>
+
+    <div class="apps-grid">
+      <!-- BD Workforce App -->
+      <a href="/bd.html" class="app-card prototype">
+        <span class="badge">NEW - Ready to Demo</span>
+        <div class="app-icon">🎯</div>
+        <h2 class="app-title">BD RFP Pipeline</h2>
+        <p class="app-description">
+          Business Development workflow for government RFP qualification.
+          Analyze 30 RFPs in 15 minutes with full audit trails.
+        </p>
+        <ul class="app-features">
+          <li>Parallel opportunity qualification</li>
+          <li>Win probability scoring</li>
+          <li>Competitive intelligence</li>
+          <li>Evidence pack generation</li>
+          <li>$2.43M annual ROI</li>
+        </ul>
+        <button class="app-button">Launch BD Dashboard →</button>
+      </a>
+
+      <!-- Original VA Claims App -->
+      <a href="/index.html" class="app-card">
+        <div class="app-icon">📋</div>
+        <h2 class="app-title">VA Claims Processing</h2>
+        <p class="app-description">
+          Agentic workforce for VA disability claims document processing
+          with MAI governance and human-in-the-loop oversight.
+        </p>
+        <ul class="app-features">
+          <li>Document evidence extraction</li>
+          <li>Quality assurance validation</li>
+          <li>Automated report generation</li>
+          <li>NIST AI RMF compliant</li>
+          <li>Immutable audit trail</li>
+        </ul>
+        <button class="app-button">Launch VA Workflow →</button>
+      </a>
+    </div>
+
+    <div class="footer">
+      <p>
+        <strong>Documentation:</strong>
+        <a href="/docs/BD-Reference-Implementation.md">BD Guide</a> •
+        <a href="/docs/ACE-Platform-Positioning.md">Platform Overview</a> •
+        <a href="/MAI-Pattern-Whitepaper.md">MAI Pattern</a>
+      </p>
+      <p style="margin-top: 1rem; font-size: 0.875rem;">
+        ACE Governance Platform v1.0.0-prototype
+      </p>
+    </div>
+  </div>
+</body>
+</html>

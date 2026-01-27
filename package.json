@@ -1,0 +1,30 @@
+{
+  "name": "ace-governance-platform",
+  "private": true,
+  "version": "1.0.0-prototype",
+  "type": "module",
+  "description": "Governed AI workforce orchestration for regulated environments",
+  "author": "William J. Storey III",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "quicktest": "tsx quicktest.ts",
+    "demo:bd": "tsx examples/bdWorkforceDemo.ts complete"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.0",
+    "lucide-react": "^0.562.0",
+    "playwright": "^1.41.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "recharts": "^3.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}

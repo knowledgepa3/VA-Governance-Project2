@@ -1,0 +1,56 @@
+# ACE Governance Platform - Production Overrides
+#
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# IMPORTANT: Set all environment variables in .env.production
+# =============================================================================
+
+version: '3.8'
+
+services:
+  ace-server:
+    # Use pre-built image in production (or build fresh)
+    # image: your-registry/ace-governance:latest
+
+    restart: always
+
+    environment:
+      - NODE_ENV=production
+      - COMPLIANCE_LEVEL=production
+      - LOG_LEVEL=WARN
+
+      # CRITICAL: These MUST be set in .env.production
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ISSUER=${JWT_ISSUER}
+      - JWT_AUDIENCE=${JWT_AUDIENCE}
+      - CORS_ORIGIN=${CORS_ORIGIN}
+
+    # Production logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+    # Stricter resource limits for production
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+
+    # Drop all capabilities except what's needed
+    cap_drop:
+      - ALL

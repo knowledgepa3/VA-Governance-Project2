@@ -1,0 +1,140 @@
+{
+  "$schema": "https://ace-governance.com/schemas/playbook-v1.0.json",
+  "id": "candidate-screening",
+  "name": "Candidate Background Screening",
+  "description": "Research candidate background, verify credentials, check public records, compile screening report",
+  "industry": "Human Resources",
+  "jobRole": "Recruiter / HR Specialist",
+  "version": "1.0.0",
+  "riskLevel": "high",
+  "defaultClassification": "ADVISORY",
+  "tags": ["hr", "recruiting", "screening", "background-check"],
+
+  "_compliance_warning": "⚠️ HIGH-RISK PLAYBOOK: This playbook processes personal data and affects employment decisions. Requires: (1) Candidate consent, (2) FCRA compliance for U.S., (3) GDPR lawful basis for EU, (4) Human attestation before use, (5) Audit trail retention.",
+
+  "complianceBoundaries": {
+    "noAuthentication": true,
+    "noCaptcha": true,
+    "noFinalSubmission": true,
+    "requiresConsent": true,
+    "requiresAttestation": true,
+    "lawfulBasis": "Consent - Candidate has provided explicit consent for background screening as part of employment application",
+    "dataClassification": "confidential",
+    "retentionPolicy": "Compliance with FCRA/GDPR - check local regulations"
+  },
+
+  "domainPolicy": {
+    "allowedDomains": ["linkedin.com", "*.edu", "*.gov", "public-records-approved-sources.com"],
+    "blockedDomains": ["*.social-media.com"],
+    "requireApprovalFor": ["*.gov"]
+  },
+
+  "evidenceRequirements": [
+    {
+      "id": "consent-record",
+      "type": "document",
+      "required": true,
+      "description": "Proof of candidate consent for background check",
+      "format": "pdf"
+    },
+    {
+      "id": "verification-results",
+      "type": "data",
+      "required": true,
+      "description": "Structured verification results with sources",
+      "format": "json"
+    },
+    {
+      "id": "screening-report",
+      "type": "report",
+      "required": true,
+      "description": "Final screening report for hiring manager",
+      "format": "pdf"
+    }
+  ],
+
+  "attestations": [
+    {
+      "id": "consent-obtained",
+      "prompt": "I attest that candidate consent has been obtained and documented per FCRA/GDPR requirements",
+      "required": true
+    },
+    {
+      "id": "lawful-basis",
+      "prompt": "I attest that I have lawful basis to conduct this background screening",
+      "required": true
+    },
+    {
+      "id": "approved-sources",
+      "prompt": "I attest that only approved and lawful public record sources will be used",
+      "required": true
+    }
+  ],
+  "variables": [
+    {
+      "name": "CANDIDATE_NAME",
+      "description": "Full name of candidate",
+      "required": true
+    },
+    {
+      "name": "LINKEDIN_URL",
+      "description": "LinkedIn profile URL",
+      "required": false
+    },
+    {
+      "name": "POSITION",
+      "description": "Position being hired for",
+      "required": true
+    }
+  ],
+  "steps": [
+    {
+      "id": "linkedin-profile",
+      "instruction": "Navigate to LinkedIn profile ${LINKEDIN_URL} and verify: employment history, education, skills, recommendations",
+      "expectedOutcome": "Profile information extracted",
+      "classification": "INFORMATIONAL",
+      "maxRetries": 2,
+      "conditions": {
+        "skipIf": "LINKEDIN_URL is empty"
+      }
+    },
+    {
+      "id": "education-verify",
+      "instruction": "Navigate to listed universities and verify degree/attendance if public records available",
+      "expectedOutcome": "Education verification status",
+      "classification": "ADVISORY"
+    },
+    {
+      "id": "professional-licenses",
+      "instruction": "Check relevant professional licensing boards for active licenses (if applicable to ${POSITION})",
+      "expectedOutcome": "License status confirmed",
+      "classification": "ADVISORY"
+    },
+    {
+      "id": "public-records",
+      "instruction": "Search public court records databases for ${CANDIDATE_NAME} (criminal, civil cases)",
+      "expectedOutcome": "Public records summary",
+      "classification": "MANDATORY"
+    },
+    {
+      "id": "social-media-public",
+      "instruction": "Review publicly available social media for professionalism red flags (public posts only, no login)",
+      "expectedOutcome": "Social media assessment",
+      "classification": "ADVISORY"
+    },
+    {
+      "id": "employment-gaps",
+      "instruction": "Analyze employment history timeline for gaps > 6 months",
+      "expectedOutcome": "Timeline analysis with flagged gaps",
+      "classification": "INFORMATIONAL"
+    },
+    {
+      "id": "generate-report",
+      "instruction": "Generate screening report: verification summary, flags/concerns, recommendation (proceed/review/reject)",
+      "expectedOutcome": "Structured screening report for hiring manager",
+      "classification": "MANDATORY"
+    }
+  ],
+  "requiredExtensions": ["resume-parser", "linkedin-connector", "public-records-api"],
+  "estimatedDuration": "10-15 minutes"
+}

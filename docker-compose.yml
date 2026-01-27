@@ -1,0 +1,133 @@
+# ACE Governance Platform - Docker Compose
+#
+# Usage:
+#   Development:  docker-compose up
+#   Production:   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# =============================================================================
+
+version: '3.8'
+
+services:
+  # ===========================================================================
+  # ACE Governance API Server
+  # ===========================================================================
+  ace-server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: ace-governance-api
+    restart: unless-stopped
+
+    ports:
+      - "${PORT:-3001}:3001"
+
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=3001
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - COMPLIANCE_LEVEL=${COMPLIANCE_LEVEL:-development}
+
+      # Security - CHANGE THESE IN PRODUCTION
+      - JWT_SECRET=${JWT_SECRET:-CHANGE_ME_IN_PRODUCTION_minimum_32_chars}
+      - JWT_ISSUER=${JWT_ISSUER:-ace-governance}
+      - JWT_AUDIENCE=${JWT_AUDIENCE:-ace-platform}
+
+      # CORS - Set to your frontend URL in production
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
+
+      # Audit storage
+      - AUDIT_STORE_PATH=/app/audit_logs
+      - POLICY_VERSION=${POLICY_VERSION:-2024.1.0}
+
+      # Key management (local provider for now)
+      - KEY_PROVIDER=local
+
+      # Optional: Rate limit bypass for development
+      - RATE_LIMIT_BYPASS_KEY=${RATE_LIMIT_BYPASS_KEY:-}
+
+    volumes:
+      # Persist audit logs
+      - ace-audit-logs:/app/audit_logs
+      # Persist data
+      - ace-data:/app/data
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # Security: Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+    # Security: Read-only root filesystem where possible
+    read_only: false  # Need write for audit logs
+
+    # Security: No new privileges
+    security_opt:
+      - no-new-privileges:true
+
+  # ===========================================================================
+  # Optional: Redis for session/rate-limit storage (Phase 2)
+  # ===========================================================================
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: ace-redis
+  #   restart: unless-stopped
+  #   command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-changeme}
+  #   volumes:
+  #     - ace-redis-data:/data
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.5'
+  #         memory: 128M
+
+  # ===========================================================================
+  # Optional: PostgreSQL for structured data (Phase 2)
+  # ===========================================================================
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: ace-postgres
+  #   restart: unless-stopped
+  #   environment:
+  #     - POSTGRES_USER=${POSTGRES_USER:-ace}
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+  #     - POSTGRES_DB=${POSTGRES_DB:-ace_governance}
+  #   volumes:
+  #     - ace-postgres-data:/var/lib/postgresql/data
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1'
+  #         memory: 256M
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  ace-audit-logs:
+    driver: local
+  ace-data:
+    driver: local
+  # ace-redis-data:
+  #   driver: local
+  # ace-postgres-data:
+  #   driver: local
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  default:
+    name: ace-network
+    driver: bridge

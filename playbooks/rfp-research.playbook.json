@@ -1,0 +1,115 @@
+{
+  "$schema": "https://ace-governance.com/schemas/playbook-v1.0.json",
+  "id": "rfp-research",
+  "name": "RFP Research & Analysis",
+  "description": "Research government RFPs on SAM.gov, extract requirements, assess organizational fit",
+  "industry": "Procurement",
+  "jobRole": "Procurement Specialist",
+  "version": "1.0.0",
+  "riskLevel": "low",
+  "defaultClassification": "ADVISORY",
+  "tags": ["rfp", "research", "procurement", "government", "sam.gov"],
+
+  "complianceBoundaries": {
+    "noAuthentication": true,
+    "noCaptcha": true,
+    "noFinalSubmission": true,
+    "requiresConsent": false,
+    "requiresAttestation": false,
+    "dataClassification": "public",
+    "retentionPolicy": "30 days"
+  },
+
+  "domainPolicy": {
+    "allowedDomains": ["sam.gov", "beta.sam.gov", "*.sam.gov"],
+    "blockedDomains": [],
+    "requireApprovalFor": []
+  },
+
+  "evidenceRequirements": [
+    {
+      "id": "rfp-metadata",
+      "type": "data",
+      "required": true,
+      "description": "Structured RFP metadata (solicitation number, agency, deadline, etc.)",
+      "format": "json"
+    },
+    {
+      "id": "rfp-documents",
+      "type": "document",
+      "required": true,
+      "description": "Downloaded RFP PDFs and attachments",
+      "format": "pdf"
+    },
+    {
+      "id": "fit-assessment",
+      "type": "report",
+      "required": true,
+      "description": "Generated opportunity assessment memo",
+      "format": "markdown"
+    }
+  ],
+  "variables": [
+    {
+      "name": "RFP_NUMBER",
+      "description": "RFP/Solicitation Number (e.g., 140D0423R0003)",
+      "required": true
+    },
+    {
+      "name": "AGENCY",
+      "description": "Government Agency Name",
+      "required": false,
+      "default": "All Agencies"
+    }
+  ],
+  "steps": [
+    {
+      "id": "navigate-sam",
+      "instruction": "Navigate to SAM.gov contract opportunities search",
+      "expectedOutcome": "On SAM.gov search page",
+      "classification": "INFORMATIONAL",
+      "maxRetries": 3,
+      "timeout": 30000
+    },
+    {
+      "id": "search-rfp",
+      "instruction": "Search for solicitation number ${RFP_NUMBER}",
+      "expectedOutcome": "RFP listing displayed with details",
+      "classification": "INFORMATIONAL",
+      "maxRetries": 2
+    },
+    {
+      "id": "extract-metadata",
+      "instruction": "Extract RFP metadata: title, agency, NAICS code, set-aside type, response deadline",
+      "expectedOutcome": "Structured metadata captured",
+      "classification": "INFORMATIONAL"
+    },
+    {
+      "id": "download-documents",
+      "instruction": "Download all RFP attachments (solicitation PDF, amendments, Q&A)",
+      "expectedOutcome": "All documents downloaded to workspace",
+      "classification": "ADVISORY",
+      "maxRetries": 2
+    },
+    {
+      "id": "extract-requirements",
+      "instruction": "Parse solicitation document to extract: technical requirements, deliverables, evaluation criteria, budget range",
+      "expectedOutcome": "Requirements extracted to structured format",
+      "classification": "INFORMATIONAL"
+    },
+    {
+      "id": "check-past-performance",
+      "instruction": "Search for past awards to this agency for similar NAICS codes",
+      "expectedOutcome": "List of comparable past awards with values",
+      "classification": "INFORMATIONAL"
+    },
+    {
+      "id": "generate-memo",
+      "instruction": "Generate 'Opportunity Assessment Memo' with: fit score, key requirements, competitive landscape, recommended next steps",
+      "expectedOutcome": "Formatted memo ready for human review",
+      "classification": "ADVISORY"
+    }
+  ],
+  "requiredExtensions": ["pdf-processor", "spreadsheet-extractor", "sam-connector"],
+  "estimatedDuration": "8-12 minutes"
+}
