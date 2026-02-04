@@ -385,6 +385,118 @@ Integrity: VERIFIED | Autonomy: ASSISTED | Confidence: HIGH | Drift: CLEAN
 
 ---
 
+## Productivity Protocol (Maximize Output Per Prompt)
+
+### The Philosophy
+Each prompt has a cost. Maximize the work done before the next prompt. Don't stop at "task complete" — push to the natural boundary of what can be accomplished.
+
+### How to Work
+
+**1. Batch Related Work**
+Don't do one file at a time. If a change touches multiple files, do them all:
+```
+❌ "I'll update console.html" → wait for approval → "Now I'll update vercel.json"
+✅ "I'll update console.html, vercel.json, and vite.config.ts together"
+```
+
+**2. Complete the Full Arc**
+Don't stop at implementation. Push through to verification:
+```
+❌ "I've added the feature" (done)
+✅ "I've added the feature, verified the build, checked for secrets, and committed"
+```
+
+**3. Anticipate the Next Step**
+If you know what's coming next, do it:
+```
+❌ "Feature complete. Let me know if you want me to add tests."
+✅ "Feature complete. I've also added the evidence emission and updated the instruction pack."
+```
+
+**4. Chain Dependent Operations**
+Use `&&` to chain operations that must succeed together:
+```bash
+# Do this — all or nothing
+npm run build && grep -r "sk-ant" dist/ && git add . && git commit -m "message"
+
+# Not this — stops after each
+npm run build
+# wait
+grep -r "sk-ant" dist/
+# wait
+git add .
+```
+
+**5. Parallel Independent Operations**
+When tasks don't depend on each other, run them in parallel:
+```
+✅ Read 3 files simultaneously to understand context
+✅ Run multiple grep searches at once
+✅ Commit code while build runs in background
+```
+
+### Work Boundaries (When to Stop)
+
+**Natural stopping points:**
+- Security check needed (secrets, PII, gates)
+- Architectural decision required (which layer? which pattern?)
+- Human approval gate (MANDATORY classification)
+- Ambiguous requirements (ask, don't assume)
+
+**NOT stopping points:**
+- "That's one file done" (do related files too)
+- "Feature works" (verify build, check security, commit)
+- "I could do more but..." (do more)
+
+### Task Completion Checklist
+
+Before saying "done", verify:
+- [ ] All related files updated
+- [ ] Build passes
+- [ ] Security check run (no secrets in output)
+- [ ] Evidence capture added (if applicable)
+- [ ] DEMO mode works
+- [ ] Changes committed with descriptive message
+- [ ] Pushed to remote (if requested)
+
+### Example: Full-Arc Execution
+
+**User says:** "Add a drift indicator to the console"
+
+**Partial response (wasteful):**
+```
+"I've added the drift indicator to console.html. Let me know if you want me to
+add the CSS and JavaScript."
+```
+
+**Full-arc response (efficient):**
+```
+"Done. I've:
+1. Added drift indicator HTML to governance banner
+2. Added CSS for drift states (CLEAN/POLICY CHANGED/INVALIDATED)
+3. Added setDrift() JavaScript function
+4. Added drift pulse animation for warnings
+5. Updated the instruction pack to document drift behavior
+6. Verified build passes
+7. Checked no secrets in output
+8. Committed all changes
+
+The indicator shows CLEAN (green) by default, pulses yellow on POLICY CHANGED,
+and turns red on INVALIDATED."
+```
+
+### Productivity Metrics
+
+Track (mentally) per session:
+- Files touched per prompt
+- Commits per session
+- Features fully completed vs partially started
+- Security checks run vs skipped
+
+**Target:** Each prompt should complete a full arc, not start multiple partial arcs.
+
+---
+
 ## Innovation Opportunities
 
 ### Where GIA Can Grow
@@ -416,6 +528,10 @@ DEMO CHECK:      if (GIA.isDemoMode) return
 EVIDENCE CHECK:  hash + timestamp + source + negativeAssurance
 CAPSULE CHECK:   version + TTL + inputHash + lastValidated
 SECURITY CHECK:  npm run build && grep -r "sk-ant\|apiKey=" dist/
+
+PRODUCTIVITY:    Push each task to its natural boundary before moving on
+                 Batch related files | Complete full arcs | Verify + commit
+                 Don't stop at "works" — stop at "done, verified, shipped"
 ```
 
 ---

@@ -5,6 +5,15 @@ You are working on GIA — governed AI execution middleware.
 
 CORE TRUTH: Evidence over output. If you can't prove it happened correctly, it didn't.
 
+PRODUCTIVITY PROTOCOL:
+- Push each task to its NATURAL BOUNDARY before stopping
+- Batch related files — don't do one at a time
+- Complete full arcs: implement → verify build → check security → commit
+- Chain dependent operations: cmd1 && cmd2 && cmd3
+- Parallelize independent operations
+- Don't stop at "works" — stop at "done, verified, shipped"
+- If you know the next step, do it
+
 LAYERS (never mix):
 - UI: Display only, no secrets, no execution
 - Workflow: Orchestration, not decisions
@@ -24,9 +33,19 @@ WHEN CODING:
 - Sandbox paths: demo/artifacts/[hash]-*
 - Redact PII: demo-user@███████
 
-VERIFY:
-npm run build
-grep -r "sk-ant\|apiKey=\|C:\\Users" dist/  # Should find nothing
+AFTER CODING (do all of these):
+- Verify build passes
+- Run security check: grep -r "sk-ant\|apiKey=" dist/
+- Commit with descriptive message
+- Push if requested
+
+TASK COMPLETE MEANS:
+✓ All related files updated
+✓ Build passes
+✓ Security verified
+✓ Evidence capture added
+✓ DEMO mode works
+✓ Committed
 
 CAPSULES = Institutional memory, not cache
 - Reuse saves cost + time WITHOUT losing audit trail
@@ -38,6 +57,17 @@ GATES are load-bearing:
 - ADVISORY: Logs and proceeds
 - INFORMATIONAL: Audit only
 Never downgrade to ship faster.
+
+STOP ONLY WHEN:
+- Security decision needed
+- Architectural choice required
+- Human approval gate hit
+- Requirements ambiguous
+
+DON'T STOP BECAUSE:
+- "One file done" (do related files)
+- "Feature works" (verify + commit)
+- "Could do more but..." (do more)
 
 ONE-LINER: GIA doesn't make AI smarter. It makes AI provable.
 ```
