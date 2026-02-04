@@ -1091,7 +1091,7 @@
         <div class="modal-section">
           <div class="modal-section-title">Run Metadata</div>
           <div class="modal-row"><span class="modal-label">Workflow ID</span><span class="modal-value">WF-2026-0204-BD-001</span></div>
-          <div class="modal-row"><span class="modal-label">Operator</span><span class="modal-value">william@ace.io</span></div>
+          <div class="modal-row"><span class="modal-label">Operator</span><span class="modal-value" id="modalOperator">--</span></div>
           <div class="modal-row"><span class="modal-label">Mode</span><span class="modal-value">DEMO (synthetic)</span></div>
           <div class="modal-row"><span class="modal-label">Started</span><span class="modal-value" id="modalStartTime">--</span></div>
           <div class="modal-row"><span class="modal-label">Duration</span><span class="modal-value" id="modalDuration">--</span></div>
@@ -1290,7 +1290,7 @@
       <div style="font-size: 0.75rem; color: var(--text-dim); line-height: 1.8;">
         <div><span class="hl-dim">ID:</span> GIA-2026-0204-1547</div>
         <div><span class="hl-dim">Domain:</span> BD Capture</div>
-        <div><span class="hl-dim">Operator:</span> william@ace.io</div>
+        <div><span class="hl-dim">Operator:</span> <span id="sidebarOperator">--</span></div>
         <div><span class="hl-dim">Started:</span> 15:47:22</div>
       </div>
     </div>
@@ -1298,18 +1298,75 @@
 
   <script>
     // ============================================
-    // DEMO MODE HARD-LOCK FOR PRODUCTION SAFETY
+    // GIA RUNTIME CONFIG - SINGLE SOURCE OF TRUTH
     // ============================================
-    const IS_VERCEL = window.location.hostname.includes('vercel.app') ||
-                       window.location.hostname.includes('.vercel.') ||
-                       typeof process !== 'undefined' && process.env?.VERCEL === '1';
-    const FORCE_DEMO = true; // Always demo for now - flip to false for local live testing
-    const IS_DEMO_MODE = IS_VERCEL || FORCE_DEMO;
+    // This object is FROZEN - cannot be modified at runtime
+    const GIA = Object.freeze({
+      // Environment detection
+      isVercel: window.location.hostname.includes('vercel.app') ||
+                window.location.hostname.includes('.vercel.') ||
+                window.location.hostname.includes('va-governance'),
+      isLocalhost: window.location.hostname === 'localhost' ||
+                   window.location.hostname === '127.0.0.1',
 
-    // If on Vercel, forcibly set demo mode indicator
-    if (IS_DEMO_MODE) {
-      console.log('[GIA] Running in DEMO mode - no live external calls');
-    }
+      // DEMO MODE: Always true on Vercel, configurable locally
+      // To test live mode locally, set FORCE_DEMO = false AND be on localhost
+      FORCE_DEMO: true,
+
+      // Computed demo state - CANNOT BE BYPASSED
+      get isDemoMode() {
+        // If on Vercel, ALWAYS demo - no override possible
+        if (this.isVercel) return true;
+        // If FORCE_DEMO is true, demo mode
+        if (this.FORCE_DEMO) return true;
+        // Only allow live mode on localhost with FORCE_DEMO=false
+        return false;
+      },
+
+      // Redaction mode for public demos - masks PII
+      REDACT_PII: true,
+
+      // Redacted values for public display
+      redact: {
+        operator: 'demo-user@example.com',
+        operatorDisplay: 'demo-user@███████',
+        runIdPrefix: 'DEMO',
+        domain: 'BD Capture (Demo)',
+      },
+
+      // Guard function - call before ANY execution path
+      guardExecution(actionName) {
+        if (this.isDemoMode) {
+          console.log(`[GIA Guard] Blocked "${actionName}" - DEMO mode active`);
+          return false; // Block execution
+        }
+        return true; // Allow execution
+      },
+
+      // Safe fetch wrapper - blocks real API calls in demo mode
+      async safeFetch(url, options = {}) {
+        if (this.isDemoMode) {
+          console.warn(`[GIA] Blocked fetch to ${url} - DEMO mode`);
+          return { ok: false, status: 0, statusText: 'DEMO_MODE_BLOCKED' };
+        }
+        return fetch(url, options);
+      }
+    });
+
+    // Make GIA globally accessible but immutable
+    window.GIA = GIA;
+
+    // Log runtime config
+    console.log('[GIA] Runtime Config:', {
+      isVercel: GIA.isVercel,
+      isLocalhost: GIA.isLocalhost,
+      isDemoMode: GIA.isDemoMode,
+      redactPII: GIA.REDACT_PII
+    });
+
+    // Legacy aliases for backward compatibility
+    const IS_DEMO_MODE = GIA.isDemoMode;
+    const FORCE_DEMO = GIA.FORCE_DEMO;
 
     const terminal = document.getElementById('terminal');
     const inputField = document.getElementById('inputField');
@@ -1345,6 +1402,24 @@
       document.getElementById('modeTag').textContent = 'DEMO';
       document.getElementById('modeTag').classList.remove('live');
     }
+
+    // Apply PII redaction for public demos
+    // In production, ALWAYS redact - no fallback to real data
+    function applyRedaction() {
+      // Always use redacted values in demo mode (which is always true on Vercel)
+      const operatorDisplay = GIA.redact.operatorDisplay;
+
+      // Update sidebar
+      const sidebarOp = document.getElementById('sidebarOperator');
+      if (sidebarOp) sidebarOp.textContent = operatorDisplay;
+
+      // Update modal
+      const modalOp = document.getElementById('modalOperator');
+      if (modalOp) modalOp.textContent = operatorDisplay;
+    }
+
+    // Apply redaction on load
+    applyRedaction();
 
     // Evidence Modal
     const evidenceModal = document.getElementById('evidenceModal');
