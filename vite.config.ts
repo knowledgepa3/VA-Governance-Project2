@@ -75,6 +75,7 @@ export default defineConfig(({ mode }) => {
           input: {
             main: path.resolve(__dirname, 'index-landing.html'),
             demo: path.resolve(__dirname, 'demo-landing.html'),
+            onboarding: path.resolve(__dirname, 'onboarding.html'),
             bd: path.resolve(__dirname, 'bd.html'),
             va: path.resolve(__dirname, 'index.html')
           }

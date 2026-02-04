@@ -5,6 +5,9 @@
   "rewrites": [
     { "source": "/demo", "destination": "/demo-landing.html" },
     { "source": "/", "destination": "/demo-landing.html" },
+    { "source": "/onboarding", "destination": "/onboarding.html" },
+    { "source": "/setup", "destination": "/onboarding.html" },
+    { "source": "/get-started", "destination": "/onboarding.html" },
     { "source": "/app", "destination": "/index-landing.html" },
     { "source": "/bd", "destination": "/bd.html" }
   ]
