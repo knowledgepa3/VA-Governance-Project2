@@ -12,6 +12,8 @@
     { "source": "/setup", "destination": "/onboarding.html" },
     { "source": "/get-started", "destination": "/onboarding.html" },
     { "source": "/app", "destination": "/index-landing.html" },
+    { "source": "/console", "destination": "/console.html" },
+    { "source": "/run", "destination": "/console.html" },
     { "source": "/bd", "destination": "/bd.html" }
   ]
 }

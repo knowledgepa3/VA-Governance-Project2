@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GIA Console | Governed AI Terminal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d0d0d;
+      --bg-secondary: #141414;
+      --bg-tertiary: #1a1a1a;
+      --border: #2a2a2a;
+      --text: #e4e4e7;
+      --text-dim: #71717a;
+      --text-bright: #fafafa;
+      --accent: #8b5cf6;
+      --accent-dim: #7c3aed;
+      --green: #22c55e;
+      --green-dim: #16a34a;
+      --yellow: #eab308;
+      --red: #ef4444;
+      --blue: #3b82f6;
+      --cyan: #06b6d4;
+      --orange: #f97316;
+      --pink: #ec4899;
+
+      --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+      --font-sans: 'Inter', -apple-system, sans-serif;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: var(--font-mono);
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    .header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 0.6rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--text-bright);
+    }
+
+    .logo-icon {
+      width: 24px;
+      height: 24px;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--green) 100%);
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+    }
+
+    .workflow-tag {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      background: var(--bg-tertiary);
+      padding: 0.3rem 0.6rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.7rem;
+      padding: 0.3rem 0.6rem;
+      border-radius: 12px;
+      font-weight: 500;
+    }
+
+    .status-pill.running {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--green);
+    }
+
+    .status-pill.paused {
+      background: rgba(234, 179, 8, 0.15);
+      color: var(--yellow);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .status-pill.running .status-dot {
+      animation: blink 1s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .header-btn {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      padding: 0.4rem 0.7rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .header-btn:hover {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    .header-btn.danger {
+      border-color: rgba(239, 68, 68, 0.3);
+      color: var(--red);
+    }
+
+    .header-btn.danger:hover {
+      background: rgba(239, 68, 68, 0.15);
+    }
+
+    /* Main Terminal */
+    .terminal-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .terminal {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem 1.5rem;
+      padding-bottom: 0;
+      scroll-behavior: smooth;
+    }
+
+    .terminal::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .terminal::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .terminal::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    /* Terminal Lines */
+    .line {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 0.15rem;
+      line-height: 1.6;
+      font-size: 0.9rem;
+    }
+
+    .line-prefix {
+      color: var(--text-dim);
+      user-select: none;
+      flex-shrink: 0;
+      min-width: 20px;
+    }
+
+    .line-content {
+      flex: 1;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* Line Types */
+    .line.system .line-prefix { color: var(--accent); }
+    .line.system .line-content { color: var(--text-dim); }
+
+    .line.step .line-prefix { color: var(--green); }
+    .line.step .line-content { color: var(--text); }
+
+    .line.output .line-prefix { color: var(--text-dim); }
+    .line.output .line-content { color: var(--text-dim); }
+
+    .line.success .line-prefix { color: var(--green); }
+    .line.success .line-content { color: var(--green); }
+
+    .line.warning .line-prefix { color: var(--yellow); }
+    .line.warning .line-content { color: var(--yellow); }
+
+    .line.error .line-prefix { color: var(--red); }
+    .line.error .line-content { color: var(--red); }
+
+    .line.gate .line-prefix { color: var(--cyan); }
+    .line.gate .line-content { color: var(--cyan); }
+
+    .line.human .line-prefix { color: var(--orange); }
+    .line.human .line-content { color: var(--text-bright); font-weight: 500; }
+
+    .line.ai .line-prefix { color: var(--accent); }
+    .line.ai .line-content { color: var(--text); }
+
+    /* Highlights */
+    .hl-green { color: var(--green); }
+    .hl-yellow { color: var(--yellow); }
+    .hl-red { color: var(--red); }
+    .hl-blue { color: var(--blue); }
+    .hl-cyan { color: var(--cyan); }
+    .hl-accent { color: var(--accent); }
+    .hl-pink { color: var(--pink); }
+    .hl-orange { color: var(--orange); }
+    .hl-dim { color: var(--text-dim); }
+    .hl-bright { color: var(--text-bright); font-weight: 600; }
+
+    /* Blocks */
+    .block {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin: 0.75rem 0;
+      overflow: hidden;
+    }
+
+    .block-header {
+      background: var(--bg-tertiary);
+      padding: 0.5rem 0.75rem;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .block-content {
+      padding: 0.75rem;
+      font-size: 0.85rem;
+    }
+
+    .block-content pre {
+      margin: 0;
+      white-space: pre-wrap;
+    }
+
+    /* Evidence Badge */
+    .evidence-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      background: rgba(139, 92, 246, 0.15);
+      color: var(--accent);
+      font-size: 0.7rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 3px;
+      margin-left: 0.5rem;
+    }
+
+    /* Progress Indicator */
+    .progress-line {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 1rem 0;
+      padding: 0.75rem 1rem;
+      background: var(--bg-secondary);
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    .progress-bar {
+      flex: 1;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--green) 100%);
+      transition: width 0.3s ease;
+    }
+
+    .progress-text {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    /* Typing Cursor */
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 1.1em;
+      background: var(--accent);
+      margin-left: 2px;
+      animation: cursor-blink 1s step-end infinite;
+      vertical-align: text-bottom;
+    }
+
+    @keyframes cursor-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    /* Spacer */
+    .spacer {
+      height: 0.75rem;
+    }
+
+    /* Input Area */
+    .input-area {
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      padding: 1rem 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .input-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+
+    .input-prefix {
+      color: var(--orange);
+      font-weight: 600;
+      padding-top: 0.6rem;
+      user-select: none;
+    }
+
+    .input-wrapper {
+      flex: 1;
+      position: relative;
+    }
+
+    .input-field {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.6rem 0.85rem;
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      color: var(--text-bright);
+      resize: none;
+      min-height: 42px;
+      max-height: 200px;
+      line-height: 1.5;
+      transition: all 0.15s;
+    }
+
+    .input-field:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+    }
+
+    .input-field::placeholder {
+      color: var(--text-dim);
+    }
+
+    .input-hint {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      margin-top: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .input-hint kbd {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      padding: 0.1rem 0.4rem;
+      border-radius: 3px;
+      font-size: 0.65rem;
+    }
+
+    /* Governance Sidebar (collapsible) */
+    .sidebar-toggle {
+      position: fixed;
+      right: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 32px;
+      height: 80px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-right: none;
+      border-radius: 6px 0 0 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      transition: all 0.15s;
+      z-index: 100;
+    }
+
+    .sidebar-toggle:hover {
+      background: var(--bg-tertiary);
+      color: var(--text);
+    }
+
+    .sidebar {
+      position: fixed;
+      right: -280px;
+      top: 0;
+      bottom: 0;
+      width: 280px;
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border);
+      padding: 1rem;
+      transition: right 0.3s ease;
+      z-index: 99;
+      overflow-y: auto;
+    }
+
+    .sidebar.open {
+      right: 0;
+    }
+
+    .sidebar-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .sidebar-title {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+      margin-bottom: 0.75rem;
+    }
+
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+      margin-bottom: 0.4rem;
+      font-size: 0.8rem;
+    }
+
+    .sidebar-item-icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6rem;
+      flex-shrink: 0;
+    }
+
+    .sidebar-item-icon.pass { background: rgba(34, 197, 94, 0.2); color: var(--green); }
+    .sidebar-item-icon.pending { background: rgba(113, 113, 122, 0.2); color: var(--text-dim); }
+    .sidebar-item-icon.fail { background: rgba(239, 68, 68, 0.2); color: var(--red); }
+
+    .mai-tag {
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 0.2rem 0.4rem;
+      border-radius: 3px;
+    }
+
+    .mai-tag.advisory { background: rgba(234, 179, 8, 0.2); color: var(--yellow); }
+    .mai-tag.mandatory { background: rgba(239, 68, 68, 0.2); color: var(--red); }
+    .mai-tag.informational { background: rgba(59, 130, 246, 0.2); color: var(--blue); }
+
+    /* Mobile */
+    @media (max-width: 600px) {
+      .workflow-tag { display: none; }
+      .header-btn span { display: none; }
+      .terminal { padding: 0.75rem 1rem; }
+      .input-area { padding: 0.75rem 1rem; }
+      .sidebar-toggle { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">
+        <div class="logo-icon">G</div>
+        <span>GIA</span>
+      </div>
+      <div class="workflow-tag">federal-opportunity-search</div>
+      <div class="status-pill running" id="statusPill">
+        <span class="status-dot"></span>
+        <span id="statusText">running</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="header-btn" id="pauseBtn">
+        <span>pause</span> ⏸
+      </button>
+      <button class="header-btn danger" id="abortBtn">
+        <span>abort</span> ⛔
+      </button>
+      <button class="header-btn" id="helpBtn" title="Keyboard shortcuts">
+        ?
+      </button>
+    </div>
+  </header>
+
+  <!-- Terminal -->
+  <div class="terminal-container">
+    <div class="terminal" id="terminal"></div>
+
+    <!-- Input Area -->
+    <div class="input-area">
+      <div class="input-row">
+        <span class="input-prefix">you:</span>
+        <div class="input-wrapper">
+          <textarea
+            class="input-field"
+            id="inputField"
+            placeholder="interrupt, re-scope, or add constraints..."
+            rows="1"
+          ></textarea>
+        </div>
+      </div>
+      <div class="input-hint">
+        <span><kbd>Enter</kbd> send</span>
+        <span><kbd>Esc</kbd> clear</span>
+        <span class="hl-dim">|</span>
+        <span style="color: var(--green);">● input always active</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar Toggle -->
+  <div class="sidebar-toggle" id="sidebarToggle">◀</div>
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">Governance Status</div>
+      <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+        <span style="font-size: 0.8rem;">MAI Classification:</span>
+        <span class="mai-tag advisory">ADVISORY</span>
+      </div>
+      <div class="sidebar-item">
+        <div class="sidebar-item-icon pass">✓</div>
+        <span>Domain authorized</span>
+      </div>
+      <div class="sidebar-item">
+        <div class="sidebar-item-icon pass">✓</div>
+        <span>Cost: $0.14 / $5.00</span>
+      </div>
+      <div class="sidebar-item">
+        <div class="sidebar-item-icon pass">✓</div>
+        <span>Data classification</span>
+      </div>
+      <div class="sidebar-item">
+        <div class="sidebar-item-icon pending">○</div>
+        <span style="color: var(--text-dim);">Output review</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Evidence Pack</div>
+      <div class="sidebar-item">
+        <span>📸</span>
+        <span>3 screenshots</span>
+      </div>
+      <div class="sidebar-item">
+        <span>🔗</span>
+        <span>2 API calls logged</span>
+      </div>
+      <div class="sidebar-item">
+        <span>💬</span>
+        <span>0 interrupts</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Run Info</div>
+      <div style="font-size: 0.75rem; color: var(--text-dim); line-height: 1.8;">
+        <div><span class="hl-dim">ID:</span> GIA-2026-0204-1547</div>
+        <div><span class="hl-dim">Domain:</span> BD Capture</div>
+        <div><span class="hl-dim">Operator:</span> william@ace.io</div>
+        <div><span class="hl-dim">Started:</span> 15:47:22</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const terminal = document.getElementById('terminal');
+    const inputField = document.getElementById('inputField');
+    const statusPill = document.getElementById('statusPill');
+    const statusText = document.getElementById('statusText');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+
+    let isPaused = false;
+    let interruptCount = 0;
+
+    // Toggle sidebar
+    sidebarToggle.addEventListener('click', () => {
+      sidebar.classList.toggle('open');
+      sidebarToggle.textContent = sidebar.classList.contains('open') ? '▶' : '◀';
+    });
+
+    // Auto-resize textarea
+    inputField.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+    });
+
+    // Handle input
+    inputField.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        submitInput();
+      }
+    });
+
+    function submitInput() {
+      const text = inputField.value.trim();
+      if (!text) return;
+
+      interruptCount++;
+
+      // Add human line
+      addLine('human', 'you:', text);
+      addSpacer();
+
+      // Process interrupt
+      processInterrupt(text);
+
+      inputField.value = '';
+      inputField.style.height = 'auto';
+    }
+
+    function addLine(type, prefix, content, extras = '') {
+      const line = document.createElement('div');
+      line.className = `line ${type}`;
+      line.innerHTML = `
+        <span class="line-prefix">${prefix}</span>
+        <span class="line-content">${content}${extras}</span>
+      `;
+      terminal.appendChild(line);
+      scrollToBottom();
+    }
+
+    function addSpacer() {
+      const spacer = document.createElement('div');
+      spacer.className = 'spacer';
+      terminal.appendChild(spacer);
+    }
+
+    function addBlock(title, content) {
+      const block = document.createElement('div');
+      block.className = 'block';
+      block.innerHTML = `
+        <div class="block-header">${title}</div>
+        <div class="block-content"><pre>${content}</pre></div>
+      `;
+      terminal.appendChild(block);
+      scrollToBottom();
+    }
+
+    function addProgress(percent, text) {
+      const existing = terminal.querySelector('.progress-line');
+      if (existing) existing.remove();
+
+      const progress = document.createElement('div');
+      progress.className = 'progress-line';
+      progress.innerHTML = `
+        <span class="progress-text">${text}</span>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: ${percent}%"></div>
+        </div>
+        <span class="progress-text">${percent}%</span>
+      `;
+      terminal.appendChild(progress);
+      scrollToBottom();
+    }
+
+    function typeText(type, prefix, text, speed = 15) {
+      return new Promise(resolve => {
+        const line = document.createElement('div');
+        line.className = `line ${type}`;
+        const prefixSpan = document.createElement('span');
+        prefixSpan.className = 'line-prefix';
+        prefixSpan.textContent = prefix;
+        const contentSpan = document.createElement('span');
+        contentSpan.className = 'line-content';
+        const cursor = document.createElement('span');
+        cursor.className = 'cursor';
+
+        line.appendChild(prefixSpan);
+        line.appendChild(contentSpan);
+        contentSpan.appendChild(cursor);
+        terminal.appendChild(line);
+
+        let i = 0;
+        const interval = setInterval(() => {
+          if (i < text.length) {
+            contentSpan.insertBefore(document.createTextNode(text[i]), cursor);
+            i++;
+            scrollToBottom();
+          } else {
+            clearInterval(interval);
+            cursor.remove();
+            resolve();
+          }
+        }, speed);
+      });
+    }
+
+    function scrollToBottom() {
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    async function processInterrupt(text) {
+      // Update status
+      statusPill.className = 'status-pill paused';
+      statusText.textContent = 'processing';
+
+      await sleep(300);
+
+      // Show interrupt processing
+      await typeText('ai', 'gia:', `interrupt received. pausing workflow...`);
+      addSpacer();
+
+      await sleep(400);
+
+      // Log interrupt
+      addLine('gate', '⚡', `logged interrupt #${interruptCount} to evidence pack`,
+        `<span class="evidence-badge">📦 recorded</span>`);
+
+      await sleep(300);
+
+      // Re-evaluate
+      await typeText('ai', 'gia:', `re-evaluating governance with new constraint...`);
+
+      await sleep(500);
+
+      addLine('gate', '✓', `MAI classification unchanged: <span class="hl-yellow">ADVISORY</span>`);
+      addLine('gate', '✓', `gates re-validated. proceeding.`);
+
+      addSpacer();
+
+      // Resume with constraint
+      await typeText('ai', 'gia:', `applying constraint: "${text}"`);
+
+      await sleep(300);
+
+      await typeText('step', '→', `resuming search with updated parameters...`);
+
+      // Back to running
+      statusPill.className = 'status-pill running';
+      statusText.textContent = 'running';
+
+      addSpacer();
+
+      // Simulate continued work
+      await sleep(800);
+      await typeText('output', '  ', `filtering results...`);
+      await sleep(500);
+      addLine('success', '✓', `found <span class="hl-bright">12</span> opportunities matching updated criteria`);
+
+      addSpacer();
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // Pause button
+    pauseBtn.addEventListener('click', () => {
+      isPaused = !isPaused;
+      if (isPaused) {
+        statusPill.className = 'status-pill paused';
+        statusText.textContent = 'paused';
+        pauseBtn.innerHTML = '<span>resume</span> ▶';
+        addLine('warning', '⏸', 'workflow paused by operator');
+      } else {
+        statusPill.className = 'status-pill running';
+        statusText.textContent = 'running';
+        pauseBtn.innerHTML = '<span>pause</span> ⏸';
+        addLine('success', '▶', 'workflow resumed');
+      }
+      addSpacer();
+    });
+
+    // Initial demo sequence
+    async function runDemo() {
+      addLine('system', '◆', `<span class="hl-accent">GIA Console</span> v0.1.0 — governed AI execution terminal`);
+      addLine('system', '◆', `type anytime to interrupt, re-scope, or add constraints`);
+      addSpacer();
+
+      await sleep(500);
+
+      addLine('gate', '⚡', `run initialized: <span class="hl-bright">GIA-2026-0204-1547</span>`);
+      addLine('gate', '✓', `domain: <span class="hl-cyan">BD Capture</span> — authorized`);
+      addLine('gate', '✓', `MAI classification: <span class="hl-yellow">ADVISORY</span>`);
+      addLine('gate', '✓', `cost budget: $5.00 — approved`);
+      addSpacer();
+
+      await sleep(600);
+
+      await typeText('step', '→', 'starting workflow: federal-opportunity-search');
+      addSpacer();
+
+      await sleep(400);
+
+      await typeText('output', '  ', 'parsing search criteria...');
+      await sleep(300);
+      addBlock('search parameters', `keywords:   ["AI/ML", "cybersecurity", "cloud"]
+naics:      541512, 541511
+set-aside:  null
+min-value:  $100,000`);
+
+      await sleep(500);
+
+      await typeText('step', '→', 'connecting to SAM.gov API...');
+      await sleep(800);
+      addLine('success', '✓', 'connection established');
+      addSpacer();
+
+      await sleep(400);
+
+      await typeText('step', '→', 'executing search query...');
+      addProgress(30, 'searching');
+
+      await sleep(1000);
+      addProgress(65, 'processing');
+
+      await sleep(800);
+      addProgress(100, 'complete');
+
+      await sleep(300);
+      addLine('success', '✓', `found <span class="hl-bright">47</span> opportunities matching criteria`);
+      addSpacer();
+
+      await sleep(500);
+
+      await typeText('step', '→', 'ranking by relevance and deadline...');
+      await sleep(600);
+      await typeText('output', '  ', 'analyzing keyword density...');
+      await sleep(400);
+      await typeText('output', '  ', 'calculating deadline proximity scores...');
+      await sleep(500);
+
+      addLine('output', '  ', `<span class="hl-dim">top match:</span> <span class="hl-bright">FA8750-26-R-0042</span> — AI/ML Platform Services (95% relevance)`);
+      addSpacer();
+
+      // Hint to user
+      await sleep(1000);
+      addLine('system', '◆', `<span class="hl-dim">tip: try typing</span> <span class="hl-orange">"only show set-asides"</span> <span class="hl-dim">or</span> <span class="hl-orange">"filter to DoD only"</span>`);
+    }
+
+    // Help button
+    document.getElementById('helpBtn').addEventListener('click', () => {
+      addSpacer();
+      addLine('system', '◆', '<span class="hl-accent">GIA Console Help</span>');
+      addLine('system', '  ', '<span class="hl-dim">Enter</span>        — send interrupt/constraint');
+      addLine('system', '  ', '<span class="hl-dim">Shift+Enter</span> — new line in input');
+      addLine('system', '  ', '<span class="hl-dim">Escape</span>      — clear input');
+      addLine('system', '  ', '<span class="hl-dim">◀ sidebar</span>   — view governance status');
+      addSpacer();
+      addLine('system', '◆', '<span class="hl-dim">type anytime to add constraints mid-workflow</span>');
+      addSpacer();
+    });
+
+    // Abort button
+    document.getElementById('abortBtn').addEventListener('click', () => {
+      addLine('error', '⛔', 'workflow aborted by operator');
+      addSpacer();
+      statusPill.className = 'status-pill paused';
+      statusText.textContent = 'aborted';
+      addLine('gate', '📦', 'evidence pack sealed — partial run archived');
+      addSpacer();
+      addLine('system', '◆', '<span class="hl-dim">run terminated. evidence available for review.</span>');
+    });
+
+    // Escape to clear input
+    inputField.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        inputField.value = '';
+        inputField.style.height = 'auto';
+      }
+    });
+
+    // Start demo
+    runDemo();
+  </script>
+
+</body>
+</html>
