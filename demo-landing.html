@@ -138,6 +138,72 @@
       color: var(--primary);
     }
 
+    /* How It Works */
+    .how-it-works {
+      padding: 3rem 2rem;
+      background: var(--gray-900);
+      border-top: 1px solid var(--gray-700);
+    }
+
+    .how-container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .steps-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .step {
+      text-align: center;
+      padding: 1.5rem;
+      flex: 1;
+      min-width: 180px;
+    }
+
+    .step-number {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+      font-weight: 700;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1rem;
+    }
+
+    .step-title {
+      font-weight: 600;
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .step-desc {
+      font-size: 0.85rem;
+      color: var(--gray-500);
+    }
+
+    .step-arrow {
+      font-size: 1.5rem;
+      color: var(--gray-500);
+    }
+
+    @media (max-width: 600px) {
+      .step-arrow {
+        display: none;
+      }
+      .steps-row {
+        flex-direction: column;
+      }
+    }
+
     /* Demo Request Section */
     .demo-section {
       padding: 4rem 2rem;
@@ -540,9 +606,9 @@
 
   <!-- Hero -->
   <section class="hero">
-    <div class="hero-badge">Governed Intelligence Architecture</div>
-    <h1>The <span>Middleware Layer</span> for Enterprise AI</h1>
-    <p>One governance plane for all your AI tools. Audit trails, approval gates, and domain-aware execution — built in.</p>
+    <div class="hero-badge">✨ Try It Free — No Account Required</div>
+    <h1>See <span>AI Governance</span> in Action</h1>
+    <p>Submit a task below. We run it under full governance and send you the results — complete with audit trail, screenshots, and execution recording.</p>
 
     <div class="platform-visual">
       <div class="platform-diagram">
@@ -567,12 +633,38 @@
     </div>
   </section>
 
+  <!-- How It Works -->
+  <section class="how-it-works">
+    <div class="how-container">
+      <h2 style="text-align: center; font-size: 1.5rem; margin-bottom: 2rem; color: var(--gray-300);">How It Works</h2>
+      <div class="steps-row">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-title">You Submit</div>
+          <div class="step-desc">Pick a workflow and describe your task</div>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-title">We Execute</div>
+          <div class="step-desc">AI runs under full governance with audit trail</div>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-title">You Receive</div>
+          <div class="step-desc">Results + evidence bundle in your inbox</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Demo Request Section -->
   <section class="demo-section" id="demo">
     <div class="demo-container">
       <div class="demo-header">
-        <h2>Request a Governed Run</h2>
-        <p>Submit a task. We execute it under governance. You receive the full evidence bundle.</p>
+        <h2>🚀 Try It Now</h2>
+        <p>Pick a workflow, describe your task, and we'll show you what governed AI looks like.</p>
       </div>
 
       <div class="demo-form">
@@ -590,7 +682,7 @@
                   <label for="wf-bd">
                     <div class="workflow-icon">🎯</div>
                     <div class="workflow-title">Federal Opportunity Search</div>
-                    <div class="workflow-desc">Find matching RFPs on SAM.gov with compliance snapshot</div>
+                    <div class="workflow-desc">Search SAM.gov for contracts matching your criteria</div>
                   </label>
                 </div>
                 <div class="workflow-option">
@@ -598,7 +690,7 @@
                   <label for="wf-research">
                     <div class="workflow-icon">📊</div>
                     <div class="workflow-title">Research Brief</div>
-                    <div class="workflow-desc">Governed sourcing with citations and audit trail</div>
+                    <div class="workflow-desc">Get a sourced briefing on any topic with citations</div>
                   </label>
                 </div>
                 <div class="workflow-option">
@@ -606,15 +698,15 @@
                   <label for="wf-price">
                     <div class="workflow-icon">💰</div>
                     <div class="workflow-title">Price Comparison</div>
-                    <div class="workflow-desc">Find best prices across multiple sources</div>
+                    <div class="workflow-desc">Compare prices for a product across retailers</div>
                   </label>
                 </div>
                 <div class="workflow-option">
                   <input type="radio" id="wf-custom" name="workflow" value="custom">
                   <label for="wf-custom">
                     <div class="workflow-icon">⚡</div>
-                    <div class="workflow-title">Custom Task</div>
-                    <div class="workflow-desc">Describe your use case, we'll scope it</div>
+                    <div class="workflow-title">Something Else</div>
+                    <div class="workflow-desc">Tell us what you want to try — we'll make it work</div>
                   </label>
                 </div>
               </div>
@@ -657,7 +749,7 @@
                 class="text-input"
                 id="taskInput"
                 name="task"
-                placeholder="e.g., 'Find AI governance RFPs for small businesses' or 'Research the latest NIST AI RMF requirements' or 'Compare prices for MacBook Pro 14&quot; across retailers'"
+                placeholder="e.g., &quot;Find AI/ML contracts for small businesses in healthcare&quot; or &quot;Search for cybersecurity RFPs over $500K&quot;"
                 required
               ></textarea>
             </div>
@@ -692,17 +784,17 @@
             <input type="hidden" name="_subject" value="New GIA Demo Request">
 
             <!-- Submit -->
-            <button type="submit" class="submit-btn">Request Governed Run →</button>
+            <button type="submit" class="submit-btn">🎯 Run My Task Under Governance</button>
 
             <div class="form-footer">
               <div class="form-footer-item">
-                <span class="icon">✓</span> No install required
+                <span class="icon">⚡</span> Free — no credit card
               </div>
               <div class="form-footer-item">
-                <span class="icon">✓</span> Results by next business day
+                <span class="icon">📧</span> Results to your inbox
               </div>
               <div class="form-footer-item">
-                <span class="icon">✓</span> Full audit trail included
+                <span class="icon">🔒</span> Full audit trail included
               </div>
             </div>
           </form>
@@ -710,13 +802,17 @@
 
         <!-- Confirmation State -->
         <div class="confirmation" id="confirmation">
-          <div class="confirmation-icon">✅</div>
-          <h3>Request Received</h3>
-          <p>We'll execute your workflow and send results to your email.</p>
+          <div class="confirmation-icon">🎉</div>
+          <h3>You're In!</h3>
+          <p>We're preparing your governed run. Check your email for updates.</p>
           <div class="run-id" id="runId">GIA-2026-0000-000</div>
-          <p style="margin-top: 1.5rem; font-size: 0.85rem;">
-            Typical turnaround: same day to next business day
+          <p style="margin-top: 1rem; font-size: 0.9rem; color: var(--gray-300);">
+            Save this Run ID — it's your receipt
           </p>
+          <p style="margin-top: 1.5rem; font-size: 0.85rem; color: var(--gray-500);">
+            ⏱️ Most requests delivered within 24 hours
+          </p>
+          <a href="/" style="display: inline-block; margin-top: 1.5rem; padding: 0.75rem 1.5rem; background: var(--gray-700); border-radius: 8px; color: var(--white); text-decoration: none; font-size: 0.9rem;">← Submit Another Request</a>
         </div>
       </div>
     </div>
@@ -835,6 +931,20 @@
         if (target) {
           target.scrollIntoView({ behavior: 'smooth' });
         }
+      });
+    });
+
+    // Dynamic placeholder based on workflow selection
+    const placeholders = {
+      'bd-capture': 'e.g., "Find AI/ML contracts for small businesses in healthcare" or "Search for cybersecurity RFPs over $500K"',
+      'research-brief': 'e.g., "Brief me on NIST AI Risk Management Framework requirements" or "What are the latest trends in federal IT modernization?"',
+      'price-compare': 'e.g., "Find the best price for MacBook Pro 14-inch M3" or "Compare prices for Sony WH-1000XM5 headphones"',
+      'custom': 'Describe what you want to accomplish — we\'ll figure out the best way to run it under governance'
+    };
+
+    document.querySelectorAll('input[name="workflow"]').forEach(radio => {
+      radio.addEventListener('change', function() {
+        document.getElementById('taskInput').placeholder = placeholders[this.value] || placeholders['custom'];
       });
     });
   </script>
