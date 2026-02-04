@@ -163,6 +163,356 @@
       background: rgba(239, 68, 68, 0.15);
     }
 
+    .mode-tag {
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 0.25rem 0.5rem;
+      border-radius: 3px;
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--blue);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .mode-tag.live {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--red);
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .cost-tag {
+      font-size: 0.7rem;
+      font-family: var(--font-mono);
+      color: var(--green);
+      padding: 0.3rem 0.6rem;
+      background: rgba(34, 197, 94, 0.1);
+      border-radius: 4px;
+      border: 1px solid rgba(34, 197, 94, 0.2);
+    }
+
+    .cost-tag.warning {
+      color: var(--yellow);
+      background: rgba(234, 179, 8, 0.1);
+      border-color: rgba(234, 179, 8, 0.2);
+    }
+
+    .cost-tag.danger {
+      color: var(--red);
+      background: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.2);
+    }
+
+    /* Governance Banner */
+    .governance-banner {
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+      padding: 0.5rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      flex-shrink: 0;
+    }
+
+    .gov-item {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      color: var(--text-dim);
+    }
+
+    .gov-icon {
+      font-size: 0.7rem;
+    }
+
+    .gov-divider {
+      color: var(--border);
+      margin: 0 0.25rem;
+    }
+
+    /* Metrics Bar */
+    .metrics-bar {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 0.4rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      font-size: 0.7rem;
+      flex-shrink: 0;
+      overflow-x: auto;
+    }
+
+    .metric-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+
+    .metric-label {
+      color: var(--text-dim);
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .metric-value {
+      color: var(--text-bright);
+      font-family: var(--font-mono);
+      font-weight: 600;
+    }
+
+    .compliance-tag {
+      margin-left: auto;
+      padding: 0.3rem 0.6rem;
+      background: rgba(6, 182, 212, 0.1);
+      border: 1px solid rgba(6, 182, 212, 0.2);
+      border-radius: 4px;
+    }
+
+    .compliance-tag .metric-value {
+      color: var(--cyan);
+      font-size: 0.65rem;
+    }
+
+    /* Capsule System */
+    .capsule-block {
+      background: var(--bg-secondary);
+      border: 1px solid var(--pink);
+      border-radius: 6px;
+      margin: 0.75rem 0;
+      overflow: hidden;
+    }
+
+    .capsule-header {
+      background: rgba(236, 72, 153, 0.1);
+      padding: 0.5rem 0.75rem;
+      font-size: 0.75rem;
+      color: var(--pink);
+      border-bottom: 1px solid var(--pink);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .capsule-header-left {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .capsule-badge {
+      font-size: 0.6rem;
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      font-weight: 600;
+    }
+
+    .capsule-badge.cached {
+      background: rgba(34, 197, 94, 0.2);
+      color: var(--green);
+    }
+
+    .capsule-badge.new {
+      background: rgba(59, 130, 246, 0.2);
+      color: var(--blue);
+    }
+
+    .capsule-badge.reusable {
+      background: rgba(139, 92, 246, 0.2);
+      color: var(--accent);
+    }
+
+    .capsule-content {
+      padding: 0.75rem;
+      font-size: 0.8rem;
+    }
+
+    .capsule-stats {
+      display: flex;
+      gap: 1rem;
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.7rem;
+      color: var(--text-dim);
+    }
+
+    .capsule-stat {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .capsule-stat-value {
+      color: var(--text-bright);
+      font-weight: 600;
+    }
+
+    /* Instruction Pack */
+    .instruction-pack {
+      background: var(--bg-secondary);
+      border: 1px solid var(--orange);
+      border-radius: 6px;
+      margin: 0.75rem 0;
+      overflow: hidden;
+    }
+
+    .instruction-header {
+      background: rgba(249, 115, 22, 0.1);
+      padding: 0.5rem 0.75rem;
+      font-size: 0.75rem;
+      color: var(--orange);
+      border-bottom: 1px solid var(--orange);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .instruction-content {
+      padding: 0.75rem;
+    }
+
+    .instruction-step {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.4rem;
+      font-size: 0.8rem;
+    }
+
+    .instruction-step-num {
+      color: var(--orange);
+      font-weight: 600;
+      min-width: 20px;
+    }
+
+    .instruction-step-text {
+      color: var(--text);
+    }
+
+    .instruction-step.active .instruction-step-text {
+      color: var(--text-bright);
+    }
+
+    .instruction-step.done .instruction-step-num {
+      color: var(--green);
+    }
+
+    .instruction-step.done .instruction-step-text {
+      color: var(--text-dim);
+      text-decoration: line-through;
+    }
+
+    /* Gate Prompt */
+    .gate-prompt {
+      background: var(--bg-secondary);
+      border: 1px solid var(--yellow);
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+
+    .gate-prompt-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--yellow);
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+
+    .gate-prompt-text {
+      color: var(--text);
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+
+    .gate-prompt-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .gate-btn {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .gate-btn:hover {
+      background: var(--border);
+    }
+
+    .gate-btn.primary {
+      background: var(--green);
+      border-color: var(--green);
+      color: var(--bg);
+    }
+
+    .gate-btn.primary:hover {
+      background: var(--green-dim);
+    }
+
+    .gate-btn.danger {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    /* Evidence Pack Block */
+    .evidence-block {
+      background: var(--bg-secondary);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      margin: 0.75rem 0;
+      overflow: hidden;
+    }
+
+    .evidence-header {
+      background: rgba(139, 92, 246, 0.1);
+      padding: 0.5rem 0.75rem;
+      font-size: 0.75rem;
+      color: var(--accent);
+      border-bottom: 1px solid var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .evidence-content {
+      padding: 0.75rem;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    .evidence-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .evidence-label {
+      color: var(--text-dim);
+      min-width: 100px;
+    }
+
+    .evidence-value {
+      color: var(--text);
+      font-family: var(--font-mono);
+    }
+
+    .evidence-pass {
+      color: var(--green);
+    }
+
+    .evidence-warn {
+      color: var(--yellow);
+    }
+
     /* Main Terminal */
     .terminal-container {
       flex: 1;
@@ -534,13 +884,15 @@
         <div class="logo-icon">G</div>
         <span>GIA</span>
       </div>
-      <div class="workflow-tag">federal-opportunity-search</div>
+      <div class="workflow-tag" id="workflowTag">WF-2026-0204-BD-001</div>
       <div class="status-pill running" id="statusPill">
         <span class="status-dot"></span>
         <span id="statusText">running</span>
       </div>
+      <div class="mode-tag" id="modeTag">DEMO</div>
     </div>
     <div class="header-right">
+      <div class="cost-tag" id="costTag">$0.00</div>
       <button class="header-btn" id="pauseBtn">
         <span>pause</span> ⏸
       </button>
@@ -552,6 +904,49 @@
       </button>
     </div>
   </header>
+
+  <!-- Governance Banner -->
+  <div class="governance-banner" id="governanceBanner">
+    <span class="gov-item"><span class="gov-icon">⚡</span> MAI: <span class="hl-yellow">ADVISORY</span></span>
+    <span class="gov-divider">|</span>
+    <span class="gov-item"><span class="gov-icon">📦</span> ECV: <span class="hl-green">ACTIVE</span></span>
+    <span class="gov-divider">|</span>
+    <span class="gov-item"><span class="gov-icon">🚫</span> Gate: <span class="hl-cyan">REQUIRED</span></span>
+    <span class="gov-divider">|</span>
+    <span class="gov-item"><span class="gov-icon">⚠</span> Risk: <span class="hl-yellow" id="riskLevel">MODERATE</span></span>
+    <span class="gov-divider">|</span>
+    <span class="gov-item"><span class="gov-icon">🔒</span> Integrity: <span class="hl-green" id="integrityStatus">VERIFIED</span></span>
+    <span class="gov-divider">|</span>
+    <span class="gov-item"><span class="gov-icon">🤖</span> Autonomy: <span class="hl-cyan" id="autonomyLevel">ASSISTED</span></span>
+  </div>
+
+  <!-- Metrics Bar -->
+  <div class="metrics-bar" id="metricsBar">
+    <span class="metric-item">
+      <span class="metric-label">Time to Decision</span>
+      <span class="metric-value" id="timeMetric">00:00</span>
+    </span>
+    <span class="metric-item">
+      <span class="metric-label">API Calls</span>
+      <span class="metric-value" id="apiCallsMetric">0</span>
+    </span>
+    <span class="metric-item">
+      <span class="metric-label">Gates Passed</span>
+      <span class="metric-value" id="gatesMetric">0/0</span>
+    </span>
+    <span class="metric-item">
+      <span class="metric-label">Interrupts</span>
+      <span class="metric-value" id="interruptsMetric">0</span>
+    </span>
+    <span class="metric-item">
+      <span class="metric-label">Capsule Hits</span>
+      <span class="metric-value" id="capsuleHitsMetric" style="color: var(--pink);">0</span>
+    </span>
+    <span class="metric-item compliance-tag">
+      <span class="metric-label">Compliance</span>
+      <span class="metric-value">FAR · NIST 800-53</span>
+    </span>
+  </div>
 
   <!-- Terminal -->
   <div class="terminal-container">
@@ -646,6 +1041,179 @@
 
     let isPaused = false;
     let interruptCount = 0;
+    let currentCost = 0;
+    let apiCalls = 0;
+    let gatesPassed = 0;
+    let totalGates = 4;
+    let startTime = Date.now();
+
+    const costTag = document.getElementById('costTag');
+    const timeMetric = document.getElementById('timeMetric');
+    const apiCallsMetric = document.getElementById('apiCallsMetric');
+    const gatesMetric = document.getElementById('gatesMetric');
+    const interruptsMetric = document.getElementById('interruptsMetric');
+    const integrityStatus = document.getElementById('integrityStatus');
+    const riskLevel = document.getElementById('riskLevel');
+    const capsuleHitsMetric = document.getElementById('capsuleHitsMetric');
+    let capsuleHits = 0;
+
+    // Update timer every second
+    setInterval(() => {
+      if (statusText.textContent === 'running' || statusText.textContent === 'processing') {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+        const secs = (elapsed % 60).toString().padStart(2, '0');
+        timeMetric.textContent = `${mins}:${secs}`;
+      }
+    }, 1000);
+
+    function updateApiCalls() {
+      apiCalls++;
+      apiCallsMetric.textContent = apiCalls;
+    }
+
+    function updateGates(passed) {
+      gatesPassed = passed;
+      gatesMetric.textContent = `${gatesPassed}/${totalGates}`;
+      gatesMetric.style.color = gatesPassed === totalGates ? 'var(--green)' : 'var(--text-bright)';
+    }
+
+    function updateInterrupts() {
+      interruptsMetric.textContent = interruptCount;
+      if (interruptCount > 0) {
+        interruptsMetric.style.color = 'var(--orange)';
+      }
+    }
+
+    function setIntegrity(status) {
+      integrityStatus.textContent = status;
+      if (status === 'VERIFIED') {
+        integrityStatus.className = 'hl-green';
+      } else if (status === 'DRIFT ⚠️') {
+        integrityStatus.className = 'hl-red';
+      }
+    }
+
+    function setRisk(level) {
+      riskLevel.textContent = level;
+      if (level === 'LOW') riskLevel.className = 'hl-green';
+      else if (level === 'MODERATE') riskLevel.className = 'hl-yellow';
+      else if (level === 'HIGH') riskLevel.className = 'hl-red';
+    }
+
+    function updateCost(amount) {
+      currentCost += amount;
+      costTag.textContent = '$' + currentCost.toFixed(2);
+      if (currentCost > 1) {
+        costTag.className = 'cost-tag warning';
+      }
+      if (currentCost > 4) {
+        costTag.className = 'cost-tag danger';
+      }
+    }
+
+    function addEvidencePack(packId, data) {
+      const block = document.createElement('div');
+      block.className = 'evidence-block';
+      block.innerHTML = `
+        <div class="evidence-header">📦 Evidence Pack: ${packId}</div>
+        <div class="evidence-content">
+          <div class="evidence-row"><span class="evidence-label">Source:</span><span class="evidence-value">${data.source}</span></div>
+          <div class="evidence-row"><span class="evidence-label">Endpoint:</span><span class="evidence-value">${data.endpoint}</span></div>
+          <div class="evidence-row"><span class="evidence-label">Query Hash:</span><span class="evidence-value">${data.queryHash}</span></div>
+          <div class="evidence-row"><span class="evidence-label">Timestamp:</span><span class="evidence-value">${data.timestamp}</span></div>
+          <div class="evidence-row"><span class="evidence-label">Validation:</span><span class="evidence-value evidence-pass">${data.validation}</span></div>
+          ${data.negativeAssurance ? `<div class="evidence-row"><span class="evidence-label">⚠ Note:</span><span class="evidence-value evidence-warn">${data.negativeAssurance}</span></div>` : ''}
+        </div>
+      `;
+      terminal.appendChild(block);
+      scrollToBottom();
+    }
+
+    function addCapsule(capsuleId, data) {
+      const block = document.createElement('div');
+      block.className = 'capsule-block';
+      block.innerHTML = `
+        <div class="capsule-header">
+          <div class="capsule-header-left">
+            <span>💊 Capsule: ${capsuleId}</span>
+            <span class="capsule-badge ${data.status}">${data.status.toUpperCase()}</span>
+          </div>
+          <span style="font-size: 0.65rem; color: var(--text-dim);">${data.type}</span>
+        </div>
+        <div class="capsule-content">
+          <div style="color: var(--text);">${data.description}</div>
+          <div class="capsule-stats">
+            <span class="capsule-stat">⚡ Tokens: <span class="capsule-stat-value">${data.tokens || '0'}</span></span>
+            <span class="capsule-stat">🔄 Reuses: <span class="capsule-stat-value">${data.reuses || '0'}</span></span>
+            <span class="capsule-stat">💰 Saved: <span class="capsule-stat-value">$${data.saved || '0.00'}</span></span>
+            ${data.ttl ? `<span class="capsule-stat">⏱ TTL: <span class="capsule-stat-value">${data.ttl}</span></span>` : ''}
+          </div>
+        </div>
+      `;
+      terminal.appendChild(block);
+      scrollToBottom();
+    }
+
+    function addInstructionPack(packName, steps) {
+      const block = document.createElement('div');
+      block.className = 'instruction-pack';
+      block.id = `pack-${packName.replace(/\s/g, '-').toLowerCase()}`;
+      const stepsHtml = steps.map((step, i) => `
+        <div class="instruction-step" data-step="${i}">
+          <span class="instruction-step-num">${i + 1}.</span>
+          <span class="instruction-step-text">${step}</span>
+        </div>
+      `).join('');
+
+      block.innerHTML = `
+        <div class="instruction-header">
+          <span>📦 Instruction Pack: ${packName}</span>
+          <span style="margin-left: auto; font-size: 0.65rem; color: var(--text-dim);">${steps.length} steps</span>
+        </div>
+        <div class="instruction-content">${stepsHtml}</div>
+      `;
+      terminal.appendChild(block);
+      scrollToBottom();
+      return block;
+    }
+
+    function updateInstructionStep(packElement, stepIndex, status) {
+      const step = packElement.querySelector(`[data-step="${stepIndex}"]`);
+      if (step) {
+        step.className = `instruction-step ${status}`;
+      }
+    }
+
+    function addGatePrompt(gateId, message, onApprove, onModify, onAbort) {
+      const gate = document.createElement('div');
+      gate.className = 'gate-prompt';
+      gate.id = gateId;
+      gate.innerHTML = `
+        <div class="gate-prompt-header">🚫 MANDATORY GATE — Human Approval Required</div>
+        <div class="gate-prompt-text">${message}</div>
+        <div class="gate-prompt-actions">
+          <button class="gate-btn primary" data-action="approve">✓ APPROVE</button>
+          <button class="gate-btn" data-action="modify">✎ MODIFY</button>
+          <button class="gate-btn danger" data-action="abort">✗ ABORT</button>
+        </div>
+      `;
+      terminal.appendChild(gate);
+      scrollToBottom();
+
+      gate.querySelector('[data-action="approve"]').addEventListener('click', () => {
+        gate.remove();
+        onApprove && onApprove();
+      });
+      gate.querySelector('[data-action="modify"]').addEventListener('click', () => {
+        gate.remove();
+        onModify && onModify();
+      });
+      gate.querySelector('[data-action="abort"]').addEventListener('click', () => {
+        gate.remove();
+        onAbort && onAbort();
+      });
+    }
 
     // Toggle sidebar
     sidebarToggle.addEventListener('click', () => {
@@ -672,6 +1240,7 @@
       if (!text) return;
 
       interruptCount++;
+      updateInterrupts();
 
       // Add human line
       addLine('human', 'you:', text);
@@ -845,17 +1414,36 @@
 
       await sleep(500);
 
-      addLine('gate', '⚡', `run initialized: <span class="hl-bright">GIA-2026-0204-1547</span>`);
+      addLine('gate', '⚡', `run initialized: <span class="hl-bright">WF-2026-0204-BD-001</span>`);
       addLine('gate', '✓', `domain: <span class="hl-cyan">BD Capture</span> — authorized`);
+      updateGates(1);
       addLine('gate', '✓', `MAI classification: <span class="hl-yellow">ADVISORY</span>`);
+      updateGates(2);
       addLine('gate', '✓', `cost budget: $5.00 — approved`);
+      updateGates(3);
       addSpacer();
 
       await sleep(600);
 
-      await typeText('step', '→', 'starting workflow: federal-opportunity-search');
+      // Show Instruction Pack
+      const pack = addInstructionPack('Federal Opportunity Search', [
+        'Parse search criteria from input',
+        'Connect to SAM.gov API',
+        'Execute search query',
+        'Rank by relevance + deadline',
+        'Generate evidence pack',
+        'Present results for approval'
+      ]);
       addSpacer();
 
+      await sleep(500);
+
+      await typeText('step', '→', 'starting workflow: federal-opportunity-search');
+      updateCost(0.01);
+      addSpacer();
+
+      // Step 1
+      updateInstructionStep(pack, 0, 'active');
       await sleep(400);
 
       await typeText('output', '  ', 'parsing search criteria...');
@@ -864,44 +1452,252 @@
 naics:      541512, 541511
 set-aside:  null
 min-value:  $100,000`);
+      updateInstructionStep(pack, 0, 'done');
 
       await sleep(500);
 
+      // Step 2
+      updateInstructionStep(pack, 1, 'active');
       await typeText('step', '→', 'connecting to SAM.gov API...');
       await sleep(800);
       addLine('success', '✓', 'connection established');
+      updateCost(0.02);
+      updateApiCalls();
+      updateInstructionStep(pack, 1, 'done');
       addSpacer();
 
       await sleep(400);
 
+      // Step 3
+      updateInstructionStep(pack, 2, 'active');
       await typeText('step', '→', 'executing search query...');
       addProgress(30, 'searching');
 
       await sleep(1000);
       addProgress(65, 'processing');
+      updateCost(0.05);
 
       await sleep(800);
       addProgress(100, 'complete');
 
       await sleep(300);
       addLine('success', '✓', `found <span class="hl-bright">47</span> opportunities matching criteria`);
+      updateCost(0.04);
+      updateApiCalls();
+      updateInstructionStep(pack, 2, 'done');
       addSpacer();
+
+      // Show cached capsule - this is where the magic happens
+      await sleep(400);
+      addCapsule('NAICS-541512-RANKING', {
+        status: 'cached',
+        type: 'Ranking Algorithm',
+        description: 'Pre-trained relevance model for IT Professional Services (NAICS 541512)',
+        tokens: '0',
+        reuses: '47',
+        saved: '0.12',
+        ttl: '7d'
+      });
+
+      // Step 4
+      updateInstructionStep(pack, 3, 'active');
+      await sleep(400);
+
+      await typeText('step', '→', 'applying cached ranking capsule...');
+      await sleep(300);
+      capsuleHits++;
+      capsuleHitsMetric.textContent = capsuleHits;
+      addLine('success', '✓', `<span class="hl-pink">capsule hit</span> — zero API calls for ranking`);
+      updateInstructionStep(pack, 3, 'done');
+      addSpacer();
+
+      // Step 5
+      updateInstructionStep(pack, 4, 'active');
+
+      // Evidence Pack
+      await sleep(400);
+      addEvidencePack('FED-SEARCH-2026-0204-001', {
+        source: 'SAM.gov API',
+        endpoint: '/opportunities/v2/search',
+        queryHash: '9f3a7c2d...e8b1',
+        timestamp: new Date().toISOString(),
+        validation: 'PASSED',
+        negativeAssurance: 'No set-aside filter applied'
+      });
+      updateInstructionStep(pack, 4, 'done');
 
       await sleep(500);
 
-      await typeText('step', '→', 'ranking by relevance and deadline...');
-      await sleep(600);
-      await typeText('output', '  ', 'analyzing keyword density...');
+      await typeText('output', '  ', 'applying relevance weights from capsule...');
       await sleep(400);
       await typeText('output', '  ', 'calculating deadline proximity scores...');
       await sleep(500);
 
-      addLine('output', '  ', `<span class="hl-dim">top match:</span> <span class="hl-bright">FA8750-26-R-0042</span> — AI/ML Platform Services (95% relevance)`);
+      addSpacer();
+      addLine('success', '✓', `ranked <span class="hl-bright">Top 5</span> opportunities by relevance`);
+
+      // Step 6
+      updateInstructionStep(pack, 5, 'active');
       addSpacer();
 
-      // Hint to user
-      await sleep(1000);
-      addLine('system', '◆', `<span class="hl-dim">tip: try typing</span> <span class="hl-orange">"only show set-asides"</span> <span class="hl-dim">or</span> <span class="hl-orange">"filter to DoD only"</span>`);
+      addBlock('top 5 results', `1. FA8750-26-R-0042  AI/ML Platform Services      95%  $4.2M   Due: Mar 15
+2. W911NF-26-R-0089  Cyber Defense Analytics     91%  $2.8M   Due: Mar 22
+3. N00024-26-R-0156  Cloud Migration Services    88%  $1.9M   Due: Apr 01
+4. FA8075-26-R-0201  Data Engineering Support    85%  $3.1M   Due: Apr 10
+5. W56KGU-26-R-0044  AI Training Infrastructure  82%  $5.6M   Due: Apr 18`);
+
+      updateCost(0.02);
+      await sleep(800);
+
+      // Gate prompt before export
+      addSpacer();
+      addGatePrompt('gate-export',
+        'Ready to export shortlist and generate capture plan. This action will create external artifacts.',
+        async () => {
+          addLine('gate', '✓', 'Gate APPROVED by operator');
+          updateGates(4);
+          updateInstructionStep(pack, 5, 'done');
+          addSpacer();
+
+          // Phase 2: Post-approval workflow
+          await typeText('step', '→', 'initiating capture plan generation...');
+          await sleep(600);
+
+          await typeText('output', '  ', 'loading opportunity details for FA8750-26-R-0042...');
+          updateApiCalls();
+          await sleep(400);
+
+          await typeText('output', '  ', 'analyzing solicitation requirements...');
+          updateCost(0.03);
+          await sleep(500);
+
+          addBlock('opportunity summary', `Solicitation:  FA8750-26-R-0042
+Title:         AI/ML Platform Services for AFRL
+Agency:        Air Force Research Laboratory
+Value:         $4.2M (ceiling)
+Type:          IDIQ, Task Order
+Set-Aside:     Full & Open
+Due:           March 15, 2026
+POC:           sarah.chen@us.af.mil`);
+
+          await sleep(500);
+
+          await typeText('step', '→', 'generating win theme recommendations...');
+          await sleep(400);
+
+          // Use another cached capsule
+          addCapsule('AFRL-WIN-THEMES', {
+            status: 'cached',
+            type: 'Win Theme Library',
+            description: 'Historical win themes for Air Force Research Lab contracts',
+            tokens: '0',
+            reuses: '12',
+            saved: '0.08',
+            ttl: '90d'
+          });
+
+          capsuleHits++;
+          capsuleHitsMetric.textContent = capsuleHits;
+          addLine('success', '✓', `<span class="hl-pink">capsule hit</span> — win themes loaded from cache`);
+          addSpacer();
+
+          await sleep(400);
+
+          addBlock('recommended win themes', `1. Technical Excellence
+   → Emphasize AI/ML model governance and explainability
+   → Highlight cleared personnel with AFRL experience
+
+2. Mission Alignment
+   → Reference AFRL's AI strategy and research priorities
+   → Connect capabilities to specific lab directorates
+
+3. Past Performance
+   → Cite similar IDIQ work with DoD research labs
+   → Include quantified outcomes and cost savings`);
+
+          await sleep(600);
+
+          await typeText('step', '→', 'compiling capture plan document...');
+          await sleep(400);
+          await typeText('output', '  ', 'adding competitive analysis...');
+          await sleep(300);
+          await typeText('output', '  ', 'inserting team structure recommendations...');
+          await sleep(300);
+          await typeText('output', '  ', 'finalizing executive summary...');
+          await sleep(500);
+
+          addLine('success', '✓', 'capture plan compiled (12 pages)');
+          addSpacer();
+
+          // Final export
+          await typeText('step', '→', 'exporting artifacts...');
+          await sleep(400);
+
+          addBlock('exported files', `📄 capture-FA8750-26-R-0042.pdf     12 pages
+📊 competitive-matrix.xlsx          3 competitors
+📋 action-tracker.csv               14 tasks
+📦 evidence-pack.json               full audit trail`);
+
+          addSpacer();
+
+          // Create reusable capsule from this run
+          addCapsule('BD-SEARCH-AIML-2026', {
+            status: 'new',
+            type: 'Search Template',
+            description: 'AI/ML federal opportunity search — reusable for similar queries',
+            tokens: '1,247',
+            reuses: '0',
+            saved: '0.00',
+            ttl: '30d'
+          });
+          addLine('system', '◆', '<span class="hl-pink">capsule saved</span> → future AI/ML searches will skip ranking step');
+          addSpacer();
+
+          // Final summary
+          setIntegrity('VERIFIED');
+          setRisk('LOW');
+
+          addLine('gate', '📦', 'evidence pack sealed: <span class="hl-accent">FED-SEARCH-2026-0204-001</span>');
+          addSpacer();
+
+          // Completion summary block
+          addBlock('workflow summary', `Status:        COMPLETE ✓
+Duration:      ${timeMetric.textContent}
+API Calls:     ${apiCalls}
+Capsule Hits:  ${capsuleHits} (saved ~$0.20)
+Total Cost:    ${costTag.textContent}
+Artifacts:     4 files exported
+Evidence:      Sealed and verified`);
+
+          addSpacer();
+          addLine('system', '◆', '<span class="hl-green">workflow complete.</span> all actions logged and auditable.');
+          addLine('system', '◆', '<span class="hl-dim">type "new search" to start another workflow</span>');
+
+          statusPill.className = 'status-pill paused';
+          statusText.textContent = 'complete';
+          document.getElementById('modeTag').textContent = 'COMPLETE';
+          document.getElementById('modeTag').style.background = 'rgba(34, 197, 94, 0.15)';
+          document.getElementById('modeTag').style.color = 'var(--green)';
+          document.getElementById('modeTag').style.borderColor = 'rgba(34, 197, 94, 0.3)';
+        },
+        () => {
+          addLine('warning', '✎', 'Gate MODIFY requested — awaiting new constraints');
+          addSpacer();
+          addLine('system', '◆', '<span class="hl-dim">type your modifications below</span>');
+        },
+        () => {
+          addLine('error', '✗', 'Gate ABORTED by operator');
+          addSpacer();
+          setIntegrity('SEALED');
+          addLine('gate', '📦', 'evidence pack sealed — no export performed');
+          statusPill.className = 'status-pill paused';
+          statusText.textContent = 'aborted';
+          document.getElementById('modeTag').textContent = 'ABORTED';
+          document.getElementById('modeTag').style.background = 'rgba(239, 68, 68, 0.15)';
+          document.getElementById('modeTag').style.color = 'var(--red)';
+          document.getElementById('modeTag').style.borderColor = 'rgba(239, 68, 68, 0.3)';
+        }
+      );
     }
 
     // Help button
