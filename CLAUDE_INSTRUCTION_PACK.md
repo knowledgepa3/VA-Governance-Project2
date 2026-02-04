@@ -458,6 +458,68 @@ Before saying "done", verify:
 - [ ] DEMO mode works
 - [ ] Changes committed with descriptive message
 - [ ] Pushed to remote (if requested)
+- [ ] TOOL_LEDGER included in response
+
+---
+
+## Tool/Skill Discipline (TOOL_LEDGER)
+
+### The Principle
+Every tool invocation has a cost (tokens, time, side effects). Only invoke tools when necessary, and always document what was done. This creates an audit trail clients can verify.
+
+### TOOL_LEDGER Format
+
+At the end of EVERY response that involves work, include:
+
+```
+TOOL_LEDGER:
+- [TOOL_NAME]: [WHY] → [ARTIFACTS/OUTCOME]
+```
+
+### Examples
+
+**When tools ARE used:**
+```
+TOOL_LEDGER:
+- Read: Needed console.html context for GIA runtime → Read 1500 lines
+- Edit: Add hash chain to evidence API → Modified console.html:1408-1490
+- Bash: Build verification → npm run build (SUCCESS)
+- Bash: Security check → grep sk-ant dist/ (CLEAN)
+- Bash: Commit → git commit (hash: abc123)
+```
+
+**When NO tools are used:**
+```
+TOOL_LEDGER: none (answered from context/knowledge)
+```
+
+### What Counts as a Tool
+- **Read/Glob/Grep**: File system access
+- **Edit/Write**: File modifications
+- **Bash**: Shell commands (build, git, npm, etc.)
+- **WebFetch/WebSearch**: External network calls
+- **Task**: Agent spawning
+
+### Why This Matters
+1. **Client transparency**: They see exactly what operations ran
+2. **Cost awareness**: Each tool call has token cost
+3. **Audit trail**: Matches GIA's evidence-first philosophy
+4. **Drift detection**: If tools drift from task, it's visible
+
+### Anti-Patterns
+```
+❌ Running grep "just to check" without documenting
+❌ Reading files already in context
+❌ Multiple small edits instead of one batched edit
+❌ Forgetting to log tool usage
+```
+
+### Integration with GIA
+The TOOL_LEDGER is the developer-side equivalent of GIA's evidence pack:
+- GIA evidence → proves AI workflow execution
+- TOOL_LEDGER → proves developer tool execution
+
+Both create accountability.
 
 ### Example: Full-Arc Execution
 

@@ -46,6 +46,13 @@ TASK COMPLETE MEANS:
 ✓ Evidence capture added
 ✓ DEMO mode works
 ✓ Committed
+✓ TOOL_LEDGER included
+
+TOOL_LEDGER (end of every response):
+- Only invoke tools when necessary
+- Document: TOOL_LEDGER: [tool]: [why] → [artifact]
+- If no tools: TOOL_LEDGER: none
+- This creates client-verifiable audit trail
 
 CAPSULES = Institutional memory, not cache
 - Reuse saves cost + time WITHOUT losing audit trail
