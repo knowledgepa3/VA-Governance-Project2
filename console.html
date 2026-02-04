@@ -8,26 +8,46 @@
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #0d0d0d;
-      --bg-secondary: #141414;
-      --bg-tertiary: #1a1a1a;
-      --border: #2a2a2a;
-      --text: #e4e4e7;
-      --text-dim: #71717a;
-      --text-bright: #fafafa;
-      --accent: #8b5cf6;
-      --accent-dim: #7c3aed;
-      --green: #22c55e;
-      --green-dim: #16a34a;
-      --yellow: #eab308;
-      --red: #ef4444;
-      --blue: #3b82f6;
-      --cyan: #06b6d4;
-      --orange: #f97316;
-      --pink: #ec4899;
+      /* Brutalist palette - warm dark with amber accent */
+      --bg: #0a0a09;
+      --bg-secondary: #111110;
+      --bg-tertiary: #18181a;
+      --border: #262624;
+      --border-bright: #3a3a36;
+      --text: #a8a8a0;
+      --text-dim: #5c5c58;
+      --text-bright: #e8e8e4;
 
-      --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+      /* Single accent - muted amber/gold */
+      --accent: #c9a227;
+      --accent-dim: #a68520;
+      --accent-bright: #e4b82c;
+
+      /* Semantic - monochrome-ish, not rainbow */
+      --ok: #6b8f71;
+      --ok-dim: #4a6b4f;
+      --warn: #b89c4a;
+      --warn-dim: #8a7538;
+      --err: #a85454;
+      --err-dim: #7a3d3d;
+      --info: #6b7f8f;
+
+      /* Legacy aliases for compat */
+      --green: var(--ok);
+      --green-dim: var(--ok-dim);
+      --yellow: var(--warn);
+      --red: var(--err);
+      --blue: var(--info);
+      --cyan: var(--info);
+      --orange: var(--accent);
+      --pink: var(--accent-dim);
+      --accent-dim: var(--accent-dim);
+
+      --font-mono: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
       --font-sans: 'Inter', -apple-system, sans-serif;
+
+      /* Subtle grain texture */
+      --grain: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
     }
 
     * {
@@ -49,11 +69,25 @@
       flex-direction: column;
     }
 
-    /* Header */
+    /* Subtle grain overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: var(--grain);
+      opacity: 0.015;
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* Header - tighter, sharper */
     .header {
       background: var(--bg-secondary);
       border-bottom: 1px solid var(--border);
-      padding: 0.6rem 1rem;
+      padding: 0.5rem 1rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -63,232 +97,253 @@
     .header-left {
       display: flex;
       align-items: center;
-      gap: 1rem;
+      gap: 0.75rem;
     }
 
     .logo {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      font-weight: 700;
-      font-size: 0.9rem;
+      gap: 0.4rem;
+      font-weight: 600;
+      font-size: 0.85rem;
       color: var(--text-bright);
+      letter-spacing: -0.02em;
     }
 
     .logo-icon {
-      width: 24px;
-      height: 24px;
-      background: linear-gradient(135deg, var(--accent) 0%, var(--green) 100%);
-      border-radius: 5px;
+      width: 20px;
+      height: 20px;
+      background: var(--accent);
+      border-radius: 2px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.75rem;
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--bg);
     }
 
     .workflow-tag {
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       color: var(--text-dim);
-      background: var(--bg-tertiary);
-      padding: 0.3rem 0.6rem;
-      border-radius: 4px;
-      border: 1px solid var(--border);
+      background: transparent;
+      padding: 0;
+      font-family: var(--font-mono);
+      letter-spacing: 0.02em;
     }
 
     .status-pill {
       display: flex;
       align-items: center;
-      gap: 0.4rem;
-      font-size: 0.7rem;
-      padding: 0.3rem 0.6rem;
-      border-radius: 12px;
+      gap: 0.35rem;
+      font-size: 0.65rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 2px;
       font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
     .status-pill.running {
-      background: rgba(34, 197, 94, 0.15);
-      color: var(--green);
+      background: transparent;
+      color: var(--ok);
+      border: 1px solid var(--ok-dim);
     }
 
     .status-pill.paused {
-      background: rgba(234, 179, 8, 0.15);
-      color: var(--yellow);
+      background: transparent;
+      color: var(--warn);
+      border: 1px solid var(--warn-dim);
     }
 
     .status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
+      width: 5px;
+      height: 5px;
+      border-radius: 1px;
       background: currentColor;
     }
 
     .status-pill.running .status-dot {
-      animation: blink 1s ease-in-out infinite;
+      animation: pulse 2s ease-in-out infinite;
     }
 
-    @keyframes blink {
+    @keyframes pulse {
       0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
+      50% { opacity: 0.4; }
     }
 
     .header-right {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.4rem;
     }
 
     .header-btn {
       font-family: var(--font-mono);
-      font-size: 0.7rem;
-      padding: 0.4rem 0.7rem;
-      border-radius: 4px;
+      font-size: 0.65rem;
+      padding: 0.3rem 0.5rem;
+      border-radius: 2px;
       border: 1px solid var(--border);
-      background: var(--bg-tertiary);
+      background: transparent;
       color: var(--text-dim);
       cursor: pointer;
-      transition: all 0.15s;
+      transition: all 0.1s;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
     }
 
     .header-btn:hover {
-      background: var(--border);
+      border-color: var(--border-bright);
       color: var(--text);
     }
 
     .header-btn.danger {
-      border-color: rgba(239, 68, 68, 0.3);
-      color: var(--red);
+      border-color: var(--err-dim);
+      color: var(--err);
     }
 
     .header-btn.danger:hover {
-      background: rgba(239, 68, 68, 0.15);
+      background: var(--err-dim);
+      color: var(--text-bright);
     }
 
     .mode-tag {
-      font-size: 0.65rem;
+      font-size: 0.6rem;
       font-weight: 600;
-      padding: 0.25rem 0.5rem;
-      border-radius: 3px;
-      background: rgba(59, 130, 246, 0.15);
-      color: var(--blue);
-      border: 1px solid rgba(59, 130, 246, 0.3);
+      padding: 0.2rem 0.4rem;
+      border-radius: 2px;
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     .mode-tag.live {
-      background: rgba(239, 68, 68, 0.15);
-      color: var(--red);
-      border-color: rgba(239, 68, 68, 0.3);
+      background: var(--err);
+      color: var(--text-bright);
     }
 
     .cost-tag {
-      font-size: 0.7rem;
+      font-size: 0.65rem;
       font-family: var(--font-mono);
-      color: var(--green);
-      padding: 0.3rem 0.6rem;
-      background: rgba(34, 197, 94, 0.1);
-      border-radius: 4px;
-      border: 1px solid rgba(34, 197, 94, 0.2);
+      color: var(--text-dim);
+      padding: 0.2rem 0.4rem;
+      background: transparent;
+      border-radius: 0;
+      border: none;
+      border-left: 2px solid var(--ok-dim);
+      padding-left: 0.5rem;
     }
 
     .cost-tag.warning {
-      color: var(--yellow);
-      background: rgba(234, 179, 8, 0.1);
-      border-color: rgba(234, 179, 8, 0.2);
+      color: var(--warn);
+      border-left-color: var(--warn);
     }
 
     .cost-tag.danger {
-      color: var(--red);
-      background: rgba(239, 68, 68, 0.1);
-      border-color: rgba(239, 68, 68, 0.2);
+      color: var(--err);
+      border-left-color: var(--err);
     }
 
-    /* Governance Banner */
+    /* Governance Banner - dense, monochrome */
     .governance-banner {
-      background: var(--bg-tertiary);
+      background: var(--bg);
       border-bottom: 1px solid var(--border);
-      padding: 0.5rem 1.5rem;
+      padding: 0.35rem 1rem;
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      font-size: 0.75rem;
+      gap: 0.3rem;
+      font-size: 0.65rem;
       flex-shrink: 0;
+      font-family: var(--font-mono);
     }
 
     .gov-item {
       display: flex;
       align-items: center;
-      gap: 0.35rem;
+      gap: 0.25rem;
       color: var(--text-dim);
     }
 
+    .gov-label {
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-size: 0.55rem;
+    }
+
     .gov-icon {
-      font-size: 0.7rem;
+      display: none; /* Remove emoji icons */
     }
 
     .gov-divider {
       color: var(--border);
-      margin: 0 0.25rem;
+      margin: 0 0.15rem;
+      opacity: 0.5;
     }
 
-    /* Metrics Bar */
+    /* Metrics Bar - horizontal dense */
     .metrics-bar {
       background: var(--bg-secondary);
       border-bottom: 1px solid var(--border);
-      padding: 0.4rem 1.5rem;
+      padding: 0.3rem 1rem;
       display: flex;
       align-items: center;
-      gap: 1.5rem;
-      font-size: 0.7rem;
+      gap: 1.25rem;
+      font-size: 0.65rem;
       flex-shrink: 0;
       overflow-x: auto;
     }
 
     .metric-item {
       display: flex;
-      flex-direction: column;
-      gap: 0.15rem;
+      align-items: baseline;
+      gap: 0.35rem;
     }
 
     .metric-label {
       color: var(--text-dim);
-      font-size: 0.6rem;
+      font-size: 0.55rem;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
     }
 
     .metric-value {
-      color: var(--text-bright);
+      color: var(--text);
       font-family: var(--font-mono);
-      font-weight: 600;
+      font-weight: 500;
+      font-size: 0.7rem;
     }
 
     .compliance-tag {
       margin-left: auto;
-      padding: 0.3rem 0.6rem;
-      background: rgba(6, 182, 212, 0.1);
-      border: 1px solid rgba(6, 182, 212, 0.2);
-      border-radius: 4px;
+      padding: 0;
+      background: transparent;
+      border: none;
+      border-radius: 0;
     }
 
     .compliance-tag .metric-value {
-      color: var(--cyan);
-      font-size: 0.65rem;
+      color: var(--text-dim);
+      font-size: 0.6rem;
     }
 
-    /* Capsule System */
+    /* Capsule System - sharp, minimal */
     .capsule-block {
       background: var(--bg-secondary);
-      border: 1px solid var(--pink);
-      border-radius: 6px;
-      margin: 0.75rem 0;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 0;
+      margin: 0.5rem 0;
       overflow: hidden;
     }
 
     .capsule-header {
-      background: rgba(236, 72, 153, 0.1);
-      padding: 0.5rem 0.75rem;
-      font-size: 0.75rem;
-      color: var(--pink);
-      border-bottom: 1px solid var(--pink);
+      background: transparent;
+      padding: 0.4rem 0.6rem;
+      font-size: 0.7rem;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -297,96 +352,104 @@
     .capsule-header-left {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.4rem;
     }
 
     .capsule-badge {
-      font-size: 0.6rem;
-      padding: 0.15rem 0.4rem;
-      border-radius: 3px;
+      font-size: 0.55rem;
+      padding: 0.1rem 0.3rem;
+      border-radius: 1px;
       font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
     .capsule-badge.cached {
-      background: rgba(34, 197, 94, 0.2);
-      color: var(--green);
+      background: var(--ok-dim);
+      color: var(--text-bright);
     }
 
     .capsule-badge.new {
-      background: rgba(59, 130, 246, 0.2);
-      color: var(--blue);
+      background: var(--accent-dim);
+      color: var(--text-bright);
     }
 
     .capsule-badge.reusable {
-      background: rgba(139, 92, 246, 0.2);
-      color: var(--accent);
+      background: var(--info);
+      color: var(--text-bright);
     }
 
     .capsule-content {
-      padding: 0.75rem;
-      font-size: 0.8rem;
+      padding: 0.5rem 0.6rem;
+      font-size: 0.75rem;
     }
 
     .capsule-stats {
       display: flex;
-      gap: 1rem;
-      margin-top: 0.5rem;
-      padding-top: 0.5rem;
+      gap: 0.75rem;
+      margin-top: 0.4rem;
+      padding-top: 0.4rem;
       border-top: 1px solid var(--border);
-      font-size: 0.7rem;
+      font-size: 0.65rem;
       color: var(--text-dim);
     }
 
     .capsule-stat {
       display: flex;
       align-items: center;
-      gap: 0.3rem;
+      gap: 0.25rem;
     }
 
     .capsule-stat-value {
-      color: var(--text-bright);
-      font-weight: 600;
+      color: var(--text);
+      font-weight: 500;
     }
 
-    /* Instruction Pack */
+    /* Instruction Pack - sharp, minimal */
     .instruction-pack {
       background: var(--bg-secondary);
-      border: 1px solid var(--orange);
-      border-radius: 6px;
-      margin: 0.75rem 0;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--warn);
+      border-radius: 0;
+      margin: 0.5rem 0;
       overflow: hidden;
     }
 
     .instruction-header {
-      background: rgba(249, 115, 22, 0.1);
-      padding: 0.5rem 0.75rem;
-      font-size: 0.75rem;
-      color: var(--orange);
-      border-bottom: 1px solid var(--orange);
+      background: transparent;
+      padding: 0.4rem 0.6rem;
+      font-size: 0.7rem;
+      color: var(--warn);
+      border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.4rem;
     }
 
     .instruction-content {
-      padding: 0.75rem;
+      padding: 0.5rem 0.6rem;
     }
 
     .instruction-step {
       display: flex;
-      gap: 0.5rem;
-      margin-bottom: 0.4rem;
-      font-size: 0.8rem;
+      gap: 0.4rem;
+      margin-bottom: 0.25rem;
+      font-size: 0.75rem;
     }
 
     .instruction-step-num {
-      color: var(--orange);
-      font-weight: 600;
-      min-width: 20px;
+      color: var(--text-dim);
+      font-weight: 500;
+      min-width: 18px;
+      font-size: 0.65rem;
     }
 
     .instruction-step-text {
       color: var(--text);
+    }
+
+    .instruction-step.active .instruction-step-num {
+      color: var(--warn);
     }
 
     .instruction-step.active .instruction-step-text {
@@ -394,7 +457,7 @@
     }
 
     .instruction-step.done .instruction-step-num {
-      color: var(--green);
+      color: var(--ok-dim);
     }
 
     .instruction-step.done .instruction-step-text {
@@ -402,115 +465,132 @@
       text-decoration: line-through;
     }
 
-    /* Gate Prompt */
+    /* Gate Prompt - sharp, urgent */
     .gate-prompt {
       background: var(--bg-secondary);
-      border: 1px solid var(--yellow);
-      border-radius: 8px;
-      padding: 1rem;
-      margin: 1rem 0;
+      border: 1px solid var(--warn);
+      border-left: 4px solid var(--warn);
+      border-radius: 0;
+      padding: 0.75rem;
+      margin: 0.75rem 0;
     }
 
     .gate-prompt-header {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      color: var(--yellow);
+      gap: 0.4rem;
+      color: var(--warn);
       font-weight: 600;
-      margin-bottom: 0.75rem;
+      margin-bottom: 0.5rem;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
     .gate-prompt-text {
       color: var(--text);
-      margin-bottom: 1rem;
+      margin-bottom: 0.75rem;
       line-height: 1.5;
+      font-size: 0.8rem;
     }
 
     .gate-prompt-actions {
       display: flex;
-      gap: 0.5rem;
+      gap: 0.4rem;
     }
 
     .gate-btn {
       font-family: var(--font-mono);
-      font-size: 0.8rem;
-      padding: 0.5rem 1rem;
-      border-radius: 4px;
+      font-size: 0.7rem;
+      padding: 0.4rem 0.75rem;
+      border-radius: 2px;
       border: 1px solid var(--border);
-      background: var(--bg-tertiary);
+      background: transparent;
       color: var(--text);
       cursor: pointer;
-      transition: all 0.15s;
+      transition: all 0.1s;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
     }
 
     .gate-btn:hover {
-      background: var(--border);
+      border-color: var(--border-bright);
     }
 
     .gate-btn.primary {
-      background: var(--green);
-      border-color: var(--green);
+      background: var(--ok);
+      border-color: var(--ok);
       color: var(--bg);
     }
 
     .gate-btn.primary:hover {
-      background: var(--green-dim);
+      background: var(--ok-dim);
     }
 
     .gate-btn.danger {
-      border-color: var(--red);
-      color: var(--red);
+      border-color: var(--err-dim);
+      color: var(--err);
     }
 
-    /* Evidence Pack Block */
+    .gate-btn.danger:hover {
+      background: var(--err-dim);
+      color: var(--text-bright);
+    }
+
+    /* Evidence Pack Block - sharp, minimal */
     .evidence-block {
       background: var(--bg-secondary);
-      border: 1px solid var(--accent);
-      border-radius: 6px;
-      margin: 0.75rem 0;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--info);
+      border-radius: 0;
+      margin: 0.5rem 0;
       overflow: hidden;
     }
 
     .evidence-header {
-      background: rgba(139, 92, 246, 0.1);
-      padding: 0.5rem 0.75rem;
-      font-size: 0.75rem;
-      color: var(--accent);
-      border-bottom: 1px solid var(--accent);
+      background: transparent;
+      padding: 0.4rem 0.6rem;
+      font-size: 0.7rem;
+      color: var(--info);
+      border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.4rem;
     }
 
     .evidence-content {
-      padding: 0.75rem;
-      font-size: 0.8rem;
+      padding: 0.5rem 0.6rem;
+      font-size: 0.75rem;
       color: var(--text-dim);
-      line-height: 1.6;
+      line-height: 1.5;
     }
 
     .evidence-row {
       display: flex;
-      gap: 0.5rem;
-      margin-bottom: 0.25rem;
+      gap: 0.4rem;
+      margin-bottom: 0.2rem;
     }
 
     .evidence-label {
       color: var(--text-dim);
-      min-width: 100px;
+      min-width: 85px;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
     }
 
     .evidence-value {
       color: var(--text);
       font-family: var(--font-mono);
+      font-size: 0.7rem;
     }
 
     .evidence-pass {
-      color: var(--green);
+      color: var(--ok);
     }
 
     .evidence-warn {
-      color: var(--yellow);
+      color: var(--warn);
     }
 
     /* Main Terminal */
@@ -525,13 +605,13 @@
     .terminal {
       flex: 1;
       overflow-y: auto;
-      padding: 1rem 1.5rem;
+      padding: 0.75rem 1rem;
       padding-bottom: 0;
       scroll-behavior: smooth;
     }
 
     .terminal::-webkit-scrollbar {
-      width: 8px;
+      width: 6px;
     }
 
     .terminal::-webkit-scrollbar-track {
@@ -540,23 +620,24 @@
 
     .terminal::-webkit-scrollbar-thumb {
       background: var(--border);
-      border-radius: 4px;
+      border-radius: 0;
     }
 
     /* Terminal Lines */
     .line {
       display: flex;
-      gap: 0.75rem;
-      margin-bottom: 0.15rem;
-      line-height: 1.6;
-      font-size: 0.9rem;
+      gap: 0.5rem;
+      margin-bottom: 0.1rem;
+      line-height: 1.5;
+      font-size: 0.8rem;
     }
 
     .line-prefix {
       color: var(--text-dim);
       user-select: none;
       flex-shrink: 0;
-      min-width: 20px;
+      min-width: 18px;
+      font-size: 0.75rem;
     }
 
     .line-content {
@@ -565,117 +646,123 @@
       word-break: break-word;
     }
 
-    /* Line Types */
-    .line.system .line-prefix { color: var(--accent); }
+    /* Line Types - monochrome-ish */
+    .line.system .line-prefix { color: var(--text-dim); }
     .line.system .line-content { color: var(--text-dim); }
 
-    .line.step .line-prefix { color: var(--green); }
+    .line.step .line-prefix { color: var(--accent); }
     .line.step .line-content { color: var(--text); }
 
     .line.output .line-prefix { color: var(--text-dim); }
     .line.output .line-content { color: var(--text-dim); }
 
-    .line.success .line-prefix { color: var(--green); }
-    .line.success .line-content { color: var(--green); }
+    .line.success .line-prefix { color: var(--ok); }
+    .line.success .line-content { color: var(--ok); }
 
-    .line.warning .line-prefix { color: var(--yellow); }
-    .line.warning .line-content { color: var(--yellow); }
+    .line.warning .line-prefix { color: var(--warn); }
+    .line.warning .line-content { color: var(--warn); }
 
-    .line.error .line-prefix { color: var(--red); }
-    .line.error .line-content { color: var(--red); }
+    .line.error .line-prefix { color: var(--err); }
+    .line.error .line-content { color: var(--err); }
 
-    .line.gate .line-prefix { color: var(--cyan); }
-    .line.gate .line-content { color: var(--cyan); }
+    .line.gate .line-prefix { color: var(--info); }
+    .line.gate .line-content { color: var(--text); }
 
-    .line.human .line-prefix { color: var(--orange); }
+    .line.human .line-prefix { color: var(--accent); }
     .line.human .line-content { color: var(--text-bright); font-weight: 500; }
 
-    .line.ai .line-prefix { color: var(--accent); }
+    .line.ai .line-prefix { color: var(--text-dim); }
     .line.ai .line-content { color: var(--text); }
 
-    /* Highlights */
-    .hl-green { color: var(--green); }
-    .hl-yellow { color: var(--yellow); }
-    .hl-red { color: var(--red); }
-    .hl-blue { color: var(--blue); }
-    .hl-cyan { color: var(--cyan); }
+    /* Highlights - monochrome semantic */
+    .hl-green { color: var(--ok); }
+    .hl-yellow { color: var(--warn); }
+    .hl-red { color: var(--err); }
+    .hl-blue { color: var(--info); }
+    .hl-cyan { color: var(--text); }
     .hl-accent { color: var(--accent); }
-    .hl-pink { color: var(--pink); }
-    .hl-orange { color: var(--orange); }
+    .hl-accent { color: var(--accent); }
+    .hl-orange { color: var(--accent); }
     .hl-dim { color: var(--text-dim); }
-    .hl-bright { color: var(--text-bright); font-weight: 600; }
+    .hl-bright { color: var(--text-bright); font-weight: 500; }
 
-    /* Blocks */
+    /* Blocks - sharp, code-like */
     .block {
       background: var(--bg-secondary);
       border: 1px solid var(--border);
-      border-radius: 6px;
-      margin: 0.75rem 0;
+      border-radius: 0;
+      margin: 0.5rem 0;
       overflow: hidden;
     }
 
     .block-header {
-      background: var(--bg-tertiary);
-      padding: 0.5rem 0.75rem;
-      font-size: 0.75rem;
+      background: var(--bg);
+      padding: 0.35rem 0.6rem;
+      font-size: 0.65rem;
       color: var(--text-dim);
       border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.4rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
     .block-content {
-      padding: 0.75rem;
-      font-size: 0.85rem;
+      padding: 0.5rem 0.6rem;
+      font-size: 0.75rem;
     }
 
     .block-content pre {
       margin: 0;
       white-space: pre-wrap;
+      line-height: 1.5;
     }
 
     /* Evidence Badge */
     .evidence-badge {
       display: inline-flex;
       align-items: center;
-      gap: 0.3rem;
-      background: rgba(139, 92, 246, 0.15);
-      color: var(--accent);
-      font-size: 0.7rem;
-      padding: 0.2rem 0.5rem;
-      border-radius: 3px;
-      margin-left: 0.5rem;
+      gap: 0.2rem;
+      background: transparent;
+      color: var(--info);
+      font-size: 0.6rem;
+      padding: 0.1rem 0.3rem;
+      border-radius: 1px;
+      margin-left: 0.4rem;
+      border: 1px solid var(--info);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
     }
 
     /* Progress Indicator */
     .progress-line {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      margin: 1rem 0;
-      padding: 0.75rem 1rem;
+      gap: 0.5rem;
+      margin: 0.5rem 0;
+      padding: 0.4rem 0.6rem;
       background: var(--bg-secondary);
-      border-radius: 6px;
+      border-radius: 0;
       border: 1px solid var(--border);
     }
 
     .progress-bar {
       flex: 1;
-      height: 4px;
+      height: 2px;
       background: var(--border);
-      border-radius: 2px;
+      border-radius: 0;
       overflow: hidden;
     }
 
     .progress-fill {
       height: 100%;
-      background: linear-gradient(90deg, var(--accent) 0%, var(--green) 100%);
+      background: var(--accent);
       transition: width 0.3s ease;
     }
 
     .progress-text {
-      font-size: 0.75rem;
+      font-size: 0.65rem;
       color: var(--text-dim);
       white-space: nowrap;
     }
@@ -683,10 +770,10 @@
     /* Typing Cursor */
     .cursor {
       display: inline-block;
-      width: 8px;
-      height: 1.1em;
+      width: 7px;
+      height: 1em;
       background: var(--accent);
-      margin-left: 2px;
+      margin-left: 1px;
       animation: cursor-blink 1s step-end infinite;
       vertical-align: text-bottom;
     }
@@ -698,28 +785,29 @@
 
     /* Spacer */
     .spacer {
-      height: 0.75rem;
+      height: 0.5rem;
     }
 
-    /* Input Area */
+    /* Input Area - minimal */
     .input-area {
-      background: var(--bg-secondary);
+      background: var(--bg);
       border-top: 1px solid var(--border);
-      padding: 1rem 1.5rem;
+      padding: 0.6rem 1rem;
       flex-shrink: 0;
     }
 
     .input-row {
       display: flex;
       align-items: flex-start;
-      gap: 0.75rem;
+      gap: 0.5rem;
     }
 
     .input-prefix {
-      color: var(--orange);
-      font-weight: 600;
-      padding-top: 0.6rem;
+      color: var(--accent);
+      font-weight: 500;
+      padding-top: 0.5rem;
       user-select: none;
+      font-size: 0.8rem;
     }
 
     .input-wrapper {
@@ -729,24 +817,23 @@
 
     .input-field {
       width: 100%;
-      background: var(--bg);
+      background: var(--bg-secondary);
       border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 0.6rem 0.85rem;
+      border-radius: 2px;
+      padding: 0.5rem 0.6rem;
       font-family: var(--font-mono);
-      font-size: 0.9rem;
+      font-size: 0.8rem;
       color: var(--text-bright);
       resize: none;
-      min-height: 42px;
-      max-height: 200px;
+      min-height: 36px;
+      max-height: 180px;
       line-height: 1.5;
-      transition: all 0.15s;
+      transition: border-color 0.1s;
     }
 
     .input-field:focus {
       outline: none;
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
     }
 
     .input-field::placeholder {
@@ -754,81 +841,67 @@
     }
 
     .input-hint {
-      font-size: 0.7rem;
+      font-size: 0.6rem;
       color: var(--text-dim);
-      margin-top: 0.5rem;
+      margin-top: 0.35rem;
       display: flex;
       align-items: center;
-      gap: 1rem;
+      gap: 0.75rem;
     }
 
     .input-hint kbd {
-      background: var(--bg-tertiary);
+      background: var(--bg-secondary);
       border: 1px solid var(--border);
-      padding: 0.1rem 0.4rem;
-      border-radius: 3px;
-      font-size: 0.65rem;
+      padding: 0.05rem 0.3rem;
+      border-radius: 1px;
+      font-size: 0.55rem;
     }
 
-    /* Governance Sidebar (collapsible) */
+    /* Governance Sidebar (collapsible) - sharp, minimal */
     .sidebar-toggle {
       position: fixed;
-      right: 1rem;
+      right: 0;
       top: 50%;
       transform: translateY(-50%);
-      width: 36px;
-      height: 90px;
-      background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
-      border: 2px solid var(--accent);
+      width: 28px;
+      height: 72px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
       border-right: none;
-      border-radius: 8px 0 0 8px;
+      border-radius: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 0.3rem;
+      gap: 0.2rem;
       cursor: pointer;
-      color: var(--accent);
-      font-size: 1rem;
-      font-weight: 600;
-      transition: all 0.2s ease;
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      font-weight: 500;
+      transition: all 0.15s;
       z-index: 100;
-      box-shadow: -2px 0 8px rgba(139, 92, 246, 0.2);
-      animation: sidebar-pulse 2s ease-in-out infinite;
-    }
-
-    @keyframes sidebar-pulse {
-      0%, 100% { box-shadow: -2px 0 8px rgba(139, 92, 246, 0.2); }
-      50% { box-shadow: -2px 0 12px rgba(139, 92, 246, 0.4); }
     }
 
     .sidebar-toggle:hover {
-      background: linear-gradient(135deg, var(--accent-dim) 0%, var(--accent) 100%);
-      color: var(--text-bright);
-      border-color: var(--accent);
-      transform: translateY(-50%) translateX(-3px);
-      box-shadow: -4px 0 16px rgba(139, 92, 246, 0.4);
-    }
-
-    .sidebar-toggle:hover::before {
-      color: var(--text-bright);
+      background: var(--bg-tertiary);
+      color: var(--text);
+      border-color: var(--border-bright);
     }
 
     .sidebar-toggle.open {
-      right: 281px;
-      animation: none;
+      right: 260px;
     }
 
     .sidebar {
       position: fixed;
-      right: -280px;
+      right: -260px;
       top: 0;
       bottom: 0;
-      width: 280px;
+      width: 260px;
       background: var(--bg-secondary);
       border-left: 1px solid var(--border);
-      padding: 1rem;
-      transition: right 0.3s ease;
+      padding: 0.75rem;
+      transition: right 0.2s ease;
       z-index: 99;
       overflow-y: auto;
     }
@@ -838,96 +911,101 @@
     }
 
     .sidebar-section {
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.25rem;
     }
 
     .sidebar-title {
-      font-size: 0.7rem;
+      font-size: 0.55rem;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.06em;
       color: var(--text-dim);
-      margin-bottom: 0.75rem;
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.25rem;
+      border-bottom: 1px solid var(--border);
     }
 
     .sidebar-item {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      padding: 0.5rem;
-      background: var(--bg-tertiary);
-      border-radius: 4px;
-      margin-bottom: 0.4rem;
-      font-size: 0.8rem;
+      gap: 0.4rem;
+      padding: 0.35rem 0;
+      background: transparent;
+      border-radius: 0;
+      margin-bottom: 0;
+      font-size: 0.7rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-item:last-child {
+      border-bottom: none;
     }
 
     .sidebar-item-icon {
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
+      width: 14px;
+      height: 14px;
+      border-radius: 1px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.6rem;
+      font-size: 0.55rem;
       flex-shrink: 0;
     }
 
-    .sidebar-item-icon.pass { background: rgba(34, 197, 94, 0.2); color: var(--green); }
-    .sidebar-item-icon.pending { background: rgba(113, 113, 122, 0.2); color: var(--text-dim); }
-    .sidebar-item-icon.fail { background: rgba(239, 68, 68, 0.2); color: var(--red); }
+    .sidebar-item-icon.pass { background: var(--ok-dim); color: var(--text-bright); }
+    .sidebar-item-icon.pending { background: var(--border); color: var(--text-dim); }
+    .sidebar-item-icon.fail { background: var(--err-dim); color: var(--text-bright); }
 
     .mai-tag {
-      font-size: 0.65rem;
+      font-size: 0.55rem;
       font-weight: 600;
-      padding: 0.2rem 0.4rem;
-      border-radius: 3px;
+      padding: 0.15rem 0.3rem;
+      border-radius: 1px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
-    .mai-tag.advisory { background: rgba(234, 179, 8, 0.2); color: var(--yellow); }
-    .mai-tag.mandatory { background: rgba(239, 68, 68, 0.2); color: var(--red); }
-    .mai-tag.informational { background: rgba(59, 130, 246, 0.2); color: var(--blue); }
+    .mai-tag.advisory { background: var(--warn-dim); color: var(--text-bright); }
+    .mai-tag.mandatory { background: var(--err-dim); color: var(--text-bright); }
+    .mai-tag.informational { background: var(--info); color: var(--text-bright); }
 
     /* Sidebar Export Buttons */
     .sidebar-export-btn {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.4rem;
       width: 100%;
-      padding: 0.6rem 0.75rem;
-      background: var(--bg-tertiary);
+      padding: 0.4rem 0.5rem;
+      background: transparent;
       border: 1px solid var(--border);
-      border-radius: 6px;
-      margin-bottom: 0.5rem;
+      border-radius: 2px;
+      margin-bottom: 0.35rem;
       font-family: var(--font-mono);
-      font-size: 0.75rem;
+      font-size: 0.65rem;
       color: var(--text);
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all 0.1s;
     }
 
     .sidebar-export-btn:hover {
-      background: var(--bg-secondary);
       border-color: var(--accent);
       color: var(--text-bright);
-      transform: translateX(2px);
     }
 
     .sidebar-export-btn:active {
-      transform: translateX(0);
+      background: var(--bg-tertiary);
     }
 
     .sidebar-export-btn .export-format {
       margin-left: auto;
-      font-size: 0.65rem;
+      font-size: 0.55rem;
       color: var(--text-dim);
-      background: var(--bg);
-      padding: 0.15rem 0.35rem;
-      border-radius: 3px;
+      background: transparent;
+      padding: 0;
     }
 
     .sidebar-export-btn:hover .export-format {
-      background: var(--accent);
-      color: var(--bg);
+      color: var(--accent);
     }
 
     /* Mobile */
@@ -939,35 +1017,41 @@
       .sidebar-toggle { display: none; }
     }
 
-    /* Demo Banner */
+    /* Demo Banner - subtle */
     .demo-banner {
-      background: rgba(59, 130, 246, 0.15);
-      border-bottom: 1px solid rgba(59, 130, 246, 0.3);
-      padding: 0.4rem 1rem;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 0.25rem 1rem;
       text-align: center;
-      font-size: 0.7rem;
-      color: var(--blue);
+      font-size: 0.6rem;
+      color: var(--text-dim);
       font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .demo-banner a {
+      color: var(--accent);
     }
 
     /* Capsule Tooltip */
     .capsule-tooltip {
       position: absolute;
-      background: var(--bg-secondary);
-      border: 1px solid var(--pink);
-      border-radius: 6px;
-      padding: 0.75rem;
-      font-size: 0.7rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 0;
+      padding: 0.5rem;
+      font-size: 0.65rem;
       z-index: 1000;
-      min-width: 240px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      min-width: 200px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
       display: none;
     }
 
     .capsule-tooltip-row {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 0.3rem;
+      margin-bottom: 0.2rem;
       color: var(--text-dim);
     }
 
@@ -980,14 +1064,14 @@
       display: block;
     }
 
-    /* Evidence Modal */
+    /* Evidence Modal - sharp */
     .modal-overlay {
       position: fixed;
       top: 0;
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0,0,0,0.8);
+      background: rgba(0,0,0,0.85);
       display: none;
       align-items: center;
       justify-content: center;
@@ -1001,9 +1085,9 @@
     .modal {
       background: var(--bg-secondary);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 0;
       width: 90%;
-      max-width: 700px;
+      max-width: 640px;
       max-height: 80vh;
       overflow: hidden;
       display: flex;
@@ -1011,25 +1095,27 @@
     }
 
     .modal-header {
-      padding: 1rem 1.5rem;
+      padding: 0.6rem 1rem;
       border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: var(--bg-tertiary);
+      background: var(--bg);
     }
 
     .modal-title {
-      font-size: 1rem;
+      font-size: 0.8rem;
       font-weight: 600;
-      color: var(--accent);
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
     .modal-close {
       background: none;
       border: none;
       color: var(--text-dim);
-      font-size: 1.5rem;
+      font-size: 1.2rem;
       cursor: pointer;
       line-height: 1;
     }
@@ -1039,39 +1125,36 @@
     }
 
     .modal-content {
-      padding: 1.5rem;
+      padding: 1rem;
       overflow-y: auto;
-      font-size: 0.85rem;
+      font-size: 0.75rem;
     }
 
     .modal-section {
-      margin-bottom: 1.5rem;
+      margin-bottom: 1rem;
     }
 
     .modal-section-title {
-      font-size: 0.7rem;
+      font-size: 0.55rem;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: var(--text-dim);
-      margin-bottom: 0.75rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.25rem;
+      border-bottom: 1px solid var(--border);
     }
 
     .modal-section-title::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
+      display: none;
     }
 
     .modal-row {
       display: flex;
-      gap: 1rem;
-      padding: 0.4rem 0;
+      gap: 0.75rem;
+      padding: 0.3rem 0;
       border-bottom: 1px solid var(--border);
+      font-size: 0.7rem;
     }
 
     .modal-row:last-child {
@@ -1080,7 +1163,10 @@
 
     .modal-label {
       color: var(--text-dim);
-      min-width: 120px;
+      min-width: 100px;
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
     }
 
     .modal-value {
@@ -1089,46 +1175,47 @@
     }
 
     .modal-value.pass {
-      color: var(--green);
+      color: var(--ok);
     }
 
     .modal-value.hash {
-      color: var(--cyan);
-      font-size: 0.75rem;
+      color: var(--text-dim);
+      font-size: 0.65rem;
     }
 
     .modal-capsules {
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
+      gap: 0.3rem;
     }
 
     .modal-capsule {
-      background: var(--bg-tertiary);
-      border: 1px solid var(--pink);
-      border-radius: 4px;
-      padding: 0.5rem 0.75rem;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 0;
+      padding: 0.35rem 0.5rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
     .modal-capsule-name {
-      color: var(--pink);
+      color: var(--accent);
       font-weight: 500;
+      font-size: 0.7rem;
     }
 
     .modal-capsule-status {
-      font-size: 0.7rem;
-      padding: 0.15rem 0.4rem;
-      border-radius: 3px;
-      background: rgba(34, 197, 94, 0.2);
-      color: var(--green);
+      font-size: 0.6rem;
+      padding: 0.1rem 0.25rem;
+      border-radius: 1px;
+      background: var(--ok-dim);
+      color: var(--text-bright);
     }
 
     /* Confidence/Drift indicators */
     .gov-item .indicator-drift-warn {
-      color: var(--yellow);
+      color: var(--warn);
       animation: drift-pulse 2s infinite;
     }
 
@@ -1149,7 +1236,7 @@
   <div class="modal-overlay" id="evidenceModal">
     <div class="modal">
       <div class="modal-header">
-        <span class="modal-title">📦 Evidence Pack Viewer</span>
+        <span class="modal-title">Evidence Pack Viewer</span>
         <button class="modal-close" id="modalClose">&times;</button>
       </div>
       <div class="modal-content">
@@ -1186,9 +1273,9 @@
 
         <div class="modal-section">
           <div class="modal-section-title">Gate Approvals</div>
-          <div class="modal-row"><span class="modal-label">Gate 1</span><span class="modal-value pass">Domain Authorization ✓</span></div>
-          <div class="modal-row"><span class="modal-label">Gate 2</span><span class="modal-value pass">MAI Classification ✓</span></div>
-          <div class="modal-row"><span class="modal-label">Gate 3</span><span class="modal-value pass">Cost Budget ✓</span></div>
+          <div class="modal-row"><span class="modal-label">Gate 1</span><span class="modal-value pass">Domain Authorization [OK]</span></div>
+          <div class="modal-row"><span class="modal-label">Gate 2</span><span class="modal-value pass">MAI Classification [OK]</span></div>
+          <div class="modal-row"><span class="modal-label">Gate 3</span><span class="modal-value pass">Cost Budget [OK]</span></div>
           <div class="modal-row"><span class="modal-label">Gate 4</span><span class="modal-value" id="modalGate4">Pending...</span></div>
         </div>
 
@@ -1200,12 +1287,11 @@
           <div class="modal-row"><span class="modal-label">evidence-pack.json</span><span class="modal-value">demo/artifacts/[hash].json</span></div>
         </div>
 
-        <div class="modal-section" id="storageWarning" style="background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); border-radius: 6px; padding: 0.75rem; margin-top: 1rem;">
-          <div style="color: var(--yellow); font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem;">⚠️ LOCAL DEMO STORAGE</div>
-          <div style="color: var(--text-dim); font-size: 0.7rem; line-height: 1.5;">
+        <div class="modal-section" id="storageWarning" style="background: var(--bg); border: 1px solid var(--border); border-left: 3px solid var(--warn); padding: 0.5rem 0.6rem; margin-top: 0.75rem;">
+          <div style="color: var(--warn); font-size: 0.6rem; font-weight: 600; margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.04em;">LOCAL DEMO STORAGE</div>
+          <div style="color: var(--text-dim); font-size: 0.65rem; line-height: 1.4;">
             Evidence stored client-side (localStorage). Not tamper-resistant.<br>
-            Backend sealing with server-side timestamps required for production.<br>
-            Hash chain demonstrates append-only audit model.
+            Backend sealing with server-side timestamps required for production.
           </div>
         </div>
       </div>
@@ -1225,39 +1311,33 @@
         <span id="statusText">running</span>
       </div>
       <div class="mode-tag" id="modeTag">DEMO</div>
-      <button class="header-btn" id="evidenceBtn" title="View Evidence Pack">📦</button>
+      <button class="header-btn" id="evidenceBtn" title="View Evidence Pack">EVD</button>
     </div>
     <div class="header-right">
       <div class="cost-tag" id="costTag">$0.00</div>
-      <button class="header-btn" id="pauseBtn">
-        <span>pause</span> ⏸
-      </button>
-      <button class="header-btn danger" id="abortBtn">
-        <span>abort</span> ⛔
-      </button>
-      <button class="header-btn" id="helpBtn" title="Keyboard shortcuts">
-        ?
-      </button>
+      <button class="header-btn" id="pauseBtn">PAUSE</button>
+      <button class="header-btn danger" id="abortBtn">ABORT</button>
+      <button class="header-btn" id="helpBtn" title="Keyboard shortcuts">?</button>
     </div>
   </header>
 
   <!-- Governance Banner -->
   <div class="governance-banner" id="governanceBanner">
-    <span class="gov-item"><span class="gov-icon">⚡</span> MAI: <span class="hl-yellow">ADVISORY</span></span>
-    <span class="gov-divider">|</span>
-    <span class="gov-item"><span class="gov-icon">📦</span> ECV: <span class="hl-green">ACTIVE</span></span>
-    <span class="gov-divider">|</span>
-    <span class="gov-item"><span class="gov-icon">🚫</span> Gate: <span class="hl-cyan">REQUIRED</span></span>
-    <span class="gov-divider">|</span>
-    <span class="gov-item"><span class="gov-icon">⚠</span> Risk: <span class="hl-yellow" id="riskLevel">MODERATE</span></span>
-    <span class="gov-divider">|</span>
-    <span class="gov-item"><span class="gov-icon">🔒</span> Integrity: <span class="hl-green" id="integrityStatus">VERIFIED (LOCAL)</span></span>
-    <span class="gov-divider">|</span>
-    <span class="gov-item"><span class="gov-icon">🤖</span> Autonomy: <span class="hl-cyan" id="autonomyLevel">ASSISTED</span></span>
-    <span class="gov-divider">|</span>
-    <span class="gov-item"><span class="gov-icon">🎯</span> Confidence: <span class="hl-green" id="confidenceLevel">HIGH</span></span>
-    <span class="gov-divider">|</span>
-    <span class="gov-item"><span class="gov-icon">🔄</span> Drift: <span class="hl-green" id="driftStatus">CLEAN</span></span>
+    <span class="gov-item"><span class="gov-label">MAI</span> <span class="hl-yellow">ADVISORY</span></span>
+    <span class="gov-divider">/</span>
+    <span class="gov-item"><span class="gov-label">ECV</span> <span class="hl-green">ON</span></span>
+    <span class="gov-divider">/</span>
+    <span class="gov-item"><span class="gov-label">GATE</span> <span class="hl-cyan">REQ</span></span>
+    <span class="gov-divider">/</span>
+    <span class="gov-item"><span class="gov-label">RISK</span> <span class="hl-yellow" id="riskLevel">MED</span></span>
+    <span class="gov-divider">/</span>
+    <span class="gov-item"><span class="gov-label">INT</span> <span class="hl-green" id="integrityStatus">OK</span></span>
+    <span class="gov-divider">/</span>
+    <span class="gov-item"><span class="gov-label">AUTO</span> <span class="hl-cyan" id="autonomyLevel">ASSIST</span></span>
+    <span class="gov-divider">/</span>
+    <span class="gov-item"><span class="gov-label">CONF</span> <span class="hl-green" id="confidenceLevel">HIGH</span></span>
+    <span class="gov-divider">/</span>
+    <span class="gov-item"><span class="gov-label">DRIFT</span> <span class="hl-green" id="driftStatus">CLEAN</span></span>
   </div>
 
   <!-- Metrics Bar -->
@@ -1316,8 +1396,8 @@
 
   <!-- Sidebar Toggle -->
   <div class="sidebar-toggle" id="sidebarToggle">
-    <span style="font-size: 0.55rem; font-weight: 700; letter-spacing: 0.05em; color: var(--text-dim);">GOV</span>
-    ◀
+    <span style="font-size: 0.5rem; font-weight: 600; letter-spacing: 0.06em;">GOV</span>
+    <span style="font-size: 0.7rem;">&lt;</span>
   </div>
 
   <!-- Sidebar -->
@@ -1329,19 +1409,19 @@
         <span class="mai-tag advisory">ADVISORY</span>
       </div>
       <div class="sidebar-item">
-        <div class="sidebar-item-icon pass">✓</div>
+        <div class="sidebar-item-icon pass">+</div>
         <span>Domain authorized</span>
       </div>
       <div class="sidebar-item">
-        <div class="sidebar-item-icon pass">✓</div>
+        <div class="sidebar-item-icon pass">+</div>
         <span>Cost: $0.14 / $5.00</span>
       </div>
       <div class="sidebar-item">
-        <div class="sidebar-item-icon pass">✓</div>
+        <div class="sidebar-item-icon pass">+</div>
         <span>Data classification</span>
       </div>
       <div class="sidebar-item">
-        <div class="sidebar-item-icon pending">○</div>
+        <div class="sidebar-item-icon pending">-</div>
         <span style="color: var(--text-dim);">Output review</span>
       </div>
     </div>
@@ -1349,15 +1429,15 @@
     <div class="sidebar-section">
       <div class="sidebar-title">Evidence Pack</div>
       <div class="sidebar-item">
-        <span>📸</span>
+        <span style="color: var(--text-dim); font-size: 0.6rem;">CAP</span>
         <span>3 screenshots</span>
       </div>
       <div class="sidebar-item">
-        <span>🔗</span>
-        <span>2 API calls logged</span>
+        <span style="color: var(--text-dim); font-size: 0.6rem;">API</span>
+        <span>2 calls logged</span>
       </div>
       <div class="sidebar-item">
-        <span>💬</span>
+        <span style="color: var(--text-dim); font-size: 0.6rem;">INT</span>
         <span>0 interrupts</span>
       </div>
     </div>
@@ -1373,25 +1453,21 @@
     </div>
 
     <div class="sidebar-section">
-      <div class="sidebar-title">Export Packages</div>
+      <div class="sidebar-title">Export</div>
       <button class="sidebar-export-btn" id="exportEvidenceBtn" title="Export evidence pack as JSON">
-        <span>📦</span>
-        <span>Evidence Pack</span>
+        <span>Evidence</span>
         <span class="export-format">.json</span>
       </button>
       <button class="sidebar-export-btn" id="exportCapsulesBtn" title="Export capsules as JSON">
-        <span>💊</span>
         <span>Capsules</span>
         <span class="export-format">.json</span>
       </button>
       <button class="sidebar-export-btn" id="exportFullBtn" title="Export full audit bundle">
-        <span>📋</span>
-        <span>Full Audit Bundle</span>
-        <span class="export-format">.zip</span>
+        <span>Full Bundle</span>
+        <span class="export-format">.json</span>
       </button>
-      <div style="font-size: 0.65rem; color: var(--text-dim); margin-top: 0.5rem; line-height: 1.4;">
-        ⚠️ Local demo storage only.<br>
-        Production: server-sealed exports.
+      <div style="font-size: 0.55rem; color: var(--text-dim); margin-top: 0.35rem; line-height: 1.3; text-transform: uppercase; letter-spacing: 0.03em;">
+        Local demo storage only
       </div>
     </div>
   </div>
@@ -1750,7 +1826,7 @@
       // Update modal with current data
       document.getElementById('modalStartTime').textContent = new Date(startTime).toISOString().replace('T', ' ').substr(0, 19);
       document.getElementById('modalDuration').textContent = timeMetric.textContent;
-      document.getElementById('modalGate4').textContent = gatesPassed >= 4 ? 'Export Approved ✓' : 'Pending...';
+      document.getElementById('modalGate4').textContent = gatesPassed >= 4 ? 'Export Approved [OK]' : 'Pending...';
       document.getElementById('modalGate4').className = gatesPassed >= 4 ? 'modal-value pass' : 'modal-value';
       evidenceModal.classList.add('open');
     });
@@ -1847,14 +1923,14 @@
       const block = document.createElement('div');
       block.className = 'evidence-block';
       block.innerHTML = `
-        <div class="evidence-header">📦 Evidence Pack: ${packId}</div>
+        <div class="evidence-header">EVD ${packId}</div>
         <div class="evidence-content">
-          <div class="evidence-row"><span class="evidence-label">Source:</span><span class="evidence-value">${data.source}</span></div>
-          <div class="evidence-row"><span class="evidence-label">Endpoint:</span><span class="evidence-value">${data.endpoint}</span></div>
-          <div class="evidence-row"><span class="evidence-label">Query Hash:</span><span class="evidence-value">${data.queryHash}</span></div>
-          <div class="evidence-row"><span class="evidence-label">Timestamp:</span><span class="evidence-value">${data.timestamp}</span></div>
-          <div class="evidence-row"><span class="evidence-label">Validation:</span><span class="evidence-value evidence-pass">${data.validation}</span></div>
-          ${data.negativeAssurance ? `<div class="evidence-row"><span class="evidence-label">⚠ Note:</span><span class="evidence-value evidence-warn">${data.negativeAssurance}</span></div>` : ''}
+          <div class="evidence-row"><span class="evidence-label">Source</span><span class="evidence-value">${data.source}</span></div>
+          <div class="evidence-row"><span class="evidence-label">Endpoint</span><span class="evidence-value">${data.endpoint}</span></div>
+          <div class="evidence-row"><span class="evidence-label">Query Hash</span><span class="evidence-value">${data.queryHash}</span></div>
+          <div class="evidence-row"><span class="evidence-label">Timestamp</span><span class="evidence-value">${data.timestamp}</span></div>
+          <div class="evidence-row"><span class="evidence-label">Validation</span><span class="evidence-value evidence-pass">${data.validation}</span></div>
+          ${data.negativeAssurance ? `<div class="evidence-row"><span class="evidence-label">Note</span><span class="evidence-value evidence-warn">${data.negativeAssurance}</span></div>` : ''}
         </div>
       `;
       terminal.appendChild(block);
@@ -1876,25 +1952,25 @@
       block.innerHTML = `
         <div class="capsule-header">
           <div class="capsule-header-left">
-            <span>💊 Capsule: ${capsuleId}</span>
+            <span>CAP ${capsuleId}</span>
             <span class="capsule-badge ${data.status}">${data.status.toUpperCase()}</span>
           </div>
-          <span style="font-size: 0.65rem; color: var(--text-dim);">${data.type}</span>
+          <span style="font-size: 0.6rem; color: var(--text-dim);">${data.type}</span>
         </div>
         <div class="capsule-content">
           <div style="color: var(--text);">${data.description}</div>
           <div class="capsule-stats">
-            <span class="capsule-stat">⚡ Tokens: <span class="capsule-stat-value">${data.tokens || '0'}</span></span>
-            <span class="capsule-stat">🔄 Reuses: <span class="capsule-stat-value">${data.reuses || '0'}</span></span>
-            <span class="capsule-stat">💰 Saved: <span class="capsule-stat-value">$${data.saved || '0.00'}</span></span>
-            ${data.ttl ? `<span class="capsule-stat">⏱ TTL: <span class="capsule-stat-value">${data.ttl}</span></span>` : ''}
+            <span class="capsule-stat">tok <span class="capsule-stat-value">${data.tokens || '0'}</span></span>
+            <span class="capsule-stat">use <span class="capsule-stat-value">${data.reuses || '0'}</span></span>
+            <span class="capsule-stat">$ <span class="capsule-stat-value">${data.saved || '0.00'}</span></span>
+            ${data.ttl ? `<span class="capsule-stat">ttl <span class="capsule-stat-value">${data.ttl}</span></span>` : ''}
           </div>
         </div>
         <div class="capsule-tooltip" style="top: 100%; left: 0; margin-top: 4px;">
-          <div class="capsule-tooltip-row"><span>Pack Version:</span><span>${packVersion}</span></div>
-          <div class="capsule-tooltip-row"><span>Input Hash:</span><span>${inputHash}</span></div>
-          <div class="capsule-tooltip-row"><span>TTL Countdown:</span><span>${ttlCountdown}</span></div>
-          <div class="capsule-tooltip-row"><span>Last Validated:</span><span>${lastValidated}</span></div>
+          <div class="capsule-tooltip-row"><span>Version</span><span>${packVersion}</span></div>
+          <div class="capsule-tooltip-row"><span>Hash</span><span>${inputHash}</span></div>
+          <div class="capsule-tooltip-row"><span>TTL</span><span>${ttlCountdown}</span></div>
+          <div class="capsule-tooltip-row"><span>Validated</span><span>${lastValidated}</span></div>
         </div>
       `;
       terminal.appendChild(block);
@@ -1914,8 +1990,8 @@
 
       block.innerHTML = `
         <div class="instruction-header">
-          <span>📦 Instruction Pack: ${packName}</span>
-          <span style="margin-left: auto; font-size: 0.65rem; color: var(--text-dim);">${steps.length} steps</span>
+          <span>PACK ${packName}</span>
+          <span style="margin-left: auto; font-size: 0.6rem; color: var(--text-dim);">${steps.length} steps</span>
         </div>
         <div class="instruction-content">${stepsHtml}</div>
       `;
@@ -1936,12 +2012,12 @@
       gate.className = 'gate-prompt';
       gate.id = gateId;
       gate.innerHTML = `
-        <div class="gate-prompt-header">🚫 MANDATORY GATE — Human Approval Required</div>
+        <div class="gate-prompt-header">MANDATORY GATE — Human Approval Required</div>
         <div class="gate-prompt-text">${message}</div>
         <div class="gate-prompt-actions">
-          <button class="gate-btn primary" data-action="approve">✓ APPROVE</button>
-          <button class="gate-btn" data-action="modify">✎ MODIFY</button>
-          <button class="gate-btn danger" data-action="abort">✗ ABORT</button>
+          <button class="gate-btn primary" data-action="approve">APPROVE</button>
+          <button class="gate-btn" data-action="modify">MODIFY</button>
+          <button class="gate-btn danger" data-action="abort">ABORT</button>
         </div>
       `;
       terminal.appendChild(gate);
@@ -1966,8 +2042,8 @@
       sidebar.classList.toggle('open');
       sidebarToggle.classList.toggle('open');
       sidebarToggle.innerHTML = sidebar.classList.contains('open')
-        ? '<span style="font-size: 0.55rem; font-weight: 700; letter-spacing: 0.05em; color: var(--text-dim);">GOV</span>▶'
-        : '<span style="font-size: 0.55rem; font-weight: 700; letter-spacing: 0.05em; color: var(--text-dim);">GOV</span>◀';
+        ? '<span style="font-size: 0.5rem; font-weight: 600; letter-spacing: 0.06em;">GOV</span><span style="font-size: 0.7rem;">&gt;</span>'
+        : '<span style="font-size: 0.5rem; font-weight: 600; letter-spacing: 0.06em;">GOV</span><span style="font-size: 0.7rem;">&lt;</span>';
     });
 
     // Export functions
@@ -1998,7 +2074,7 @@
       downloadJSON(evidenceData, filename);
 
       // Log to terminal
-      addLine('success', '✓', `exported evidence pack: <span class="hl-cyan">${filename}</span>`);
+      addLine('success', '+', `exported evidence pack: <span class="hl-cyan">${filename}</span>`);
       addSpacer();
     });
 
@@ -2015,7 +2091,7 @@
       downloadJSON(capsuleData, filename);
 
       // Log to terminal
-      addLine('success', '✓', `exported capsules: <span class="hl-pink">${filename}</span>`);
+      addLine('success', '+', `exported capsules: <span class="hl-accent">${filename}</span>`);
       addSpacer();
     });
 
@@ -2067,8 +2143,8 @@
       downloadJSON(bundleData, filename);
 
       // Log to terminal
-      addLine('success', '✓', `exported full audit bundle: <span class="hl-accent">${filename}</span>`);
-      addLine('system', '◆', `<span class="hl-dim">bundle includes: evidence, capsules, metrics, governance state</span>`);
+      addLine('success', '+', `exported full audit bundle: <span class="hl-accent">${filename}</span>`);
+      addLine('system', '*', `<span class="hl-dim">bundle includes: evidence, capsules, metrics, governance state</span>`);
       addSpacer();
     });
 
@@ -2199,8 +2275,8 @@
       await sleep(400);
 
       // Log interrupt
-      addLine('gate', '⚡', `logged interrupt #${interruptCount} to evidence pack`,
-        `<span class="evidence-badge">📦 recorded</span>`);
+      addLine('gate', '>', `logged interrupt #${interruptCount} to evidence pack`,
+        `<span class="evidence-badge">recorded</span>`);
 
       await sleep(300);
 
@@ -2209,8 +2285,8 @@
 
       await sleep(500);
 
-      addLine('gate', '✓', `MAI classification unchanged: <span class="hl-yellow">ADVISORY</span>`);
-      addLine('gate', '✓', `gates re-validated. proceeding.`);
+      addLine('gate', '+', `MAI classification unchanged: <span class="hl-yellow">ADVISORY</span>`);
+      addLine('gate', '+', `gates re-validated. proceeding.`);
 
       addSpacer();
 
@@ -2231,7 +2307,7 @@
       await sleep(800);
       await typeText('output', '  ', `filtering results...`);
       await sleep(500);
-      addLine('success', '✓', `found <span class="hl-bright">12</span> opportunities matching updated criteria`);
+      addLine('success', '+', `found <span class="hl-bright">12</span> opportunities matching updated criteria`);
 
       addSpacer();
     }
@@ -2246,31 +2322,31 @@
       if (isPaused) {
         statusPill.className = 'status-pill paused';
         statusText.textContent = 'paused';
-        pauseBtn.innerHTML = '<span>resume</span> ▶';
-        addLine('warning', '⏸', 'workflow paused by operator');
+        pauseBtn.textContent = 'RESUME';
+        addLine('warning', '||', 'workflow paused by operator');
       } else {
         statusPill.className = 'status-pill running';
         statusText.textContent = 'running';
-        pauseBtn.innerHTML = '<span>pause</span> ⏸';
-        addLine('success', '▶', 'workflow resumed');
+        pauseBtn.textContent = 'PAUSE';
+        addLine('success', '>', 'workflow resumed');
       }
       addSpacer();
     });
 
     // Initial demo sequence
     async function runDemo() {
-      addLine('system', '◆', `<span class="hl-accent">GIA Console</span> v0.1.0 — governed AI execution terminal`);
-      addLine('system', '◆', `type anytime to interrupt, re-scope, or add constraints`);
+      addLine('system', '*', `<span class="hl-accent">GIA Console</span> v0.1.0 — governed AI execution terminal`);
+      addLine('system', '*', `type anytime to interrupt, re-scope, or add constraints`);
       addSpacer();
 
       await sleep(500);
 
-      addLine('gate', '⚡', `run initialized: <span class="hl-bright">WF-2026-0204-BD-001</span>`);
-      addLine('gate', '✓', `domain: <span class="hl-cyan">BD Capture</span> — authorized`);
+      addLine('gate', '>', `run initialized: <span class="hl-bright">WF-2026-0204-BD-001</span>`);
+      addLine('gate', '+', `domain: <span class="hl-cyan">BD Capture</span> — authorized`);
       updateGates(1);
-      addLine('gate', '✓', `MAI classification: <span class="hl-yellow">ADVISORY</span>`);
+      addLine('gate', '+', `MAI classification: <span class="hl-yellow">ADVISORY</span>`);
       updateGates(2);
-      addLine('gate', '✓', `cost budget: $5.00 — approved`);
+      addLine('gate', '+', `cost budget: $5.00 — approved`);
       updateGates(3);
       addSpacer();
 
@@ -2311,7 +2387,7 @@ min-value:  $100,000`);
       updateInstructionStep(pack, 1, 'active');
       await typeText('step', '→', 'connecting to SAM.gov API...');
       await sleep(800);
-      addLine('success', '✓', 'connection established');
+      addLine('success', '+', 'connection established');
       updateCost(0.02);
       updateApiCalls();
       updateInstructionStep(pack, 1, 'done');
@@ -2332,7 +2408,7 @@ min-value:  $100,000`);
       addProgress(100, 'complete');
 
       await sleep(300);
-      addLine('success', '✓', `found <span class="hl-bright">47</span> opportunities matching criteria`);
+      addLine('success', '+', `found <span class="hl-bright">47</span> opportunities matching criteria`);
       updateCost(0.04);
       updateApiCalls();
       updateInstructionStep(pack, 2, 'done');
@@ -2358,7 +2434,7 @@ min-value:  $100,000`);
       await sleep(300);
       capsuleHits++;
       capsuleHitsMetric.textContent = capsuleHits;
-      addLine('success', '✓', `<span class="hl-pink">capsule hit</span> — zero API calls for ranking`);
+      addLine('success', '+', `<span class="hl-accent">cache hit</span> — zero API calls for ranking`);
       updateInstructionStep(pack, 3, 'done');
       addSpacer();
 
@@ -2397,7 +2473,7 @@ min-value:  $100,000`);
       await sleep(500);
 
       addSpacer();
-      addLine('success', '✓', `ranked <span class="hl-bright">Top 5</span> opportunities by relevance`);
+      addLine('success', '+', `ranked <span class="hl-bright">Top 5</span> opportunities by relevance`);
 
       // Step 6
       updateInstructionStep(pack, 5, 'active');
@@ -2417,7 +2493,7 @@ min-value:  $100,000`);
       addGatePrompt('gate-export',
         'Ready to export shortlist and generate capture plan. This action will create external artifacts.',
         async () => {
-          addLine('gate', '✓', 'Gate APPROVED by operator');
+          addLine('gate', '+', 'Gate APPROVED by operator');
           updateGates(4);
           updateInstructionStep(pack, 5, 'done');
           addSpacer();
@@ -2461,7 +2537,7 @@ POC:           sarah.chen@us.af.mil`);
 
           capsuleHits++;
           capsuleHitsMetric.textContent = capsuleHits;
-          addLine('success', '✓', `<span class="hl-pink">capsule hit</span> — win themes loaded from cache`);
+          addLine('success', '+', `<span class="hl-accent">cache hit</span> — win themes loaded from cache`);
           addSpacer();
 
           await sleep(400);
@@ -2489,7 +2565,7 @@ POC:           sarah.chen@us.af.mil`);
           await typeText('output', '  ', 'finalizing executive summary...');
           await sleep(500);
 
-          addLine('success', '✓', 'capture plan compiled (12 pages)');
+          addLine('success', '+', 'capture plan compiled (12 pages)');
           addSpacer();
 
           // Final export
@@ -2507,7 +2583,7 @@ POC:           sarah.chen@us.af.mil`);
           addBlock('exported files', `📄 demo/artifacts/${artifactHash}-capture.pdf     12 pages
 📊 demo/artifacts/${artifactHash}-matrix.xlsx      3 competitors
 📋 demo/artifacts/${artifactHash}-tracker.csv      14 tasks
-📦 demo/artifacts/${artifactHash}-evidence.json    full audit trail
+demo/artifacts/${artifactHash}-evidence.json    full audit trail
 
 Note: Artifacts stored in sandboxed demo environment`);
 
@@ -2523,18 +2599,18 @@ Note: Artifacts stored in sandboxed demo environment`);
             saved: '0.00',
             ttl: '30d'
           });
-          addLine('system', '◆', '<span class="hl-pink">capsule saved</span> → future AI/ML searches will skip ranking step');
+          addLine('system', '*', '<span class="hl-accent">capsule saved</span> → future AI/ML searches will skip ranking step');
           addSpacer();
 
           // Final summary
           setIntegrity('VERIFIED');
           setRisk('LOW');
 
-          addLine('gate', '📦', 'evidence pack sealed: <span class="hl-accent">FED-SEARCH-2026-0204-001</span>');
+          addLine('gate', '*', 'evidence pack sealed: <span class="hl-accent">FED-SEARCH-2026-0204-001</span>');
           addSpacer();
 
           // Completion summary block
-          addBlock('workflow summary', `Status:        COMPLETE ✓
+          addBlock('workflow summary', `Status:        COMPLETE [OK]
 Duration:      ${timeMetric.textContent}
 API Calls:     ${apiCalls}
 Capsule Hits:  ${capsuleHits} (saved ~$0.20)
@@ -2543,8 +2619,8 @@ Artifacts:     4 files exported
 Evidence:      Sealed and verified`);
 
           addSpacer();
-          addLine('system', '◆', '<span class="hl-green">workflow complete.</span> all actions logged and auditable.');
-          addLine('system', '◆', '<span class="hl-dim">type "new search" to start another workflow</span>');
+          addLine('system', '*', '<span class="hl-green">workflow complete.</span> all actions logged and auditable.');
+          addLine('system', '*', '<span class="hl-dim">type "new search" to start another workflow</span>');
 
           statusPill.className = 'status-pill paused';
           statusText.textContent = 'complete';
@@ -2554,15 +2630,15 @@ Evidence:      Sealed and verified`);
           document.getElementById('modeTag').style.borderColor = 'rgba(34, 197, 94, 0.3)';
         },
         () => {
-          addLine('warning', '✎', 'Gate MODIFY requested — awaiting new constraints');
+          addLine('warning', '~', 'Gate MODIFY requested — awaiting new constraints');
           addSpacer();
-          addLine('system', '◆', '<span class="hl-dim">type your modifications below</span>');
+          addLine('system', '*', '<span class="hl-dim">type your modifications below</span>');
         },
         () => {
-          addLine('error', '✗', 'Gate ABORTED by operator');
+          addLine('error', 'x', 'Gate ABORTED by operator');
           addSpacer();
           setIntegrity('SEALED');
-          addLine('gate', '📦', 'evidence pack sealed — no export performed');
+          addLine('gate', '*', 'evidence pack sealed — no export performed');
           statusPill.className = 'status-pill paused';
           statusText.textContent = 'aborted';
           document.getElementById('modeTag').textContent = 'ABORTED';
@@ -2576,13 +2652,13 @@ Evidence:      Sealed and verified`);
     // Help button
     document.getElementById('helpBtn').addEventListener('click', () => {
       addSpacer();
-      addLine('system', '◆', '<span class="hl-accent">GIA Console Help</span>');
+      addLine('system', '*', '<span class="hl-accent">GIA Console Help</span>');
       addLine('system', '  ', '<span class="hl-dim">Enter</span>        — send interrupt/constraint');
       addLine('system', '  ', '<span class="hl-dim">Shift+Enter</span> — new line in input');
       addLine('system', '  ', '<span class="hl-dim">Escape</span>      — clear input');
-      addLine('system', '  ', '<span class="hl-dim">◀ sidebar</span>   — view governance status');
+      addLine('system', '  ', '<span class="hl-dim">&lt; sidebar</span>   — view governance status');
       addSpacer();
-      addLine('system', '◆', '<span class="hl-dim">type anytime to add constraints mid-workflow</span>');
+      addLine('system', '*', '<span class="hl-dim">type anytime to add constraints mid-workflow</span>');
       addSpacer();
     });
 
@@ -2592,9 +2668,9 @@ Evidence:      Sealed and verified`);
       addSpacer();
       statusPill.className = 'status-pill paused';
       statusText.textContent = 'aborted';
-      addLine('gate', '📦', 'evidence pack sealed — partial run archived');
+      addLine('gate', '*', 'evidence pack sealed — partial run archived');
       addSpacer();
-      addLine('system', '◆', '<span class="hl-dim">run terminated. evidence available for review.</span>');
+      addLine('system', '*', '<span class="hl-dim">run terminated. evidence available for review.</span>');
     });
 
     // Escape to clear input
