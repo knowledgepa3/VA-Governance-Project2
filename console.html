@@ -776,25 +776,47 @@
       right: 1rem;
       top: 50%;
       transform: translateY(-50%);
-      width: 32px;
-      height: 80px;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
+      width: 36px;
+      height: 90px;
+      background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+      border: 2px solid var(--accent);
       border-right: none;
-      border-radius: 6px 0 0 6px;
+      border-radius: 8px 0 0 8px;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 0.3rem;
       cursor: pointer;
-      color: var(--text-dim);
-      font-size: 0.8rem;
-      transition: all 0.15s;
+      color: var(--accent);
+      font-size: 1rem;
+      font-weight: 600;
+      transition: all 0.2s ease;
       z-index: 100;
+      box-shadow: -2px 0 8px rgba(139, 92, 246, 0.2);
+      animation: sidebar-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes sidebar-pulse {
+      0%, 100% { box-shadow: -2px 0 8px rgba(139, 92, 246, 0.2); }
+      50% { box-shadow: -2px 0 12px rgba(139, 92, 246, 0.4); }
     }
 
     .sidebar-toggle:hover {
-      background: var(--bg-tertiary);
-      color: var(--text);
+      background: linear-gradient(135deg, var(--accent-dim) 0%, var(--accent) 100%);
+      color: var(--text-bright);
+      border-color: var(--accent);
+      transform: translateY(-50%) translateX(-3px);
+      box-shadow: -4px 0 16px rgba(139, 92, 246, 0.4);
+    }
+
+    .sidebar-toggle:hover::before {
+      color: var(--text-bright);
+    }
+
+    .sidebar-toggle.open {
+      right: 281px;
+      animation: none;
     }
 
     .sidebar {
@@ -864,6 +886,49 @@
     .mai-tag.advisory { background: rgba(234, 179, 8, 0.2); color: var(--yellow); }
     .mai-tag.mandatory { background: rgba(239, 68, 68, 0.2); color: var(--red); }
     .mai-tag.informational { background: rgba(59, 130, 246, 0.2); color: var(--blue); }
+
+    /* Sidebar Export Buttons */
+    .sidebar-export-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .sidebar-export-btn:hover {
+      background: var(--bg-secondary);
+      border-color: var(--accent);
+      color: var(--text-bright);
+      transform: translateX(2px);
+    }
+
+    .sidebar-export-btn:active {
+      transform: translateX(0);
+    }
+
+    .sidebar-export-btn .export-format {
+      margin-left: auto;
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      background: var(--bg);
+      padding: 0.15rem 0.35rem;
+      border-radius: 3px;
+    }
+
+    .sidebar-export-btn:hover .export-format {
+      background: var(--accent);
+      color: var(--bg);
+    }
 
     /* Mobile */
     @media (max-width: 600px) {
@@ -1250,7 +1315,10 @@
   </div>
 
   <!-- Sidebar Toggle -->
-  <div class="sidebar-toggle" id="sidebarToggle">◀</div>
+  <div class="sidebar-toggle" id="sidebarToggle">
+    <span style="font-size: 0.55rem; font-weight: 700; letter-spacing: 0.05em; color: var(--text-dim);">GOV</span>
+    ◀
+  </div>
 
   <!-- Sidebar -->
   <div class="sidebar" id="sidebar">
@@ -1301,6 +1369,29 @@
         <div><span class="hl-dim">Domain:</span> BD Capture</div>
         <div><span class="hl-dim">Operator:</span> <span id="sidebarOperator">--</span></div>
         <div><span class="hl-dim">Started:</span> 15:47:22</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Export Packages</div>
+      <button class="sidebar-export-btn" id="exportEvidenceBtn" title="Export evidence pack as JSON">
+        <span>📦</span>
+        <span>Evidence Pack</span>
+        <span class="export-format">.json</span>
+      </button>
+      <button class="sidebar-export-btn" id="exportCapsulesBtn" title="Export capsules as JSON">
+        <span>💊</span>
+        <span>Capsules</span>
+        <span class="export-format">.json</span>
+      </button>
+      <button class="sidebar-export-btn" id="exportFullBtn" title="Export full audit bundle">
+        <span>📋</span>
+        <span>Full Audit Bundle</span>
+        <span class="export-format">.zip</span>
+      </button>
+      <div style="font-size: 0.65rem; color: var(--text-dim); margin-top: 0.5rem; line-height: 1.4;">
+        ⚠️ Local demo storage only.<br>
+        Production: server-sealed exports.
       </div>
     </div>
   </div>
@@ -1873,7 +1964,112 @@
     // Toggle sidebar
     sidebarToggle.addEventListener('click', () => {
       sidebar.classList.toggle('open');
-      sidebarToggle.textContent = sidebar.classList.contains('open') ? '▶' : '◀';
+      sidebarToggle.classList.toggle('open');
+      sidebarToggle.innerHTML = sidebar.classList.contains('open')
+        ? '<span style="font-size: 0.55rem; font-weight: 700; letter-spacing: 0.05em; color: var(--text-dim);">GOV</span>▶'
+        : '<span style="font-size: 0.55rem; font-weight: 700; letter-spacing: 0.05em; color: var(--text-dim);">GOV</span>◀';
+    });
+
+    // Export functions
+    function downloadJSON(data, filename) {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // Export Evidence Pack button
+    document.getElementById('exportEvidenceBtn').addEventListener('click', async () => {
+      const evidenceData = {
+        exportedAt: new Date().toISOString(),
+        storageMode: GIA.storageMode,
+        workflowId: document.getElementById('workflowTag').textContent,
+        hashChain: GIA.evidence.hashChain,
+        chainVerification: await GIA.evidence.verifyChain(),
+        packs: GIA.evidence.packs,
+        disclaimer: 'LOCAL_DEMO storage - client-side only, not tamper-resistant. Production requires server-sealed evidence.'
+      };
+      const filename = `gia-evidence-${Date.now()}.json`;
+      downloadJSON(evidenceData, filename);
+
+      // Log to terminal
+      addLine('success', '✓', `exported evidence pack: <span class="hl-cyan">${filename}</span>`);
+      addSpacer();
+    });
+
+    // Export Capsules button
+    document.getElementById('exportCapsulesBtn').addEventListener('click', () => {
+      const capsuleData = {
+        exportedAt: new Date().toISOString(),
+        storageMode: GIA.storageMode,
+        capsuleCount: GIA.capsules.cache.size,
+        capsules: Object.fromEntries(GIA.capsules.cache),
+        disclaimer: 'LOCAL_DEMO storage - client-side only. Capsule provenance is demo-grade.'
+      };
+      const filename = `gia-capsules-${Date.now()}.json`;
+      downloadJSON(capsuleData, filename);
+
+      // Log to terminal
+      addLine('success', '✓', `exported capsules: <span class="hl-pink">${filename}</span>`);
+      addSpacer();
+    });
+
+    // Export Full Audit Bundle button
+    document.getElementById('exportFullBtn').addEventListener('click', async () => {
+      // In demo mode, we create a combined JSON (no actual ZIP without a library)
+      const bundleData = {
+        exportedAt: new Date().toISOString(),
+        storageMode: GIA.storageMode,
+        workflowId: document.getElementById('workflowTag').textContent,
+
+        // Evidence section
+        evidence: {
+          hashChain: GIA.evidence.hashChain,
+          chainVerification: await GIA.evidence.verifyChain(),
+          packs: GIA.evidence.packs
+        },
+
+        // Capsules section
+        capsules: {
+          count: GIA.capsules.cache.size,
+          items: Object.fromEntries(GIA.capsules.cache)
+        },
+
+        // Runtime metrics
+        metrics: {
+          apiCalls: apiCalls,
+          capsuleHits: capsuleHits,
+          totalCost: currentCost,
+          interruptCount: interruptCount,
+          gatesPassed: gatesPassed,
+          totalGates: totalGates,
+          elapsedTime: timeMetric.textContent
+        },
+
+        // Governance state
+        governance: {
+          maiClassification: 'ADVISORY',
+          integrityStatus: integrityStatus.textContent,
+          riskLevel: riskLevel.textContent,
+          confidenceLevel: confidenceLevel.textContent,
+          driftStatus: driftStatus.textContent
+        },
+
+        disclaimer: 'LOCAL_DEMO audit bundle - client-side only, not tamper-resistant. Production requires server-sealed exports with cryptographic attestation.'
+      };
+
+      const filename = `gia-audit-bundle-${Date.now()}.json`;
+      downloadJSON(bundleData, filename);
+
+      // Log to terminal
+      addLine('success', '✓', `exported full audit bundle: <span class="hl-accent">${filename}</span>`);
+      addLine('system', '◆', `<span class="hl-dim">bundle includes: evidence, capsules, metrics, governance state</span>`);
+      addSpacer();
     });
 
     // Auto-resize textarea
