@@ -1,0 +1,187 @@
+{
+  "profile_id": "HOUSEHOLD_OPS",
+  "version": "1.0.0",
+  "name": "Household Operations Profile",
+  "description": "Maximum safety controls for household financial operations. All money movement requires approval. Trust is earned, scoped, and revocable.",
+
+  "scope": {
+    "environments": ["PRODUCTION"],
+    "applies_to": "Household Operations Assistant and related packs"
+  },
+
+  "appetite": {
+    "name": "Household Safety",
+    "description": "Zero tolerance for unauthorized financial actions",
+
+    "job_pack_policy": {
+      "enabled_packs": ["HouseholdOperationsAssistant"],
+      "allowed_domains": [],
+      "blocked_domains": [],
+      "max_autonomous_mai_level": "ADVISORY",
+      "allow_mandatory_auto_execution": false,
+      "min_pack_certification_level": 2
+    },
+
+    "action_policy": {
+      "globally_forbidden_actions": [
+        "access_primary_bank",
+        "store_credentials",
+        "create_new_accounts",
+        "add_new_subscriptions",
+        "change_account_settings",
+        "access_financial_accounts",
+        "transfer_money",
+        "apply_for_credit",
+        "share_financial_data",
+        "modify_security_settings",
+        "export_financial_data",
+        "connect_third_party_apps"
+      ],
+      "always_require_approval": [
+        "charge_card",
+        "place_order",
+        "change_quantities",
+        "add_new_merchant",
+        "modify_delivery_address",
+        "modify_payment_method",
+        "pay_bill",
+        "cancel_subscription",
+        "any_financial_action"
+      ],
+      "auto_approved_actions": [
+        "read_bills",
+        "read_order_history",
+        "track_due_dates",
+        "reconcile_receipts",
+        "summarize_spending",
+        "check_prices",
+        "read_subscription_status",
+        "screenshot",
+        "navigate"
+      ]
+    },
+
+    "evidence_policy": {
+      "minimum_evidence_level": "COMPREHENSIVE",
+      "require_sealed_bundles": true,
+      "require_milestone_screenshots": true,
+      "require_source_provenance": true,
+      "require_approval_timestamp": true,
+      "require_cart_contents_log": true
+    },
+
+    "auth_policy": {
+      "allow_authenticated_sessions": true,
+      "allow_account_modifications": false,
+      "allow_credential_access": false,
+      "separate_identity_required": true
+    },
+
+    "financial_policy": {
+      "require_approval_for_all_charges": true,
+      "require_approval_for_new_merchants": true,
+      "require_price_variance_alert": true,
+      "price_variance_threshold_percent": 10,
+      "budget_alert_threshold_percent": 80
+    }
+  },
+
+  "tolerance": {
+    "name": "Household Strict",
+    "description": "Conservative thresholds - err on the side of asking",
+
+    "confidence_thresholds": {
+      "critical_field_minimum": 0.95,
+      "standard_field_minimum": 0.85,
+      "escalation_threshold": 0.75
+    },
+
+    "retry_limits": {
+      "max_retries_per_step": 2,
+      "max_retries_per_job": 3,
+      "max_consecutive_failures": 1
+    },
+
+    "timeouts": {
+      "step_timeout_ms": 30000,
+      "job_timeout_ms": 300000,
+      "idle_escalation_ms": 60000
+    },
+
+    "escalation_sensitivity": {
+      "level": "AGGRESSIVE",
+      "trigger_overrides": [
+        { "trigger_id": "PRICE_CHANGE", "enabled": true, "threshold_percent": 10 },
+        { "trigger_id": "AMOUNT_VARIANCE", "enabled": true, "threshold_percent": 20 },
+        { "trigger_id": "NEW_MERCHANT", "enabled": true, "severity_override": "HIGH" }
+      ]
+    },
+
+    "anomaly_detection": {
+      "enabled": true,
+      "unusual_action_count_threshold": 10,
+      "unusual_duration_multiplier": 2,
+      "auto_stop_on_anomaly": true,
+      "amount_drift_threshold_percent": 20
+    }
+  },
+
+  "trust_progression": {
+    "enabled": true,
+    "description": "Autonomy is earned through consistent, error-free operation",
+    "levels": [
+      {
+        "level": 1,
+        "name": "Full Supervision",
+        "max_mai": "ADVISORY",
+        "auto_approve": [],
+        "criteria": "Default"
+      },
+      {
+        "level": 2,
+        "name": "Routine Groceries",
+        "max_mai": "ADVISORY",
+        "auto_approve": ["routine_grocery_from_allowlist_under_limit"],
+        "criteria": "10 successful grocery runs, no anomalies"
+      },
+      {
+        "level": 3,
+        "name": "Utility Auto-Pay",
+        "max_mai": "ADVISORY",
+        "auto_approve": ["utility_payment_within_expected_range"],
+        "criteria": "3 months consistent payments, no anomalies"
+      }
+    ],
+    "downgrade_triggers": [
+      "amount_drift_exceeded",
+      "new_merchant_attempted",
+      "payment_failure",
+      "user_initiated_reset",
+      "anomaly_detected"
+    ]
+  },
+
+  "oversight_options": {
+    "family_oversight": {
+      "enabled": false,
+      "description": "Allow designated family member to review evidence bundles",
+      "requires_user_consent": true
+    },
+    "monthly_report_email": {
+      "enabled": false,
+      "description": "Send monthly reconciliation to designated email"
+    }
+  },
+
+  "metadata": {
+    "created_at": "2026-02-01T00:00:00Z",
+    "created_by": "ACE Platform",
+    "last_reviewed": "2026-02-01T00:00:00Z",
+    "safety_notes": [
+      "All financial actions require explicit approval",
+      "No autonomous money movement without approval history",
+      "Separate identity model required",
+      "Trust is earned and revocable"
+    ]
+  }
+}

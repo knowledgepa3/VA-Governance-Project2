@@ -1,0 +1,31 @@
+{
+  "certificate_id": "CERT-GrantsGovOpportunityFinder-1769931057408",
+  "certificate_version": "1.0.0",
+  "pack_id": "GrantsGovOpportunityFinder",
+  "pack_version": "1.0.0",
+  "pack_hash": "8bee295de4b387dc669955f5c16fc0b2970e3cd0fea52b7ba2c7ad3c2c2688ba",
+  "certification_level": 1,
+  "certification_level_name": "VALIDATED",
+  "certified_at": "2026-02-01T07:30:57.405Z",
+  "certified_by": "AUTOMATED",
+  "certifier_role": "Automated Certification",
+  "criteria_summary": {
+    "total_criteria": 10,
+    "passed": 10,
+    "failed": 0,
+    "blockers_passed": true,
+    "automated_checks_passed": true,
+    "manual_review_complete": false
+  },
+  "risk_profile_compat": {
+    "min_profile_level": "CONSERVATIVE",
+    "uses_mandatory_actions": true,
+    "uses_advisory_actions": true,
+    "mandatory_action_count": 3,
+    "produces_sealed_bundles": true,
+    "produces_screenshots": true
+  },
+  "issued_at": "2026-02-01T07:30:57.407Z",
+  "valid": true,
+  "certificate_hash": "7aeadbf8479608ccd1d4e5b146bed155f6bbff1083603d87549237586d5847a6"
+}

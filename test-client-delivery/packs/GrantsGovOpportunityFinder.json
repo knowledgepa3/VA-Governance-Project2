@@ -1,0 +1,762 @@
+{
+  "pack_id": "GrantsGovOpportunityFinder",
+  "pack_version": "1.0.0",
+  "certification_level": 2,
+  "created_at": "2024-01-20T00:00:00Z",
+  "updated_at": "2024-01-20T00:00:00Z",
+  "author": "ACE Governance Platform",
+
+  "role": {
+    "name": "Federal Grant Opportunity Analyst",
+    "description": "Specialized agent for discovering, analyzing, and summarizing federal grant opportunities from Grants.gov. Provides comprehensive opportunity intelligence for grant writers and program managers.",
+    "mission": "Search Grants.gov for relevant funding opportunities, extract key eligibility and deadline information, assess fit against organizational capabilities, and produce actionable grant opportunity briefs.",
+    "success_criteria": [
+      "Identify all matching opportunities within specified search criteria",
+      "Extract complete eligibility requirements for each opportunity",
+      "Capture accurate deadline and funding amount information",
+      "Assess alignment with specified organizational capabilities",
+      "Generate structured opportunity brief with go/no-go recommendation"
+    ],
+    "outputs": [
+      "opportunity_list.json",
+      "opportunity_brief.md",
+      "eligibility_matrix.json",
+      "deadline_calendar.json"
+    ],
+    "acceptance_criteria": [
+      "All required fields extracted with >90% confidence",
+      "No opportunities missed matching search criteria",
+      "Eligibility requirements fully documented",
+      "Deadline accuracy verified against source",
+      "Funding amounts captured with floor/ceiling ranges"
+    ]
+  },
+
+  "authority": {
+    "informational_actions": [
+      {
+        "action": "search_grants",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Search Grants.gov using public search interface"
+      },
+      {
+        "action": "read_opportunity",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Read opportunity details from public listings"
+      },
+      {
+        "action": "capture_screenshot",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Capture visual evidence of opportunity listings"
+      },
+      {
+        "action": "extract_text",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Extract text content from opportunity pages"
+      },
+      {
+        "action": "apply_filters",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Apply search filters (agency, category, eligibility type)"
+      },
+      {
+        "action": "navigate_pagination",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Navigate through search result pages"
+      },
+      {
+        "action": "expand_details",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Expand opportunity detail sections"
+      }
+    ],
+    "advisory_actions": [
+      {
+        "action": "assess_eligibility",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": false,
+        "description": "Assess organizational eligibility against requirements"
+      },
+      {
+        "action": "recommend_priority",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": false,
+        "description": "Recommend priority ranking for opportunities"
+      },
+      {
+        "action": "flag_concerns",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": false,
+        "description": "Flag potential concerns or disqualifying factors"
+      },
+      {
+        "action": "estimate_effort",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": false,
+        "description": "Estimate application effort level"
+      },
+      {
+        "action": "compare_opportunities",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": false,
+        "description": "Compare multiple opportunities for fit"
+      }
+    ],
+    "mandatory_actions": [
+      {
+        "action": "download_nofo",
+        "allowed": true,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "Download Notice of Funding Opportunity document"
+      },
+      {
+        "action": "subscribe_updates",
+        "allowed": true,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "Subscribe to opportunity update notifications"
+      },
+      {
+        "action": "save_opportunity",
+        "allowed": true,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "Save opportunity to workspace (if logged in)"
+      }
+    ]
+  },
+
+  "permissions": {
+    "allowed": [
+      { "action": "search_grants", "description": "Execute searches on Grants.gov", "conditions": "Public search only" },
+      { "action": "read_opportunity", "description": "Read opportunity listing details" },
+      { "action": "capture_screenshot", "description": "Capture visual evidence" },
+      { "action": "extract_text", "description": "Extract page text content" },
+      { "action": "apply_filters", "description": "Use search filters" },
+      { "action": "navigate_pagination", "description": "Navigate result pages" },
+      { "action": "expand_details", "description": "Expand detail sections" },
+      { "action": "assess_eligibility", "description": "Assess eligibility fit" },
+      { "action": "recommend_priority", "description": "Recommend opportunity priority" },
+      { "action": "compare_opportunities", "description": "Compare opportunities" },
+      { "action": "download_nofo", "description": "Download NOFO with approval", "conditions": "Requires human approval" }
+    ],
+    "forbidden": [
+      { "action": "login", "description": "Authenticate to Grants.gov", "reason": "Security boundary - agent must not access authenticated features" },
+      { "action": "create_account", "description": "Create Grants.gov account", "reason": "Security boundary - account creation is human-only" },
+      { "action": "submit_application", "description": "Submit grant application", "reason": "Critical action - application submission requires human review and signature" },
+      { "action": "register_organization", "description": "Register organization in system", "reason": "Legal boundary - organizational registration requires authorized signatory" },
+      { "action": "upload_documents", "description": "Upload any documents", "reason": "Safety boundary - document upload could trigger workflow" },
+      { "action": "modify_workspace", "description": "Modify saved workspace data", "reason": "Data integrity - workspace modifications require human oversight" },
+      { "action": "send_message", "description": "Send messages through system", "reason": "Communication boundary - all outbound communication requires human approval" },
+      { "action": "accept_terms", "description": "Accept terms or agreements", "reason": "Legal boundary - agreement acceptance requires human authorization" }
+    ]
+  },
+
+  "procedure_index": {
+    "mini_index": [
+      {
+        "task": "Search by keyword",
+        "route": "grants.gov → Search → Enter keywords → Apply",
+        "stop_condition": "Search results displayed with opportunity count",
+        "evidence": "screenshot + result count",
+        "estimated_steps": 4
+      },
+      {
+        "task": "Filter by agency",
+        "route": "Search results → Agency filter → Select agency → Apply",
+        "stop_condition": "Results filtered to selected agency",
+        "evidence": "screenshot",
+        "estimated_steps": 3
+      },
+      {
+        "task": "Filter by eligibility type",
+        "route": "Search results → Eligibility filter → Select types → Apply",
+        "stop_condition": "Results show matching eligibility types",
+        "evidence": "screenshot",
+        "estimated_steps": 3
+      },
+      {
+        "task": "Filter by funding category",
+        "route": "Search results → Category filter → Select category → Apply",
+        "stop_condition": "Results filtered to funding category",
+        "evidence": "screenshot",
+        "estimated_steps": 3
+      },
+      {
+        "task": "Filter by close date",
+        "route": "Search results → Date filter → Set date range → Apply",
+        "stop_condition": "Results show opportunities within date range",
+        "evidence": "screenshot",
+        "estimated_steps": 4
+      },
+      {
+        "task": "View opportunity details",
+        "route": "Search results → Click opportunity title → Details page",
+        "stop_condition": "Opportunity detail page fully loaded",
+        "evidence": "screenshot + page_text",
+        "estimated_steps": 2
+      },
+      {
+        "task": "Extract eligibility requirements",
+        "route": "Opportunity details → Eligibility section → Extract text",
+        "stop_condition": "All eligibility criteria captured",
+        "evidence": "json",
+        "estimated_steps": 3
+      },
+      {
+        "task": "Extract funding amounts",
+        "route": "Opportunity details → Award info section → Extract amounts",
+        "stop_condition": "Floor, ceiling, and total funding captured",
+        "evidence": "json",
+        "estimated_steps": 3
+      },
+      {
+        "task": "Extract key dates",
+        "route": "Opportunity details → Dates section → Extract deadlines",
+        "stop_condition": "Open date, close date, and any interim deadlines captured",
+        "evidence": "json",
+        "estimated_steps": 3
+      },
+      {
+        "task": "Extract CFDA number",
+        "route": "Opportunity details → Header/synopsis → Extract CFDA",
+        "stop_condition": "CFDA/ALN number captured",
+        "evidence": "json",
+        "estimated_steps": 2
+      },
+      {
+        "task": "Navigate to next page",
+        "route": "Search results → Pagination → Next page",
+        "stop_condition": "New results page loaded",
+        "evidence": "screenshot",
+        "estimated_steps": 2
+      },
+      {
+        "task": "Generate opportunity brief",
+        "route": "All data captured → Format brief → Output markdown",
+        "stop_condition": "Brief generated with all sections",
+        "evidence": "markdown",
+        "estimated_steps": 5
+      }
+    ],
+    "micro_sops": [
+      {
+        "sop_id": "SOP-SEARCH-001",
+        "title": "Basic Keyword Search",
+        "pre_checks": [
+          "Grants.gov is accessible",
+          "Search page is loaded"
+        ],
+        "steps": [
+          {
+            "step_id": "S1",
+            "intent": "Navigate to search interface",
+            "action": "Navigate to grants.gov/search",
+            "ui_anchor": {
+              "type": "url_pattern",
+              "value": "grants.gov/search",
+              "description": "Main search page"
+            },
+            "verification": {
+              "type": "element_visible",
+              "target": "search input field",
+              "timeout_ms": 10000
+            },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "retry",
+            "max_retries": 3
+          },
+          {
+            "step_id": "S2",
+            "intent": "Enter search keywords",
+            "action": "Type keywords into search field",
+            "ui_anchor": {
+              "type": "aria_label",
+              "value": "Search",
+              "fallback": "input[type='search']",
+              "description": "Main search input"
+            },
+            "verification": {
+              "type": "field_value",
+              "target": "search input",
+              "timeout_ms": 5000
+            },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "retry",
+            "max_retries": 2
+          },
+          {
+            "step_id": "S3",
+            "intent": "Execute search",
+            "action": "Click search button or press Enter",
+            "ui_anchor": {
+              "type": "button_text",
+              "value": "Search",
+              "fallback": "button[type='submit']",
+              "description": "Search submit button"
+            },
+            "verification": {
+              "type": "url_matches",
+              "target": "grants.gov/search?",
+              "timeout_ms": 15000
+            },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "retry",
+            "max_retries": 2
+          },
+          {
+            "step_id": "S4",
+            "intent": "Verify results loaded",
+            "action": "Wait for and verify results",
+            "ui_anchor": {
+              "type": "heading",
+              "value": "results",
+              "description": "Results count or heading"
+            },
+            "verification": {
+              "type": "element_visible",
+              "target": "opportunity listing",
+              "timeout_ms": 10000
+            },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "escalate",
+            "max_retries": 1
+          }
+        ],
+        "validation": {
+          "type": "text_contains",
+          "target": "page",
+          "expected": "results"
+        },
+        "failure_handling": "Capture screenshot and escalate if search fails after retries",
+        "evidence_on_success": [
+          {
+            "trigger": "completion",
+            "capture_type": "screenshot",
+            "description": "Search results page",
+            "required": true
+          },
+          {
+            "trigger": "completion",
+            "capture_type": "page_text",
+            "description": "Results count and first page listings",
+            "required": true
+          }
+        ]
+      },
+      {
+        "sop_id": "SOP-EXTRACT-001",
+        "title": "Extract Opportunity Details",
+        "pre_checks": [
+          "Opportunity detail page is loaded",
+          "Opportunity number is visible"
+        ],
+        "steps": [
+          {
+            "step_id": "E1",
+            "intent": "Capture opportunity header",
+            "action": "Extract title, number, and agency",
+            "ui_anchor": {
+              "type": "heading",
+              "value": "Opportunity",
+              "description": "Opportunity title area"
+            },
+            "verification": {
+              "type": "text_contains",
+              "target": "header",
+              "expected": "Opportunity"
+            },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "retry",
+            "max_retries": 2
+          },
+          {
+            "step_id": "E2",
+            "intent": "Extract funding information",
+            "action": "Locate and extract award floor, ceiling, total funding",
+            "ui_anchor": {
+              "type": "heading",
+              "value": "Award",
+              "fallback": "Funding",
+              "description": "Award information section"
+            },
+            "verification": {
+              "type": "text_contains",
+              "target": "section",
+              "expected": "$"
+            },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "retry",
+            "max_retries": 2
+          },
+          {
+            "step_id": "E3",
+            "intent": "Extract eligibility requirements",
+            "action": "Locate and extract eligible applicant types",
+            "ui_anchor": {
+              "type": "heading",
+              "value": "Eligibility",
+              "description": "Eligibility section"
+            },
+            "verification": {
+              "type": "element_visible",
+              "target": "eligibility list",
+              "timeout_ms": 5000
+            },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "retry",
+            "max_retries": 2
+          },
+          {
+            "step_id": "E4",
+            "intent": "Extract key dates",
+            "action": "Locate and extract post date, close date, archive date",
+            "ui_anchor": {
+              "type": "heading",
+              "value": "Dates",
+              "fallback": "Timeline",
+              "description": "Dates section"
+            },
+            "verification": {
+              "type": "text_contains",
+              "target": "section",
+              "expected": "Date"
+            },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "retry",
+            "max_retries": 2
+          },
+          {
+            "step_id": "E5",
+            "intent": "Extract additional metadata",
+            "action": "Capture CFDA/ALN, funding instrument, category",
+            "ui_anchor": {
+              "type": "heading",
+              "value": "Additional",
+              "fallback": "Synopsis",
+              "description": "Additional information"
+            },
+            "verification": {
+              "type": "state_change",
+              "target": "extraction_complete"
+            },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "skip",
+            "max_retries": 1
+          }
+        ],
+        "validation": {
+          "type": "state_change",
+          "target": "all_required_fields_captured"
+        },
+        "failure_handling": "Mark missing fields in output, continue with available data",
+        "evidence_on_success": [
+          {
+            "trigger": "completion",
+            "capture_type": "screenshot",
+            "description": "Full opportunity detail page",
+            "required": true
+          },
+          {
+            "trigger": "completion",
+            "capture_type": "page_text",
+            "description": "Complete page text for verification",
+            "required": true
+          }
+        ]
+      }
+    ]
+  },
+
+  "ui_map": {
+    "domain": "grants.gov",
+    "stable_anchors": [
+      {
+        "name": "search_input",
+        "anchors": [
+          { "type": "aria_label", "value": "Search", "description": "Main search input" },
+          { "type": "element_id", "value": "search-input", "description": "Search input by ID" },
+          { "type": "field_label", "value": "Search opportunities", "description": "Label-based fallback" }
+        ],
+        "description": "Primary search input field"
+      },
+      {
+        "name": "search_button",
+        "anchors": [
+          { "type": "button_text", "value": "Search", "description": "Search button" },
+          { "type": "aria_label", "value": "Submit search", "description": "Aria fallback" }
+        ],
+        "description": "Search submit button"
+      },
+      {
+        "name": "results_count",
+        "anchors": [
+          { "type": "heading", "value": "results", "description": "Results heading" },
+          { "type": "aria_label", "value": "Search results", "description": "Results region" }
+        ],
+        "description": "Search results count display"
+      },
+      {
+        "name": "opportunity_card",
+        "anchors": [
+          { "type": "aria_label", "value": "Opportunity", "description": "Opportunity listing" },
+          { "type": "heading", "value": "opportunity", "description": "Opportunity heading" }
+        ],
+        "description": "Individual opportunity listing card"
+      },
+      {
+        "name": "agency_filter",
+        "anchors": [
+          { "type": "button_text", "value": "Agency", "description": "Agency filter button" },
+          { "type": "aria_label", "value": "Filter by agency", "description": "Agency filter" }
+        ],
+        "description": "Agency filter control"
+      },
+      {
+        "name": "eligibility_filter",
+        "anchors": [
+          { "type": "button_text", "value": "Eligibility", "description": "Eligibility filter button" },
+          { "type": "aria_label", "value": "Filter by eligibility", "description": "Eligibility filter" }
+        ],
+        "description": "Eligibility type filter control"
+      },
+      {
+        "name": "category_filter",
+        "anchors": [
+          { "type": "button_text", "value": "Category", "description": "Category filter button" },
+          { "type": "aria_label", "value": "Filter by category", "description": "Category filter" }
+        ],
+        "description": "Funding category filter control"
+      },
+      {
+        "name": "pagination",
+        "anchors": [
+          { "type": "aria_label", "value": "Pagination", "description": "Pagination controls" },
+          { "type": "button_text", "value": "Next", "description": "Next page button" }
+        ],
+        "description": "Pagination navigation"
+      },
+      {
+        "name": "opportunity_title",
+        "anchors": [
+          { "type": "heading", "value": "h1", "description": "Main heading" },
+          { "type": "aria_label", "value": "Opportunity title", "description": "Title element" }
+        ],
+        "description": "Opportunity detail page title"
+      },
+      {
+        "name": "award_section",
+        "anchors": [
+          { "type": "heading", "value": "Award Information", "description": "Award section heading" },
+          { "type": "heading", "value": "Funding", "description": "Funding heading fallback" }
+        ],
+        "description": "Award/funding information section"
+      },
+      {
+        "name": "eligibility_section",
+        "anchors": [
+          { "type": "heading", "value": "Eligibility", "description": "Eligibility heading" },
+          { "type": "aria_label", "value": "Eligible applicants", "description": "Eligibility region" }
+        ],
+        "description": "Eligibility requirements section"
+      },
+      {
+        "name": "dates_section",
+        "anchors": [
+          { "type": "heading", "value": "Key Dates", "description": "Dates heading" },
+          { "type": "heading", "value": "Timeline", "description": "Timeline fallback" }
+        ],
+        "description": "Important dates section"
+      }
+    ],
+    "url_patterns": [
+      {
+        "pattern": "grants.gov/search",
+        "page_type": "search",
+        "expected_elements": ["search_input", "search_button"]
+      },
+      {
+        "pattern": "grants.gov/search?",
+        "page_type": "search_results",
+        "expected_elements": ["results_count", "opportunity_card", "pagination"]
+      },
+      {
+        "pattern": "grants.gov/search-results-detail/*",
+        "page_type": "opportunity_detail",
+        "expected_elements": ["opportunity_title", "award_section", "eligibility_section", "dates_section"]
+      },
+      {
+        "pattern": "grants.gov/opportunity/*",
+        "page_type": "opportunity_detail_alt",
+        "expected_elements": ["opportunity_title", "award_section"]
+      }
+    ]
+  },
+
+  "escalation": {
+    "triggers": [
+      {
+        "trigger_id": "ESC-GG-001",
+        "condition": "login_required",
+        "description": "Page requires authentication to access content",
+        "action": "abort_job",
+        "severity": "CRITICAL"
+      },
+      {
+        "trigger_id": "ESC-GG-002",
+        "condition": "opportunity_closed",
+        "description": "Opportunity has passed its close date",
+        "action": "flag_for_review",
+        "severity": "MEDIUM"
+      },
+      {
+        "trigger_id": "ESC-GG-003",
+        "condition": "eligibility_unclear",
+        "description": "Cannot determine eligibility requirements clearly",
+        "action": "stop_and_ask",
+        "severity": "HIGH"
+      },
+      {
+        "trigger_id": "ESC-GG-004",
+        "condition": "funding_amount_missing",
+        "description": "Award floor/ceiling not specified",
+        "action": "capture_evidence",
+        "severity": "LOW"
+      },
+      {
+        "trigger_id": "ESC-GG-005",
+        "condition": "deadline_imminent",
+        "description": "Close date is within 7 days",
+        "action": "flag_for_review",
+        "severity": "HIGH"
+      },
+      {
+        "trigger_id": "ESC-GG-006",
+        "condition": "page_structure_changed",
+        "description": "Expected UI elements not found - page may have changed",
+        "action": "stop_and_ask",
+        "severity": "HIGH"
+      },
+      {
+        "trigger_id": "ESC-GG-007",
+        "condition": "error_rate > 3",
+        "description": "Multiple consecutive errors during extraction",
+        "action": "stop_and_ask",
+        "severity": "HIGH"
+      },
+      {
+        "trigger_id": "ESC-GG-008",
+        "condition": "confidence_below_threshold",
+        "description": "Extraction confidence below 70% for critical field",
+        "action": "capture_evidence",
+        "severity": "MEDIUM"
+      },
+      {
+        "trigger_id": "ESC-GG-009",
+        "condition": "cost_sharing_required",
+        "description": "Opportunity requires cost sharing/matching funds",
+        "action": "flag_for_review",
+        "severity": "MEDIUM"
+      },
+      {
+        "trigger_id": "ESC-GG-010",
+        "condition": "no_results_found",
+        "description": "Search returned zero results",
+        "action": "stop_and_ask",
+        "severity": "LOW"
+      }
+    ],
+    "default_action": "capture_evidence"
+  },
+
+  "evidence": {
+    "lightweight_capture": [
+      {
+        "trigger": "milestone",
+        "capture_type": "screenshot",
+        "description": "Capture at major state changes",
+        "required": true
+      },
+      {
+        "trigger": "state_change",
+        "capture_type": "page_text",
+        "description": "Capture page text on navigation",
+        "required": true
+      }
+    ],
+    "heavy_capture_triggers": [
+      "escalation",
+      "error",
+      "high_value_opportunity",
+      "eligibility_mismatch"
+    ],
+    "milestone_screenshots": [
+      "search_executed",
+      "filters_applied",
+      "opportunity_list_loaded",
+      "opportunity_detail_opened",
+      "eligibility_section_visible",
+      "dates_section_visible",
+      "extraction_complete"
+    ],
+    "retention_policy": "60 days standard, 180 days for opportunities with pending applications"
+  },
+
+  "constraints": {
+    "max_actions_per_session": 100,
+    "max_retries_per_step": 3,
+    "timeout_per_step_ms": 20000,
+    "timeout_per_job_ms": 600000,
+    "requires_sealed_evidence_bundle": true,
+    "environment_modes": ["DEMO", "PROD"]
+  },
+
+  "output_schema": {
+    "opportunity_list": {
+      "type": "array",
+      "items": {
+        "opportunity_number": "string",
+        "opportunity_title": "string",
+        "agency": "string",
+        "close_date": "ISO8601",
+        "award_ceiling": "number",
+        "award_floor": "number",
+        "eligibility_types": "string[]",
+        "funding_category": "string",
+        "match_score": "number",
+        "confidence": "object"
+      }
+    },
+    "opportunity_brief": {
+      "sections": [
+        "executive_summary",
+        "opportunity_overview",
+        "eligibility_assessment",
+        "funding_details",
+        "key_dates",
+        "application_requirements",
+        "recommendation"
+      ]
+    }
+  }
+}

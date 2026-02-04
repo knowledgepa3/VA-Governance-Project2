@@ -1,0 +1,111 @@
+{
+  "profile_id": "CLIENT_BALANCED",
+  "version": "1.0.0",
+  "name": "Balanced Profile",
+  "description": "Standard enterprise profile - good for most use cases",
+
+  "scope": {
+    "environments": ["DEVELOPMENT", "STAGING", "PRODUCTION"],
+    "applies_to": "All job packs unless overridden"
+  },
+
+  "appetite": {
+    "name": "Balanced",
+    "description": "Moderate risk tolerance with standard controls",
+
+    "job_pack_policy": {
+      "enabled_packs": [],
+      "allowed_domains": [
+        "grants.gov",
+        "www.grants.gov",
+        "sam.gov",
+        "www.sam.gov",
+        "usajobs.gov",
+        "www.usajobs.gov"
+      ],
+      "blocked_domains": [],
+      "max_autonomous_mai_level": "ADVISORY",
+      "allow_mandatory_auto_execution": false,
+      "min_pack_certification_level": 2
+    },
+
+    "action_policy": {
+      "globally_forbidden_actions": [
+        "login",
+        "create_account",
+        "submit_application",
+        "make_payment",
+        "delete_data",
+        "modify_permissions",
+        "send_email",
+        "post_comment"
+      ],
+      "always_require_approval": [
+        "download_file",
+        "fill_form",
+        "click_submit"
+      ],
+      "auto_approved_actions": [
+        "navigate",
+        "read_page",
+        "screenshot",
+        "scroll",
+        "search",
+        "extract_text"
+      ]
+    },
+
+    "evidence_policy": {
+      "minimum_evidence_level": "STANDARD",
+      "require_sealed_bundles": true,
+      "require_milestone_screenshots": true,
+      "require_source_provenance": true
+    },
+
+    "auth_policy": {
+      "allow_authenticated_sessions": false,
+      "allow_account_modifications": false,
+      "allow_credential_access": false
+    }
+  },
+
+  "tolerance": {
+    "name": "Standard Tolerance",
+    "description": "Balanced thresholds for enterprise use",
+
+    "confidence_thresholds": {
+      "critical_field_minimum": 0.90,
+      "standard_field_minimum": 0.80,
+      "escalation_threshold": 0.70
+    },
+
+    "retry_limits": {
+      "max_retries_per_step": 3,
+      "max_retries_per_job": 5,
+      "max_consecutive_failures": 2
+    },
+
+    "timeouts": {
+      "step_timeout_ms": 30000,
+      "job_timeout_ms": 300000,
+      "idle_escalation_ms": 60000
+    },
+
+    "escalation_sensitivity": {
+      "level": "STANDARD"
+    },
+
+    "anomaly_detection": {
+      "enabled": true,
+      "unusual_action_count_threshold": 50,
+      "unusual_duration_multiplier": 3,
+      "auto_stop_on_anomaly": false
+    }
+  },
+
+  "metadata": {
+    "created_at": "2026-02-01T00:00:00Z",
+    "created_by": "ACE Platform",
+    "last_reviewed": "2026-02-01T00:00:00Z"
+  }
+}

@@ -1,0 +1,117 @@
+{
+  "profile_id": "CLIENT_FEDRAMP",
+  "version": "1.0.0",
+  "name": "FedRAMP Compliant Profile",
+  "description": "Maximum security controls aligned with FedRAMP Moderate baseline",
+
+  "scope": {
+    "environments": ["PRODUCTION"],
+    "applies_to": "Federal agency work and FedRAMP-authorized services"
+  },
+
+  "appetite": {
+    "name": "FedRAMP",
+    "description": "Zero tolerance for unauthorized actions",
+
+    "job_pack_policy": {
+      "enabled_packs": [],
+      "allowed_domains": [],
+      "blocked_domains": ["*.ru", "*.cn", "*.ir", "*.kp"],
+      "max_autonomous_mai_level": "INFORMATIONAL",
+      "allow_mandatory_auto_execution": false,
+      "min_pack_certification_level": 3
+    },
+
+    "action_policy": {
+      "globally_forbidden_actions": [
+        "login",
+        "create_account",
+        "submit_form",
+        "make_payment",
+        "delete",
+        "modify_permissions",
+        "send_message",
+        "download_file",
+        "upload_file",
+        "access_pii",
+        "export_data",
+        "modify_configuration"
+      ],
+      "always_require_approval": [
+        "navigate_external",
+        "click_submit",
+        "fill_form",
+        "capture_data"
+      ],
+      "auto_approved_actions": [
+        "read_page",
+        "screenshot",
+        "scroll"
+      ]
+    },
+
+    "evidence_policy": {
+      "minimum_evidence_level": "COMPREHENSIVE",
+      "require_sealed_bundles": true,
+      "require_milestone_screenshots": true,
+      "require_source_provenance": true
+    },
+
+    "auth_policy": {
+      "allow_authenticated_sessions": false,
+      "allow_account_modifications": false,
+      "allow_credential_access": false
+    }
+  },
+
+  "tolerance": {
+    "name": "FedRAMP Strict",
+    "description": "Zero tolerance for security deviations",
+
+    "confidence_thresholds": {
+      "critical_field_minimum": 0.99,
+      "standard_field_minimum": 0.95,
+      "escalation_threshold": 0.85
+    },
+
+    "retry_limits": {
+      "max_retries_per_step": 2,
+      "max_retries_per_job": 3,
+      "max_consecutive_failures": 1
+    },
+
+    "timeouts": {
+      "step_timeout_ms": 10000,
+      "job_timeout_ms": 120000,
+      "idle_escalation_ms": 20000
+    },
+
+    "escalation_sensitivity": {
+      "level": "AGGRESSIVE"
+    },
+
+    "anomaly_detection": {
+      "enabled": true,
+      "unusual_action_count_threshold": 20,
+      "unusual_duration_multiplier": 1.5,
+      "auto_stop_on_anomaly": true
+    }
+  },
+
+  "compliance": {
+    "frameworks": ["FedRAMP", "NIST SP 800-53", "FISMA"],
+    "audit_retention_days": 1095,
+    "requires_sealed_bundles": true,
+    "requires_human_review": true
+  },
+
+  "metadata": {
+    "created_at": "2026-02-01T00:00:00Z",
+    "created_by": "ACE Platform",
+    "last_reviewed": "2026-02-01T00:00:00Z",
+    "certification_requirements": {
+      "min_pack_level": 3,
+      "requires_screenshots": true
+    }
+  }
+}

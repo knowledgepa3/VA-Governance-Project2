@@ -1,0 +1,38 @@
+{
+  "execution_id": "exec-1769931072670",
+  "pack_id": "GrantsGovOpportunityFinder",
+  "pack_version": "1.0.0",
+  "started_at": "2026-02-01T07:31:12.672Z",
+  "actions": [
+    {
+      "action": "navigate",
+      "target": "sam.gov",
+      "status": "success",
+      "timestamp": "2026-02-01T07:31:12.672Z"
+    },
+    {
+      "action": "search",
+      "query": "IT services",
+      "status": "success",
+      "timestamp": "2026-02-01T07:31:12.672Z"
+    },
+    {
+      "action": "read_page",
+      "element": "opportunity_list",
+      "status": "success",
+      "timestamp": "2026-02-01T07:31:12.672Z"
+    },
+    {
+      "action": "extract_data",
+      "fields": [
+        "title",
+        "agency",
+        "due_date"
+      ],
+      "status": "success",
+      "timestamp": "2026-02-01T07:31:12.672Z"
+    }
+  ],
+  "completed_at": "2026-02-01T07:31:12.672Z",
+  "status": "success"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "ace-governance-client",
+  "version": "2.0.0",
+  "description": "ACE Governance Platform - Client Delivery",
+  "type": "module",
+  "scripts": {
+    "demo": "npx tsx scripts/run-pack.js --demo",
+    "verify": "npx tsx verify-setup.js"
+  },
+  "dependencies": {
+    "tsx": "^4.0.0"
+  }
+}

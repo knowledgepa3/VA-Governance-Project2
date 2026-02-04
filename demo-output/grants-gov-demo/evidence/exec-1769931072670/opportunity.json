@@ -1,0 +1,14 @@
+{
+  "title": "Enterprise IT Services Support",
+  "notice_id": "SAM-2024-001234",
+  "agency": "Department of Example",
+  "set_aside": "Total Small Business",
+  "due_date": "2024-03-15",
+  "value_estimate": "$5M - $10M",
+  "confidence": {
+    "title": 0.98,
+    "agency": 0.95,
+    "due_date": 0.99,
+    "value_estimate": 0.85
+  }
+}

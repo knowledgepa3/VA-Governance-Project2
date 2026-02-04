@@ -1,0 +1,95 @@
+{
+  "pack_id": "GrantsGovOpportunityFinder",
+  "pack_version": "1.0.0",
+  "pack_hash": "8bee295de4b387dc669955f5c16fc0b2970e3cd0fea52b7ba2c7ad3c2c2688ba",
+  "current_level": 1,
+  "target_level": 3,
+  "criteria_results": [
+    {
+      "criterion_id": "V-001",
+      "passed": true,
+      "evidence": "Schema validation passed",
+      "checked_at": "2026-02-01T07:31:12.367Z",
+      "checked_by": "AUTOMATED"
+    },
+    {
+      "criterion_id": "V-002",
+      "passed": true,
+      "evidence": "Pack ID: GrantsGovOpportunityFinder",
+      "checked_at": "2026-02-01T07:31:12.367Z",
+      "checked_by": "AUTOMATED"
+    },
+    {
+      "criterion_id": "V-003",
+      "passed": true,
+      "evidence": "Version: 1.0.0",
+      "checked_at": "2026-02-01T07:31:12.367Z",
+      "checked_by": "AUTOMATED"
+    },
+    {
+      "criterion_id": "V-004",
+      "passed": true,
+      "evidence": "I:7 A:5 M:3",
+      "checked_at": "2026-02-01T07:31:12.367Z",
+      "checked_by": "AUTOMATED"
+    },
+    {
+      "criterion_id": "V-005",
+      "passed": true,
+      "evidence": "8 forbidden actions defined",
+      "checked_at": "2026-02-01T07:31:12.367Z",
+      "checked_by": "AUTOMATED"
+    },
+    {
+      "criterion_id": "V-006",
+      "passed": true,
+      "evidence": "Severities: CRITICAL, MEDIUM, HIGH, LOW",
+      "checked_at": "2026-02-01T07:31:12.367Z",
+      "checked_by": "AUTOMATED"
+    },
+    {
+      "criterion_id": "V-007",
+      "passed": true,
+      "evidence": "Domain: grants.gov, Anchors: 12, Patterns: 4",
+      "checked_at": "2026-02-01T07:31:12.367Z",
+      "checked_by": "AUTOMATED"
+    },
+    {
+      "criterion_id": "V-008",
+      "passed": true,
+      "evidence": "12 task entries in mini index",
+      "checked_at": "2026-02-01T07:31:12.367Z",
+      "checked_by": "AUTOMATED"
+    },
+    {
+      "criterion_id": "V-009",
+      "passed": true,
+      "evidence": "Lightweight: 2, Milestones: 7",
+      "checked_at": "2026-02-01T07:31:12.367Z",
+      "checked_by": "AUTOMATED"
+    },
+    {
+      "criterion_id": "V-010",
+      "passed": true,
+      "evidence": "Timeout: 20000ms, Retries: 3",
+      "checked_at": "2026-02-01T07:31:12.367Z",
+      "checked_by": "AUTOMATED"
+    }
+  ],
+  "certification_history": [
+    {
+      "level": 0,
+      "achieved_at": "2026-02-01T07:31:12.366Z",
+      "certified_by": "SYSTEM",
+      "notes": "Initial certification record created"
+    },
+    {
+      "level": 1,
+      "achieved_at": "2026-02-01T07:31:12.366Z",
+      "certified_by": "AUTOMATED",
+      "notes": "Achieved via automated checks"
+    }
+  ],
+  "created_at": "2026-02-01T07:31:12.366Z",
+  "updated_at": "2026-02-01T07:31:12.366Z"
+}

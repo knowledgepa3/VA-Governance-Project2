@@ -1,0 +1,46 @@
+{
+  "permissions": {
+    "allow": [
+      "npm run build",
+      "npm run dev",
+      "npm install",
+      "git status",
+      "git diff",
+      "git log",
+      "git add",
+      "git commit"
+    ],
+    "deny": [
+      "rm -rf",
+      "git reset --hard",
+      "git push --force",
+      "git clean -f",
+      "DELETE FROM",
+      "DROP TABLE",
+      "curl *password*",
+      "curl *token*",
+      "curl *secret*"
+    ]
+  },
+  "skills": {
+    "ace-engineer": {
+      "name": "ACE Governed Principal Engineer",
+      "command": "/ace-engineer",
+      "description": "Enforces security, compliance, and enterprise-readiness for ACE VA Claims Platform. Includes mandatory preflight gates, DoD checklists, and threat analysis.",
+      "file": "skills/ace-engineer.md",
+      "trigger": "Always activate for code changes in ACE platform",
+      "auto_activate": true
+    }
+  },
+  "project": {
+    "name": "ACE VA Claims Platform",
+    "compliance_posture": "PROTOTYPE",
+    "data_classification": "PII/PHI - Veteran medical and personal data",
+    "security_level": "HIGH - Regulated healthcare/government"
+  },
+  "defaults": {
+    "always_run_skill": "ace-engineer",
+    "require_build_check": true,
+    "require_dod_checklist": true
+  }
+}

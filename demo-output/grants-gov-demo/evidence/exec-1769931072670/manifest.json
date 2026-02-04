@@ -1,0 +1,15 @@
+{
+  "bundle_id": "exec-1769931072670",
+  "pack_id": "GrantsGovOpportunityFinder",
+  "pack_hash": "8bee295de4b387dc669955f5c16fc0b2970e3cd0fea52b7ba2c7ad3c2c2688ba",
+  "created_at": "2026-02-01T07:31:12.986Z",
+  "sealed_at": "2026-02-01T07:31:12.986Z",
+  "seal_status": "SEALED",
+  "artifact_hashes": {
+    "extraction_log.json": "823be52ba0146fc6733e2dd6ed60ea07e5fd6f8cb365a679300446a4394a72fa",
+    "opportunity.json": "906cfab8d6498786bcad25520f1c18cc17922002eb5112ae19ba01ed729bd653",
+    "opportunity.md": "0182300b5f907a4a8f49124b6730c0c2072066be004cc517435b0674d9db57ed",
+    "source_context.json": "4ab980416b88229769b7c023bb6d245e0b7beb0c829af54dc2eed04ee568f33d"
+  },
+  "manifest_hash": "1ab91af95b96d71b917ccb6558edaf381c61bdeca1b213af8ef910b7ff4fbc35"
+}
