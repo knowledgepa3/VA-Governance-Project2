@@ -1,0 +1,159 @@
+{
+  "registry_version": "1.0.0",
+  "updated_at": "2026-02-01T06:05:19.195Z",
+  "packs": [
+    {
+      "pack_id": "SAM_GOV_OPPORTUNITY_CAPTURE",
+      "pack_version": "1.0.0",
+      "pack_hash": "afbaf14fdc4ea70be983dec0ff27f33b7e3dbd3d2c117769e9ad4678d60da221",
+      "name": "SAM.gov Opportunity Researcher",
+      "description": "Extracts contract opportunity data from SAM.gov for BD capture analysis",
+      "domain": "sam.gov",
+      "category": "procurement",
+      "capabilities": [
+        "Search for opportunities by keyword",
+        "Open opportunity detail page",
+        "Extract opportunity metadata",
+        "Filter by set-aside type",
+        "Filter by NAICS code",
+        "View opportunity attachments list",
+        "Extract contact information",
+        "Create evidence bundle"
+      ],
+      "outputs": [
+        "opportunity.json - Structured opportunity data",
+        "opportunity.md - Human-readable summary",
+        "source_context.json - Provenance record",
+        "extraction_log.json - Audit trail",
+        "evidence/ - Screenshot evidence"
+      ],
+      "required_permissions": [
+        "navigate",
+        "search",
+        "filter",
+        "scroll",
+        "click_opportunity_link",
+        "read_page_content",
+        "take_screenshot",
+        "extract_metadata",
+        "create_evidence_bundle"
+      ],
+      "mai_profile": {
+        "informational_count": 7,
+        "advisory_count": 3,
+        "mandatory_count": 2
+      },
+      "file_path": "C:\\Users\\knowl\\Downloads\\ACE-VA-Agents-main\\ACE-VA-Agents-main\\workforce\\jobpacks\\SAMGovOpportunityCapture.json",
+      "loaded_at": "2026-02-01T06:05:19.197Z",
+      "min_executor_version": "1.0.0"
+    },
+    {
+      "pack_id": "USAJOBS_POSITION_SEARCH",
+      "pack_version": "1.0.0",
+      "pack_hash": "337241030aa3b7198a9265d688bb38447f4767c8aa5bf79598704732717466e1",
+      "name": "USAJobs Position Researcher",
+      "description": "Searches and extracts federal job posting data from USAJobs.gov for recruiting and workforce planning",
+      "domain": "usajobs.gov",
+      "category": "hiring",
+      "capabilities": [
+        "Search for positions by keyword",
+        "Filter by GS grade level",
+        "Filter by location",
+        "Open position detail page",
+        "Extract position metadata",
+        "View duties and qualifications",
+        "View required documents",
+        "Create evidence bundle"
+      ],
+      "outputs": [
+        "position.json - Structured position data",
+        "position.md - Human-readable summary",
+        "source_context.json - Provenance record",
+        "extraction_log.json - Audit trail",
+        "evidence/ - Screenshot evidence"
+      ],
+      "required_permissions": [
+        "navigate",
+        "read_page",
+        "screenshot",
+        "scroll",
+        "click_filter",
+        "type_search",
+        "click_result",
+        "expand_section"
+      ],
+      "mai_profile": {
+        "informational_count": 6,
+        "advisory_count": 3,
+        "mandatory_count": 2
+      },
+      "file_path": "C:\\Users\\knowl\\Downloads\\ACE-VA-Agents-main\\ACE-VA-Agents-main\\workforce\\jobpacks\\USAJobsPositionSearch.json",
+      "loaded_at": "2026-02-01T06:05:19.198Z",
+      "min_executor_version": "1.0.0"
+    }
+  ],
+  "by_domain": {
+    "sam.gov": [
+      "SAM_GOV_OPPORTUNITY_CAPTURE"
+    ],
+    "usajobs.gov": [
+      "USAJOBS_POSITION_SEARCH"
+    ]
+  },
+  "by_category": {
+    "procurement": [
+      "SAM_GOV_OPPORTUNITY_CAPTURE"
+    ],
+    "hiring": [
+      "USAJOBS_POSITION_SEARCH"
+    ]
+  },
+  "by_capability": {
+    "search_for_opportunities_by_keyword": [
+      "SAM_GOV_OPPORTUNITY_CAPTURE"
+    ],
+    "open_opportunity_detail_page": [
+      "SAM_GOV_OPPORTUNITY_CAPTURE"
+    ],
+    "extract_opportunity_metadata": [
+      "SAM_GOV_OPPORTUNITY_CAPTURE"
+    ],
+    "filter_by_set-aside_type": [
+      "SAM_GOV_OPPORTUNITY_CAPTURE"
+    ],
+    "filter_by_naics_code": [
+      "SAM_GOV_OPPORTUNITY_CAPTURE"
+    ],
+    "view_opportunity_attachments_list": [
+      "SAM_GOV_OPPORTUNITY_CAPTURE"
+    ],
+    "extract_contact_information": [
+      "SAM_GOV_OPPORTUNITY_CAPTURE"
+    ],
+    "create_evidence_bundle": [
+      "SAM_GOV_OPPORTUNITY_CAPTURE",
+      "USAJOBS_POSITION_SEARCH"
+    ],
+    "search_for_positions_by_keyword": [
+      "USAJOBS_POSITION_SEARCH"
+    ],
+    "filter_by_gs_grade_level": [
+      "USAJOBS_POSITION_SEARCH"
+    ],
+    "filter_by_location": [
+      "USAJOBS_POSITION_SEARCH"
+    ],
+    "open_position_detail_page": [
+      "USAJOBS_POSITION_SEARCH"
+    ],
+    "extract_position_metadata": [
+      "USAJOBS_POSITION_SEARCH"
+    ],
+    "view_duties_and_qualifications": [
+      "USAJOBS_POSITION_SEARCH"
+    ],
+    "view_required_documents": [
+      "USAJOBS_POSITION_SEARCH"
+    ]
+  }
+}

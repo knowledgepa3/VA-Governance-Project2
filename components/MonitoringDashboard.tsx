@@ -1,198 +1,390 @@
 
-import React from 'react';
-import { Activity, ShieldCheck, Heart, AlertTriangle, Clock, ShieldAlert, Zap, Lock, Database, Target, Award, Shield, CheckCircle, ShieldX } from 'lucide-react';
-import { AgentRole, AgentStatus } from '../types';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts';
+import React, { useEffect, useRef } from 'react';
+import {
+  Activity,
+  ShieldCheck,
+  AlertTriangle,
+  Zap,
+  Target,
+  Award,
+  Shield,
+  CheckCircle,
+  ShieldX,
+  Eye,
+  Terminal,
+  TrendingUp,
+  BarChart3,
+  Cpu,
+  Network,
+  CheckCircle2,
+  XCircle
+} from 'lucide-react';
+import { AgentRole, AgentStatus, AgentState, ActivityLog } from '../types';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 interface MetricCardProps {
   label: string;
   value: string;
   status: 'Healthy' | 'Warning' | 'Critical';
   icon: React.ReactNode;
+  subtext?: string;
 }
 
-const MetricCard: React.FC<MetricCardProps> = ({ label, value, status, icon }) => {
+const MetricCard: React.FC<MetricCardProps> = ({ label, value, status, icon, subtext }) => {
   const colors = {
-    Healthy: 'text-emerald-600 bg-emerald-50',
-    Warning: 'text-amber-600 bg-amber-50',
-    Critical: 'text-rose-600 bg-rose-50',
+    Healthy: 'text-emerald-600 bg-emerald-50 border-emerald-200',
+    Warning: 'text-amber-600 bg-amber-50 border-amber-200',
+    Critical: 'text-rose-600 bg-rose-50 border-rose-200',
   };
 
   return (
-    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-5 group hover:shadow-md transition-all">
-      <div className={`p-4 rounded-2xl transition-transform group-hover:scale-110 ${colors[status]}`}>
+    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 group hover:shadow-md transition-all hover:border-blue-200">
+      <div className={`p-3 rounded-xl transition-transform group-hover:scale-110 border ${colors[status]}`}>
         {icon}
       </div>
-      <div>
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
-        <p className="text-2xl font-black text-slate-900 tracking-tighter">{value}</p>
-        <div className="flex items-center gap-1.5 mt-1">
-          <div className={`w-2 h-2 rounded-full ${status === 'Healthy' ? 'bg-emerald-500 animate-pulse' : status === 'Warning' ? 'bg-amber-500' : 'bg-rose-50'}`} />
-          <span className={`text-[9px] font-black uppercase ${colors[status].split(' ')[0]}`}>{status}</span>
-        </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest truncate">{label}</p>
+        <p className="text-xl font-black text-slate-900 tracking-tighter">{value}</p>
+        {subtext && <p className="text-[9px] text-slate-400 truncate">{subtext}</p>}
       </div>
+      <div className={`w-2 h-2 rounded-full ${status === 'Healthy' ? 'bg-emerald-500 animate-pulse' : status === 'Warning' ? 'bg-amber-500 animate-pulse' : 'bg-rose-500'}`} />
     </div>
   );
 };
 
 interface MonitoringDashboardProps {
   telemetry?: any;
+  agents?: Record<AgentRole, AgentState>;
+  activityFeed?: ActivityLog[];
 }
 
-export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ telemetry }) => {
-  const chartData = [
-    { name: '08:00', rate: 12 },
-    { name: '10:00', rate: 15 },
-    { name: '12:00', rate: 14.3 },
-    { name: '14:00', rate: 11 },
-    { name: '16:00', rate: 16 },
-  ];
+export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ telemetry, agents, activityFeed = [] }) => {
+  const logRef = useRef<HTMLDivElement>(null);
 
-  const integrityScore = telemetry?.forensic_chain_integrity || "100% Verified";
-  const interventions = telemetry?.scorecard?.interventions ?? 0;
-  
+  useEffect(() => {
+    if (logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight;
+    }
+  }, [activityFeed]);
+
+  // Calculate real metrics from agents - includes both VA Claims and Financial Audit roles
+  const agentList = agents ? Object.values(agents).filter(a =>
+    [
+      // VA Claims roles
+      AgentRole.GATEWAY, AgentRole.TIMELINE, AgentRole.EVIDENCE,
+      AgentRole.RATER_INITIAL, AgentRole.CP_EXAMINER, AgentRole.RATER_DECISION,
+      AgentRole.QA, AgentRole.REPORT, AgentRole.TELEMETRY,
+      // Financial Audit roles
+      AgentRole.LEDGER_AUDITOR, AgentRole.FRAUD_DETECTOR, AgentRole.TAX_COMPLIANCE,
+      AgentRole.FINANCIAL_QA, AgentRole.FINANCIAL_REPORT
+    ].includes(a.role)
+  ) : [];
+
+  const completedAgents = agentList.filter(a => a.status === AgentStatus.COMPLETE);
+  const workingAgents = agentList.filter(a => a.status === AgentStatus.WORKING);
+  const totalCorrections = completedAgents.reduce((sum, a) => sum + (a.supervisorScore?.corrections || 0), 0);
+  const avgIntegrity = completedAgents.length > 0
+    ? Math.round(completedAgents.reduce((sum, a) => sum + (a.supervisorScore?.integrity || 0), 0) / completedAgents.length)
+    : 100;
+  const totalTokens = completedAgents.reduce((sum, a) => sum + (a.tokenUsage?.input || 0) + (a.tokenUsage?.output || 0), 0);
+
+  // Activity log type counts
+  const successLogs = activityFeed.filter(l => l.type === 'success').length;
+  const warningLogs = activityFeed.filter(l => l.type === 'warning').length;
+  const errorLogs = activityFeed.filter(l => l.type === 'error').length;
+
+  const chartData = completedAgents.map(a => ({
+    name: a.role.split(' ')[0],
+    integrity: a.supervisorScore?.integrity || 0,
+    accuracy: a.supervisorScore?.accuracy || 0,
+    compliance: a.supervisorScore?.compliance || 0
+  }));
+
+  const pieData = [
+    { name: 'Success', value: successLogs, color: '#10b981' },
+    { name: 'Warning', value: warningLogs, color: '#f59e0b' },
+    { name: 'Error', value: errorLogs, color: '#ef4444' },
+  ].filter(d => d.value > 0);
+
+  const interventions = totalCorrections;
+
   const cmmcScore = telemetry?.cmmc_readiness_score || 94;
   const cmmcBreakdown = telemetry?.cmmc_breakdown || {
-    system_integrity_si: 100,
+    system_integrity_si: avgIntegrity,
     audit_accountability_au: 95,
     access_control_ac: 90,
     incident_response_ir: 100
   };
 
+  const getLogTypeIcon = (type: string) => {
+    switch (type) {
+      case 'success': return <CheckCircle2 size={12} className="text-emerald-500" />;
+      case 'warning': return <AlertTriangle size={12} className="text-amber-500" />;
+      case 'error': return <XCircle size={12} className="text-rose-500" />;
+      default: return <Activity size={12} className="text-blue-500" />;
+    }
+  };
+
+  const getLogTypeBg = (type: string) => {
+    switch (type) {
+      case 'success': return 'border-l-emerald-500 bg-emerald-50/50';
+      case 'warning': return 'border-l-amber-500 bg-amber-50/50';
+      case 'error': return 'border-l-rose-500 bg-rose-50/50';
+      default: return 'border-l-blue-500 bg-blue-50/50';
+    }
+  };
+
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <MetricCard label="System Uptime" value="99.9%" status="Healthy" icon={<Activity size={24} />} />
-        <MetricCard label="Forensic Integrity" value={integrityScore} status="Healthy" icon={<ShieldCheck size={24} />} />
-        <MetricCard label="Adversarial Resilience" value="99.9%" status="Healthy" icon={<ShieldX size={24} className="text-blue-600" />} />
-        <MetricCard label="Logic Exceptions" value={interventions.toString()} status={interventions > 0 ? "Warning" : "Healthy"} icon={<Zap size={24} />} />
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {/* Top Metrics Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <MetricCard
+          label="System Status"
+          value={workingAgents.length > 0 ? 'PROCESSING' : completedAgents.length > 0 ? 'COMPLETE' : 'READY'}
+          status={workingAgents.length > 0 ? 'Warning' : 'Healthy'}
+          icon={<Activity size={20} />}
+          subtext={`${completedAgents.length}/${agentList.length} agents`}
+        />
+        <MetricCard
+          label="Avg Integrity"
+          value={`${avgIntegrity}%`}
+          status={avgIntegrity >= 90 ? 'Healthy' : avgIntegrity >= 70 ? 'Warning' : 'Critical'}
+          icon={<ShieldCheck size={20} />}
+          subtext="Supervisor verified"
+        />
+        <MetricCard
+          label="Corrections"
+          value={interventions.toString()}
+          status={interventions === 0 ? 'Healthy' : interventions < 3 ? 'Warning' : 'Critical'}
+          icon={<Zap size={20} />}
+          subtext={interventions === 0 ? 'No issues' : 'Auto-remediated'}
+        />
+        <MetricCard
+          label="Token Usage"
+          value={totalTokens > 1000 ? `${(totalTokens / 1000).toFixed(1)}K` : totalTokens.toString()}
+          status="Healthy"
+          icon={<Cpu size={20} />}
+          subtext="Total consumed"
+        />
+        <MetricCard
+          label="Activity Events"
+          value={activityFeed.length.toString()}
+          status={errorLogs > 0 ? 'Warning' : 'Healthy'}
+          icon={<BarChart3 size={20} />}
+          subtext={`${successLogs} ok / ${warningLogs} warn / ${errorLogs} err`}
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1 space-y-8">
-          <div className="bg-white p-8 rounded-[40px] border-2 border-slate-900 shadow-2xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-8 opacity-5"><Target size={120} /></div>
-            <div className="flex items-center justify-between mb-8">
-               <div className="flex items-center gap-3">
-                  <div className="p-3 bg-slate-900 text-white rounded-2xl shadow-lg"><Award size={20} /></div>
-                  <div>
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-[0.2em]">CMMC 2.0 Preparedness</h3>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Continuous Governance Monitor</p>
-                  </div>
-               </div>
-               {cmmcScore >= 90 && (
-                 <div className="bg-emerald-100 text-emerald-700 p-2 rounded-xl border border-emerald-200 animate-bounce">
-                    <CheckCircle size={20} />
-                 </div>
-               )}
-            </div>
+      {/* Main Dashboard Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-            <div className="text-center mb-10">
-               <p className="text-6xl font-black text-slate-900 tracking-tighter">{cmmcScore}%</p>
-               <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.4em] mt-2">Compliance Alignment Reached</p>
-            </div>
-
-            <div className="space-y-6">
-               <div>
-                 <div className="flex justify-between items-center mb-2">
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">SI - System Integrity (30%)</span>
-                    <span className="text-[10px] font-black text-slate-900">{cmmcBreakdown.system_integrity_si}%</span>
-                 </div>
-                 <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                    <div className="bg-emerald-500 h-full transition-all duration-1000" style={{ width: `${cmmcBreakdown.system_integrity_si}%` }} />
-                 </div>
-               </div>
-
-               <div>
-                 <div className="flex justify-between items-center mb-2">
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">AU - Audit & Accountability (25%)</span>
-                    <span className="text-[10px] font-black text-slate-900">{cmmcBreakdown.audit_accountability_au}%</span>
-                 </div>
-                 <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                    <div className="bg-blue-500 h-full transition-all duration-1000" style={{ width: `${cmmcBreakdown.audit_accountability_au}%` }} />
-                 </div>
-               </div>
-
-               <div>
-                 <div className="flex justify-between items-center mb-2">
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">AC - Access Control (25%)</span>
-                    <span className="text-[10px] font-black text-slate-900">{cmmcBreakdown.access_control_ac}%</span>
-                 </div>
-                 <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                    <div className="bg-blue-600 h-full transition-all duration-1000" style={{ width: `${cmmcBreakdown.access_control_ac}%` }} />
-                 </div>
-               </div>
-
-               <div>
-                 <div className="flex justify-between items-center mb-2">
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">IR - Incident Response (20%)</span>
-                    <span className="text-[10px] font-black text-slate-900">{cmmcBreakdown.incident_response_ir}%</span>
-                 </div>
-                 <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                    <div className="bg-emerald-400 h-full transition-all duration-1000" style={{ width: `${cmmcBreakdown.incident_response_ir}%` }} />
-                 </div>
-            </div>
-
-            <div className="mt-8 pt-8 border-t border-slate-100 flex items-center justify-between text-[10px] font-black uppercase text-slate-500 tracking-widest">
-               <div className="flex items-center gap-2">
-                  <Shield size={16} className="text-blue-600" />
-                  Behavioral Integrity Sentinel Active
-               </div>
-               <span className="text-emerald-600 font-bold tracking-tighter italic">ISSO HARDENED</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="lg:col-span-2 space-y-8">
-           <div className="bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm">
-            <div className="flex justify-between items-center mb-10">
-              <h3 className="text-sm font-black text-slate-900 uppercase tracking-[0.2em]">Adversarial Resilience Velocity</h3>
-              <div className="flex gap-6 text-[10px] font-black uppercase tracking-widest">
-                <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500" /> Integrity Score</span>
-                <span className="flex items-center gap-2 text-slate-400"><div className="w-2 h-2 rounded-full bg-slate-200" /> Latency</span>
+        {/* Left Column - Compact Compliance + Live Stats */}
+        <div className="space-y-4">
+          {/* Compact CMMC Score Card */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-slate-900 text-white rounded-lg"><Award size={14} /></div>
+                <span className="text-[10px] font-black text-slate-900 uppercase">CMMC 2.0</span>
+              </div>
+              <div className={`text-lg font-black ${cmmcScore >= 90 ? 'text-emerald-600' : cmmcScore >= 70 ? 'text-amber-600' : 'text-rose-600'}`}>
+                {cmmcScore}%
               </div>
             </div>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="colorRate" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94a3b8', fontWeight: 700}} />
-                  <YAxis domain={[0, 25]} axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94a3b8', fontWeight: 700}} />
-                  <Tooltip 
-                    contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', fontSize: '11px', fontWeight: 'bold'}} 
-                  />
-                  <Area type="monotone" dataKey="rate" stroke="#3b82f6" strokeWidth={4} fillOpacity={1} fill="url(#colorRate)" />
-                </AreaChart>
-              </ResponsiveContainer>
+            <div className="grid grid-cols-4 gap-1">
+              {[
+                { key: 'SI', value: cmmcBreakdown.system_integrity_si, color: 'bg-emerald-500' },
+                { key: 'AU', value: cmmcBreakdown.audit_accountability_au, color: 'bg-blue-500' },
+                { key: 'AC', value: cmmcBreakdown.access_control_ac, color: 'bg-purple-500' },
+                { key: 'IR', value: cmmcBreakdown.incident_response_ir, color: 'bg-amber-500' }
+              ].map((item) => (
+                <div key={item.key} className="text-center">
+                  <div className="text-[8px] font-bold text-slate-400">{item.key}</div>
+                  <div className={`h-1 rounded-full ${item.color} mx-auto mt-1`} style={{ width: `${item.value}%` }} />
+                  <div className="text-[9px] font-black text-slate-700 mt-0.5">{item.value}%</div>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm">
-            <h3 className="text-sm font-black text-slate-900 mb-8 uppercase tracking-[0.2em]">Governed Population Monitoring</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[AgentRole.GATEWAY, AgentRole.TIMELINE, AgentRole.EVIDENCE, AgentRole.QA, AgentRole.REPORT, AgentRole.TELEMETRY].map((role, idx) => (
-                <div key={role} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-blue-200 transition-colors">
-                  <div className="flex items-center gap-4">
-                     <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                     <span className="text-[11px] font-black text-slate-800 uppercase tracking-tight">{role}</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex gap-1">
-                      {[1, 2, 3, 4, 5].map(i => (
-                        <div key={i} className={`w-2.5 h-2.5 rounded-sm ${i === 5 && idx === 1 ? 'bg-slate-300' : 'bg-emerald-500'}`} />
+          {/* Live Processing Stats - Real Activity */}
+          <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-4 rounded-2xl border border-slate-700 shadow-xl">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-[10px] font-black text-white uppercase tracking-wider flex items-center gap-2">
+                <Activity size={14} className="text-emerald-400" /> Live Processing
+              </h3>
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/50">
+                <span className="text-[9px] text-slate-400 font-bold uppercase">Active Agents</span>
+                <span className="text-sm font-black text-blue-400">{workingAgents.length}</span>
+              </div>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/50">
+                <span className="text-[9px] text-slate-400 font-bold uppercase">Completed</span>
+                <span className="text-sm font-black text-emerald-400">{completedAgents.length}/{agentList.length}</span>
+              </div>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/50">
+                <span className="text-[9px] text-slate-400 font-bold uppercase">Corrections</span>
+                <span className={`text-sm font-black ${interventions === 0 ? 'text-emerald-400' : 'text-amber-400'}`}>{interventions}</span>
+              </div>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/50">
+                <span className="text-[9px] text-slate-400 font-bold uppercase">Avg Integrity</span>
+                <span className={`text-sm font-black ${avgIntegrity >= 90 ? 'text-emerald-400' : 'text-amber-400'}`}>{avgIntegrity}%</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Event Distribution Pie */}
+          {pieData.length > 0 && (
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <Network size={16} className="text-blue-600" /> Event Distribution
+              </h3>
+              <div className="h-40">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={60} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
-                    </div>
-                    <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Secure</span>
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Center Column - Agent Scores Chart + Agent Grid */}
+        <div className="space-y-6">
+          {/* Agent Scores Bar Chart */}
+          {chartData.length > 0 && (
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <TrendingUp size={16} className="text-blue-600" /> Agent Supervisor Scores
+              </h3>
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} barGap={2}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 700 }} />
+                    <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8' }} />
+                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 40px -10px rgb(0 0 0 / 0.2)', fontSize: '10px' }} />
+                    <Bar dataKey="integrity" fill="#10b981" radius={[4, 4, 0, 0]} name="Integrity" />
+                    <Bar dataKey="accuracy" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Accuracy" />
+                    <Bar dataKey="compliance" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Compliance" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex justify-center gap-4 mt-3 text-[9px] font-bold">
+                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded bg-emerald-500" /> Integrity</span>
+                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded bg-blue-500" /> Accuracy</span>
+                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded bg-purple-500" /> Compliance</span>
+              </div>
+            </div>
+          )}
+
+          {/* Agent Status Grid */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+              <Eye size={16} className="text-blue-600" /> Agent Population Status
+            </h3>
+            <div className="grid grid-cols-2 gap-2">
+              {agentList.map((agent) => (
+                <div key={agent.role} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-blue-200 transition-colors">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className={`w-2 h-2 rounded-full ${
+                      agent.status === AgentStatus.COMPLETE ? 'bg-emerald-500' :
+                      agent.status === AgentStatus.WORKING ? 'bg-blue-500 animate-pulse' :
+                      agent.status === AgentStatus.REPAIRING ? 'bg-purple-500 animate-bounce' :
+                      agent.status === AgentStatus.FAILED ? 'bg-rose-500' :
+                      'bg-slate-300'
+                    }`} />
+                    <span className="text-[10px] font-bold text-slate-700 truncate">{agent.role.split(' ')[0]}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {agent.supervisorScore && (
+                      <span className={`text-[9px] font-black ${
+                        agent.supervisorScore.integrity >= 90 ? 'text-emerald-600' :
+                        agent.supervisorScore.integrity >= 70 ? 'text-amber-600' : 'text-rose-600'
+                      }`}>
+                        {agent.supervisorScore.integrity}%
+                      </span>
+                    )}
+                    {agent.supervisorScore?.corrections ? (
+                      <AlertTriangle size={12} className="text-amber-500" />
+                    ) : agent.status === AgentStatus.COMPLETE ? (
+                      <CheckCircle2 size={12} className="text-emerald-500" />
+                    ) : null}
                   </div>
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+
+        {/* Right Column - Real-time Activity Log (SIEM Style) */}
+        <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[600px]">
+          <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/80 backdrop-blur-sm sticky top-0">
+            <h3 className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 text-emerald-400">
+              <Terminal size={14} /> Live Activity Stream
+            </h3>
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] font-mono text-slate-500">{activityFeed.length} events</span>
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            </div>
+          </div>
+
+          <div ref={logRef} className="flex-1 overflow-auto p-3 space-y-2 font-mono text-[10px]">
+            {activityFeed.length === 0 ? (
+              <div className="text-center py-12 text-slate-600">
+                <Terminal size={32} className="mx-auto mb-3 opacity-30" />
+                <p className="text-[10px] font-bold uppercase tracking-widest">Awaiting Activity...</p>
+                <p className="text-[9px] text-slate-700 mt-1">Start workflow to see real-time logs</p>
+              </div>
+            ) : (
+              activityFeed.map((log) => (
+                <div
+                  key={log.id}
+                  className={`p-2 rounded-lg border-l-2 animate-in slide-in-from-right-2 duration-300 ${getLogTypeBg(log.type)}`}
+                >
+                  <div className="flex items-start gap-2">
+                    {getLogTypeIcon(log.type)}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-[9px] text-slate-500">{log.timestamp}</span>
+                        <span className={`text-[9px] font-black uppercase ${
+                          log.role === AgentRole.SUPERVISOR ? 'text-amber-400' :
+                          log.role === AgentRole.REPAIR ? 'text-purple-400' :
+                          'text-blue-400'
+                        }`}>
+                          {log.role.split(' ')[0]}
+                        </span>
+                      </div>
+                      <p className="text-slate-300 leading-relaxed break-words">{log.message}</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Log Stats Footer */}
+          <div className="p-3 border-t border-slate-800 bg-slate-900/80 flex items-center justify-between text-[9px] font-mono">
+            <div className="flex items-center gap-4">
+              <span className="flex items-center gap-1 text-emerald-400">
+                <CheckCircle2 size={10} /> {successLogs}
+              </span>
+              <span className="flex items-center gap-1 text-amber-400">
+                <AlertTriangle size={10} /> {warningLogs}
+              </span>
+              <span className="flex items-center gap-1 text-rose-400">
+                <XCircle size={10} /> {errorLogs}
+              </span>
+            </div>
+            <span className="text-slate-600">Real-time • Auto-scroll</span>
           </div>
         </div>
       </div>

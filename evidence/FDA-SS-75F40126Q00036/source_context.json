@@ -1,0 +1,95 @@
+{
+  "_schema": "source_context/v1.0.0",
+  "_comment": "Provenance record for HOW the raw data was obtained - distinct from integrity (hashes)",
+
+  "bundle_id": "FDA-SS-75F40126Q00036",
+
+  "source": {
+    "url": "https://sam.gov/workspace/contract/opp/9d90dd0e471445e88e988bd545f8e427/view",
+    "domain": "sam.gov",
+    "page_type": "contract_opportunity_detail",
+    "retrieval_timestamp": "2026-01-31T12:00:00Z",
+    "retrieval_timezone": "UTC"
+  },
+
+  "tool_identity": {
+    "mcp_server": "Claude_in_Chrome",
+    "mcp_server_version": "1.0.0",
+    "browser": "Chrome",
+    "automation_client": "Claude Code CLI",
+    "session_id": "sam-gov-extraction-2026-01-31"
+  },
+
+  "access_mode": {
+    "authenticated": false,
+    "login_performed": false,
+    "session_cookies_used": false,
+    "api_key_used": false,
+    "access_type": "public_anonymous"
+  },
+
+  "policy_attestation": {
+    "automation_mode": "read-only",
+    "no_login": true,
+    "no_form_submission": true,
+    "no_file_upload": true,
+    "no_file_download": true,
+    "no_account_creation": true,
+    "no_bid_submission": true,
+    "no_interest_registration": true,
+    "policy_name": "SAM_GOV_AUTOMATION_POLICY",
+    "policy_version": "v1"
+  },
+
+  "extraction_sequence": {
+    "total_actions": 16,
+    "action_summary": [
+      { "action": "tabs_context_mcp", "purpose": "Initialize browser session" },
+      { "action": "navigate", "purpose": "Open SAM.gov search page" },
+      { "action": "find", "purpose": "Locate search input element" },
+      { "action": "form_input", "purpose": "Enter search terms" },
+      { "action": "left_click", "purpose": "Submit search" },
+      { "action": "scroll", "purpose": "View search results" },
+      { "action": "screenshot", "purpose": "Capture search results evidence" },
+      { "action": "find", "purpose": "Locate opportunity link" },
+      { "action": "left_click", "purpose": "Open opportunity detail" },
+      { "action": "screenshot", "purpose": "Capture opportunity header" },
+      { "action": "scroll", "purpose": "View full opportunity details" },
+      { "action": "screenshot", "purpose": "Capture description section" },
+      { "action": "screenshot", "purpose": "Capture contact/attachments" },
+      { "action": "get_page_text", "purpose": "Extract raw page content" }
+    ],
+    "prohibited_actions_avoided": [
+      "login",
+      "submit_form",
+      "upload_file",
+      "download_file",
+      "register_interest",
+      "create_account"
+    ]
+  },
+
+  "data_handling": {
+    "raw_text_captured": true,
+    "raw_text_location": "raw/page_text.txt",
+    "screenshots_captured": 4,
+    "screenshots_location": "evidence/",
+    "pii_handling": "contact_email_extracted_verbatim",
+    "no_sensitive_data_entered": true
+  },
+
+  "verification": {
+    "human_review_required": false,
+    "human_review_completed": false,
+    "automated_verification_passed": true,
+    "confidence_score": 95
+  },
+
+  "legal_notice": {
+    "terms_accepted": false,
+    "terms_acceptance_required": false,
+    "public_data_source": true,
+    "copyright_notice": "Content sourced from SAM.gov, a public U.S. government website",
+    "usage_rights": "Public domain - U.S. Government work"
+  }
+}

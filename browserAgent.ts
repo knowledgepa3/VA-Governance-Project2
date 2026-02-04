@@ -8,6 +8,7 @@
  * - Parallel multi-agent execution (Celer pattern)
  * - Chrome extension support for workflow tools
  * - Full audit trail with screenshots
+ * - DEMO MODE: Runs without API calls for client demos
  *
  * Position: "Accelerate regulated workflows" NOT "automate submissions"
  */
@@ -15,10 +16,15 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { chromium, Browser, Page, BrowserContext } from 'playwright';
 import { MAIClassification } from './types';
+import { config } from './config';
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY
-});
+// Only create Anthropic client if we have a key and not in demo mode
+let client: Anthropic | null = null;
+if (config.hasAnthropicKey && !config.demoMode) {
+  client = new Anthropic({
+    apiKey: config.anthropicApiKey
+  });
+}
 
 export enum BrowserActionType {
   NAVIGATE = 'navigate',
@@ -248,6 +254,16 @@ export class GovernedBrowserAgent {
   }
 
   private async getNextAction(screenshotB64: string): Promise<any> {
+    // DEMO MODE: Return simulated actions without API calls
+    if (config.demoMode) {
+      return this.getDemoAction();
+    }
+
+    // Ensure client is available
+    if (!client) {
+      throw new Error('Could not resolve authentication method. Expected either apiKey or authToken to be set. Or for one of the "X-Api-Key" or "Authorization" headers to be explicitly omitted');
+    }
+
     // Build message with screenshot + task context
     const message: Anthropic.MessageParam = {
       role: "user",
@@ -297,7 +313,7 @@ If task is complete, respond: { "action": "complete" }`
     this.conversationHistory.push(message);
 
     const response = await client.messages.create({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-sonnet-4-20250514",
       max_tokens: 2048,
       messages: this.conversationHistory
     });
@@ -312,6 +328,60 @@ If task is complete, respond: { "action": "complete" }`
     const action = JSON.parse(this.cleanJsonResponse(textContent));
 
     return action;
+  }
+
+  // Demo mode step counter for simulated workflow
+  private demoStepCount = 0;
+
+  /**
+   * DEMO MODE: Returns simulated actions for client demos
+   * Shows realistic workflow without API calls
+   */
+  private getDemoAction(): any {
+    this.demoStepCount++;
+
+    // Simulate a realistic BD workflow
+    const demoSteps = [
+      {
+        action: 'navigate',
+        target: 'https://sam.gov/content/opportunities',
+        reasoning: '[DEMO] Navigating to SAM.gov opportunities search',
+        classification: 'INFORMATIONAL'
+      },
+      {
+        action: 'type',
+        target: '#search-input',
+        value: this.config.task.includes('RFP') ? 'IT Services' : 'Federal Contract',
+        reasoning: '[DEMO] Entering search criteria',
+        classification: 'INFORMATIONAL'
+      },
+      {
+        action: 'click',
+        target: '.search-button',
+        reasoning: '[DEMO] Clicking search button',
+        classification: 'INFORMATIONAL'
+      },
+      {
+        action: 'wait',
+        value: '2000',
+        reasoning: '[DEMO] Waiting for results to load',
+        classification: 'INFORMATIONAL'
+      },
+      {
+        action: 'scroll',
+        value: 'down',
+        reasoning: '[DEMO] Scrolling to view more results',
+        classification: 'INFORMATIONAL'
+      },
+      {
+        action: 'complete',
+        reasoning: '[DEMO] Task completed - data extracted',
+        classification: 'INFORMATIONAL'
+      }
+    ];
+
+    const stepIndex = Math.min(this.demoStepCount - 1, demoSteps.length - 1);
+    return demoSteps[stepIndex];
   }
 
   private async executeWithGovernance(action: any, screenshot: string) {

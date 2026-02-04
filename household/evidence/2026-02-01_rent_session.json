@@ -1,0 +1,95 @@
+{
+  "session_id": "RENT-2026-02-01-001",
+  "session_type": "rent_payment",
+  "timestamp": "2026-02-01T09:30:00Z",
+  "status": "REVIEWED_NOT_SUBMITTED",
+
+  "household_profile": "knowl_household",
+
+  "portal": {
+    "name": "Greystone at Columbus Park",
+    "url": "https://greystoneatcolumbuspark.securecafenet.com/residentservices/greystone-at-columbus-park-0/userlogin",
+    "login_method": "google_sso",
+    "portal_type": "SecureCafe/RentCafe"
+  },
+
+  "payment_details": {
+    "account_balance": 1574.00,
+    "service_fee": 4.95,
+    "total_with_fee": 1578.95,
+    "payment_card": "Visa ending in 7484",
+    "due_date": "2026-02-01"
+  },
+
+  "workflow_steps": [
+    {
+      "step": 1,
+      "action": "Navigate to portal",
+      "url": "greystoneatcolumbuspark.securecafenet.com",
+      "result": "Already logged in via Google SSO",
+      "screenshot_id": "ss_87474nedq"
+    },
+    {
+      "step": 2,
+      "action": "View Dashboard",
+      "result": "Account balance displayed: $1,574.00",
+      "screenshot_id": "ss_87474nedq"
+    },
+    {
+      "step": 3,
+      "action": "Click Go to Payments",
+      "result": "Navigated to payments page",
+      "screenshot_id": "ss_2062l6qbe"
+    },
+    {
+      "step": 4,
+      "action": "Click Make a Payment",
+      "result": "Payment modal opened",
+      "screenshot_id": "ss_1097je1my"
+    },
+    {
+      "step": 5,
+      "action": "Select Total Balance",
+      "result": "Selected $1,574.00 full balance",
+      "screenshot_id": "ss_7377ow9gn"
+    },
+    {
+      "step": 6,
+      "action": "Select Payment Method",
+      "result": "Selected Visa ending in 7484",
+      "screenshot_id": "ss_6439a1rxs"
+    },
+    {
+      "step": 7,
+      "action": "Review Payment",
+      "result": "Review screen shown - Total $1,578.95 with $4.95 fee",
+      "screenshot_id": "ss_15886u0qm"
+    },
+    {
+      "step": 8,
+      "action": "STOPPED - Awaiting Approval",
+      "result": "User requested stop before submission",
+      "screenshot_id": "ss_15886u0qm"
+    }
+  ],
+
+  "screenshots": [
+    { "id": "ss_87474nedq", "description": "Dashboard showing $1,574.00 balance" },
+    { "id": "ss_2062l6qbe", "description": "Payments page" },
+    { "id": "ss_1097je1my", "description": "Make a Payment modal - Options" },
+    { "id": "ss_7377ow9gn", "description": "Total Balance selected" },
+    { "id": "ss_6439a1rxs", "description": "Card 7484 selected" },
+    { "id": "ss_15886u0qm", "description": "Final review - $1,578.95 total" }
+  ],
+
+  "learned_for_next_time": {
+    "portal_stays_logged_in": true,
+    "login_method": "Google SSO - no manual login needed",
+    "saved_cards": ["4036", "7484", "1014"],
+    "preferred_card": "7484",
+    "service_fee": 4.95,
+    "workflow": "Dashboard → Go to Payments → Make a Payment → Total Balance → Select Card → Review → Submit"
+  },
+
+  "notes": "Test run successful. User stopped before final submission to verify workflow. Ready for actual payment next time."
+}

@@ -359,3 +359,82 @@ export function generateMockSAMData(rfpNumber: string): SAMGovOpportunityData {
     raw_html: '<html>Mock SAM.gov page content</html>'
   };
 }
+
+/**
+ * Data source result with audit tracking
+ */
+export interface SAMDataSourceResult {
+  data: SAMGovOpportunityData;
+  source: 'SAM_GOV_API' | 'SAM_GOV_SCRAPE' | 'MOCK';
+  timestamp: Date;
+  warnings?: string[];
+}
+
+/**
+ * Scrape opportunity data with data source tracking for audit
+ * Supports strict mode that throws instead of falling back to mock data
+ */
+export async function scrapeOpportunityWithSource(
+  rfpNumber: string,
+  strictMode: boolean = false
+): Promise<SAMDataSourceResult> {
+  const timestamp = new Date();
+  const warnings: string[] = [];
+
+  try {
+    // Try the real scraping first
+    const data = await scrapeOpportunity(rfpNumber);
+
+    // Verify we got real data (not just empty/default response)
+    if (data && data.title && data.description) {
+      console.log(`[SAM.gov] Successfully scraped data for ${rfpNumber}`);
+      return {
+        data,
+        source: 'SAM_GOV_SCRAPE',
+        timestamp
+      };
+    }
+
+    // Scrape returned incomplete data
+    warnings.push('SAM.gov scrape returned incomplete data');
+
+    // In strict mode, throw error instead of using mock data
+    if (strictMode) {
+      throw new Error(
+        `SAM.gov scrape returned incomplete data for RFP "${rfpNumber}". ` +
+        `Strict mode is enabled - mock data fallback is disabled. ` +
+        `Verify the RFP number is correct and the opportunity exists.`
+      );
+    }
+
+    // Fall back to mock data in non-strict mode
+    console.warn(`[SAM.gov] Incomplete scrape results, falling back to mock data (strict mode: ${strictMode})`);
+    return {
+      data: generateMockSAMData(rfpNumber),
+      source: 'MOCK',
+      timestamp,
+      warnings: [...warnings, 'Using mock data due to incomplete scrape results']
+    };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`[SAM.gov] Scrape error:`, errorMessage);
+
+    // In strict mode, propagate the error
+    if (strictMode) {
+      throw new Error(
+        `SAM.gov data fetch failed for RFP "${rfpNumber}": ${errorMessage}. ` +
+        `Strict mode is enabled - mock data fallback is disabled.`
+      );
+    }
+
+    // Fall back to mock data in non-strict mode
+    warnings.push(`Scrape error: ${errorMessage}`);
+    return {
+      data: generateMockSAMData(rfpNumber),
+      source: 'MOCK',
+      timestamp,
+      warnings: [...warnings, 'Using mock data due to scrape error']
+    };
+  }
+}

@@ -95,3 +95,26 @@ export async function generateSecureToken(length: number = 32): Promise<string> 
 export async function hashSensitiveData(data: string, salt: string): Promise<string> {
   return sha256(salt + data + salt);
 }
+
+/**
+ * Hash content for integrity verification
+ * Synchronous wrapper that returns a promise - for workflow evidence hashing
+ */
+export function hashContent(content: string): string {
+  // For synchronous needs, we use a simple hash approach
+  // In production, use the async sha256 for cryptographic security
+  let hash = 0;
+  for (let i = 0; i < content.length; i++) {
+    const char = content.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return 'HASH-' + Math.abs(hash).toString(16).padStart(8, '0').toUpperCase();
+}
+
+/**
+ * Async hash content for integrity verification (SHA-256)
+ */
+export async function hashContentAsync(content: string): Promise<string> {
+  return sha256(content);
+}

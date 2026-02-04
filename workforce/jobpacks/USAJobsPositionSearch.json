@@ -1,0 +1,567 @@
+{
+  "pack_id": "USAJOBS_POSITION_SEARCH",
+  "pack_version": "1.0.0",
+  "pack_hash": "COMPUTE_ON_REGISTRY_SCAN",
+  "created_at": "2026-02-01T06:00:00Z",
+  "updated_at": "2026-02-01T06:00:00Z",
+  "author": "ACE Governance Platform",
+
+  "role": {
+    "name": "USAJobs Position Researcher",
+    "description": "Searches and extracts federal job posting data from USAJobs.gov for recruiting and workforce planning",
+    "mission": "Find relevant federal job postings, extract key position details, and create structured evidence bundles for HR analysis",
+    "success_criteria": [
+      "Search executed with specified criteria",
+      "Position details extracted with high confidence",
+      "Evidence bundle created with required screenshots",
+      "Audit trail complete and verifiable"
+    ],
+    "outputs": [
+      "position.json - Structured position data",
+      "position.md - Human-readable summary",
+      "source_context.json - Provenance record",
+      "extraction_log.json - Audit trail",
+      "evidence/ - Screenshot evidence"
+    ],
+    "acceptance_criteria": [
+      "Position announcement number captured",
+      "Salary range and grade extracted",
+      "Closing date verified",
+      "Duty location confirmed",
+      "Minimum screenshots captured"
+    ]
+  },
+
+  "authority": {
+    "informational_actions": [
+      {
+        "action": "navigate",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Navigate to USAJobs pages"
+      },
+      {
+        "action": "read_page",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Read page content and accessibility tree"
+      },
+      {
+        "action": "screenshot",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Capture screenshots for evidence"
+      },
+      {
+        "action": "scroll",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Scroll page to view content"
+      },
+      {
+        "action": "click_filter",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Click filter/facet controls"
+      },
+      {
+        "action": "type_search",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Type in search box"
+      }
+    ],
+    "advisory_actions": [
+      {
+        "action": "generate_summary",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": false,
+        "description": "Generate position summary for review"
+      },
+      {
+        "action": "assess_qualifications",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": false,
+        "description": "Assess qualification requirements"
+      },
+      {
+        "action": "compare_positions",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": false,
+        "description": "Compare multiple positions"
+      }
+    ],
+    "mandatory_actions": [
+      {
+        "action": "save_position",
+        "allowed": true,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "Save position to account (requires login)"
+      },
+      {
+        "action": "apply",
+        "allowed": true,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "Start application process"
+      }
+    ]
+  },
+
+  "permissions": {
+    "allowed": [
+      { "action": "navigate", "description": "Navigate to any usajobs.gov URL" },
+      { "action": "read_page", "description": "Read page content" },
+      { "action": "screenshot", "description": "Capture evidence screenshots" },
+      { "action": "scroll", "description": "Scroll to view more content" },
+      { "action": "click_filter", "description": "Apply search filters" },
+      { "action": "type_search", "description": "Enter search terms" },
+      { "action": "click_result", "description": "Click on search result to view details" },
+      { "action": "expand_section", "description": "Expand collapsed sections" }
+    ],
+    "forbidden": [
+      {
+        "action": "login",
+        "description": "Log into USAJobs account",
+        "reason": "Read-only automation policy"
+      },
+      {
+        "action": "apply",
+        "description": "Submit job application",
+        "reason": "Requires human decision and approval"
+      },
+      {
+        "action": "save_search",
+        "description": "Save a search to account",
+        "reason": "Requires login"
+      },
+      {
+        "action": "upload_resume",
+        "description": "Upload resume or documents",
+        "reason": "Requires human approval and review"
+      },
+      {
+        "action": "create_account",
+        "description": "Create USAJobs account",
+        "reason": "Account creation forbidden"
+      }
+    ]
+  },
+
+  "procedure_index": {
+    "mini_index": [
+      {
+        "task": "Search for positions by keyword",
+        "route": "Navigate to usajobs.gov → Enter keyword in search box → Click Search",
+        "stop_condition": "Search results displayed with count",
+        "evidence": "Screenshot of search results showing query and count",
+        "estimated_steps": 4
+      },
+      {
+        "task": "Filter by GS grade level",
+        "route": "Expand 'Pay' filter → Select grade range → Apply",
+        "stop_condition": "Results filtered, count updated",
+        "evidence": "Screenshot showing applied filter",
+        "estimated_steps": 3
+      },
+      {
+        "task": "Filter by location",
+        "route": "Expand 'Location' filter → Enter location → Select from dropdown",
+        "stop_condition": "Location filter applied",
+        "evidence": "Screenshot showing location filter",
+        "estimated_steps": 3
+      },
+      {
+        "task": "Open position detail page",
+        "route": "Click position title in results",
+        "stop_condition": "Position detail page loaded with announcement number",
+        "evidence": "Screenshot of position header",
+        "estimated_steps": 2
+      },
+      {
+        "task": "Extract position metadata",
+        "route": "Read position page → Extract fields → Verify against UI",
+        "stop_condition": "All critical fields captured with confidence scores",
+        "evidence": "position.json created",
+        "estimated_steps": 5
+      },
+      {
+        "task": "View duties and qualifications",
+        "route": "Scroll to Duties section → Expand if needed → Read content",
+        "stop_condition": "Duties and qualifications visible",
+        "evidence": "Screenshot of duties section",
+        "estimated_steps": 3
+      },
+      {
+        "task": "View required documents",
+        "route": "Scroll to 'Required Documents' section",
+        "stop_condition": "Document requirements visible",
+        "evidence": "Screenshot of required documents",
+        "estimated_steps": 2
+      },
+      {
+        "task": "Create evidence bundle",
+        "route": "Compile all artifacts → Create manifest → Validate structure",
+        "stop_condition": "Bundle created with all required files",
+        "evidence": "manifest.json with seal status UNSEALED",
+        "estimated_steps": 3
+      }
+    ],
+    "micro_sops": [
+      {
+        "sop_id": "USAJOBS_SEARCH",
+        "title": "Execute USAJobs keyword search",
+        "pre_checks": [
+          "Browser on usajobs.gov domain",
+          "Search box visible"
+        ],
+        "steps": [
+          {
+            "step_id": "SEARCH_01",
+            "intent": "Locate search input field",
+            "action": "find:search input",
+            "ui_anchor": {
+              "type": "aria_label",
+              "value": "Job title, keywords, or agency",
+              "fallback": "input[name='keyword']"
+            },
+            "verification": {
+              "type": "element_visible",
+              "target": "search input"
+            },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "retry",
+            "max_retries": 2
+          },
+          {
+            "step_id": "SEARCH_02",
+            "intent": "Enter search keywords",
+            "action": "type:{keyword}",
+            "ui_anchor": {
+              "type": "aria_label",
+              "value": "Job title, keywords, or agency"
+            },
+            "verification": {
+              "type": "field_value",
+              "target": "search input",
+              "expected": "{keyword}"
+            },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "retry"
+          },
+          {
+            "step_id": "SEARCH_03",
+            "intent": "Execute the search",
+            "action": "click:Search button",
+            "ui_anchor": {
+              "type": "button_text",
+              "value": "Search",
+              "fallback": "button[type='submit']"
+            },
+            "verification": {
+              "type": "url_matches",
+              "target": "/Search/Results"
+            },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "escalate"
+          },
+          {
+            "step_id": "SEARCH_04",
+            "intent": "Verify results loaded",
+            "action": "verify:results count visible",
+            "ui_anchor": {
+              "type": "heading",
+              "value": "jobs found"
+            },
+            "verification": {
+              "type": "text_contains",
+              "target": "page",
+              "expected": "jobs found"
+            },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "escalate"
+          }
+        ],
+        "validation": {
+          "type": "text_contains",
+          "target": "page",
+          "expected": "jobs found"
+        },
+        "failure_handling": "If no results found, try broader search terms",
+        "evidence_on_success": [
+          {
+            "trigger": "completion",
+            "capture_type": "screenshot",
+            "description": "Search results with count",
+            "required": true
+          }
+        ]
+      },
+      {
+        "sop_id": "USAJOBS_EXTRACT",
+        "title": "Extract position details",
+        "pre_checks": [
+          "On position detail page",
+          "Announcement number visible in header"
+        ],
+        "steps": [
+          {
+            "step_id": "EXTRACT_01",
+            "intent": "Capture position header",
+            "action": "screenshot:position_header",
+            "ui_anchor": {
+              "type": "element_id",
+              "value": "job-announcement-header"
+            },
+            "verification": {
+              "type": "screenshot_capture",
+              "target": "position_header"
+            },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "retry"
+          },
+          {
+            "step_id": "EXTRACT_02",
+            "intent": "Read page text for extraction",
+            "action": "read_page",
+            "ui_anchor": {
+              "type": "page_title",
+              "value": "Position detail page"
+            },
+            "verification": {
+              "type": "text_contains",
+              "target": "page_text",
+              "expected": "Announcement number"
+            },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "escalate"
+          },
+          {
+            "step_id": "EXTRACT_03",
+            "intent": "Scroll to salary information",
+            "action": "scroll:salary section",
+            "ui_anchor": {
+              "type": "heading",
+              "value": "Salary"
+            },
+            "verification": {
+              "type": "element_visible",
+              "target": "salary section"
+            },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "skip"
+          },
+          {
+            "step_id": "EXTRACT_04",
+            "intent": "Capture salary screenshot",
+            "action": "screenshot:salary_section",
+            "ui_anchor": {
+              "type": "heading",
+              "value": "Salary"
+            },
+            "verification": {
+              "type": "screenshot_capture",
+              "target": "salary_section"
+            },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "skip"
+          },
+          {
+            "step_id": "EXTRACT_05",
+            "intent": "Extract structured data",
+            "action": "extract:position_data",
+            "ui_anchor": {
+              "type": "page_title",
+              "value": "Full page"
+            },
+            "verification": {
+              "type": "state_change",
+              "target": "position.json created"
+            },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "escalate"
+          }
+        ],
+        "validation": {
+          "type": "state_change",
+          "target": "position.json exists with announcement_number"
+        },
+        "failure_handling": "If critical fields missing, flag for human review",
+        "evidence_on_success": [
+          {
+            "trigger": "completion",
+            "capture_type": "screenshot",
+            "description": "Position header with announcement number",
+            "required": true
+          },
+          {
+            "trigger": "milestone",
+            "capture_type": "page_text",
+            "description": "Full page text for verification",
+            "required": true
+          }
+        ]
+      }
+    ]
+  },
+
+  "ui_map": {
+    "domain": "usajobs.gov",
+    "stable_anchors": [
+      {
+        "name": "search_box",
+        "anchors": [
+          { "type": "aria_label", "value": "Job title, keywords, or agency" },
+          { "type": "element_id", "value": "keyword-search-input" }
+        ],
+        "description": "Main search input field"
+      },
+      {
+        "name": "search_button",
+        "anchors": [
+          { "type": "button_text", "value": "Search" },
+          { "type": "aria_label", "value": "Search" }
+        ],
+        "description": "Search submit button"
+      },
+      {
+        "name": "results_count",
+        "anchors": [
+          { "type": "aria_label", "value": "Search results count" },
+          { "type": "heading", "value": "jobs found" }
+        ],
+        "description": "Results count indicator"
+      },
+      {
+        "name": "position_title",
+        "anchors": [
+          { "type": "heading", "value": "position title" },
+          { "type": "element_id", "value": "job-title" }
+        ],
+        "description": "Position title on detail page"
+      },
+      {
+        "name": "announcement_number",
+        "anchors": [
+          { "type": "field_label", "value": "Announcement number" },
+          { "type": "aria_label", "value": "Announcement number" }
+        ],
+        "description": "Unique announcement identifier"
+      }
+    ],
+    "url_patterns": [
+      {
+        "pattern": "https://www.usajobs.gov/",
+        "page_type": "homepage",
+        "expected_elements": ["search_box", "search_button"]
+      },
+      {
+        "pattern": "https://www.usajobs.gov/Search/Results",
+        "page_type": "search_results",
+        "expected_elements": ["results_count", "job_listings"]
+      },
+      {
+        "pattern": "https://www.usajobs.gov/job/*",
+        "page_type": "position_detail",
+        "expected_elements": ["position_title", "announcement_number", "apply_button"]
+      }
+    ]
+  },
+
+  "escalation": {
+    "triggers": [
+      {
+        "trigger_id": "LOGIN_PROMPT",
+        "condition": "Sign in",
+        "description": "Login prompt detected - cannot proceed without authentication",
+        "action": "stop_and_ask",
+        "severity": "HIGH"
+      },
+      {
+        "trigger_id": "POSITION_CLOSED",
+        "condition": "This job announcement has closed",
+        "description": "Position is no longer accepting applications",
+        "action": "capture_evidence",
+        "severity": "MEDIUM"
+      },
+      {
+        "trigger_id": "APPLICATION_REQUIRED",
+        "condition": "Apply now",
+        "description": "Application action detected - human decision required",
+        "action": "stop_and_ask",
+        "severity": "HIGH"
+      },
+      {
+        "trigger_id": "CAPTCHA_DETECTED",
+        "condition": "verify you are human",
+        "description": "CAPTCHA or human verification required",
+        "action": "stop_and_ask",
+        "severity": "CRITICAL"
+      },
+      {
+        "trigger_id": "NO_RESULTS",
+        "condition": "0 jobs found",
+        "description": "Search returned no results",
+        "action": "capture_evidence",
+        "severity": "LOW"
+      },
+      {
+        "trigger_id": "SECURITY_CLEARANCE",
+        "condition": "Secret clearance",
+        "description": "Position requires security clearance - flag for review",
+        "action": "flag_for_review",
+        "severity": "MEDIUM"
+      },
+      {
+        "trigger_id": "REMOTE_POSITION",
+        "condition": "Telework eligible",
+        "description": "Remote/telework eligibility detected",
+        "action": "capture_evidence",
+        "severity": "LOW"
+      }
+    ],
+    "default_action": "stop_and_ask"
+  },
+
+  "evidence": {
+    "lightweight_capture": [
+      {
+        "trigger": "milestone",
+        "capture_type": "screenshot",
+        "description": "Major state changes only",
+        "required": true
+      }
+    ],
+    "heavy_capture_triggers": [
+      "Error state detected",
+      "Unexpected page structure",
+      "Escalation triggered"
+    ],
+    "milestone_screenshots": [
+      "Search results page (with count)",
+      "Position header (with announcement number)",
+      "Salary section",
+      "Qualifications section"
+    ],
+    "retention_policy": "30 days for standard bundles, 90 days for escalated"
+  },
+
+  "constraints": {
+    "max_actions_per_session": 100,
+    "max_retries_per_step": 3,
+    "timeout_per_step_ms": 15000,
+    "timeout_per_job_ms": 300000,
+    "requires_sealed_evidence_bundle": true,
+    "environment_modes": ["DEMO", "PROD"]
+  }
+}

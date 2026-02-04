@@ -1,0 +1,176 @@
+{
+  "profile_id": "knowl_household",
+  "profile_version": "1.0.0",
+  "created_at": "2026-02-01",
+  "last_updated": "2026-02-03",
+
+  "household": {
+    "name": "Knowl Household",
+    "members": [
+      {
+        "name": "Dad",
+        "age": 50,
+        "role": "primary",
+        "dietary_preferences": ["easy to cook", "healthy options", "variety"],
+        "notes": "Primary account holder"
+      },
+      {
+        "name": "Son",
+        "age": 20,
+        "role": "member",
+        "dietary_preferences": ["snacks", "easy meals"],
+        "notes": ""
+      }
+    ],
+    "size": 2,
+    "cooking_skill": "moderate",
+    "meal_preferences": {
+      "complexity": "easy",
+      "prep_time_max_minutes": 30,
+      "variety_important": true,
+      "avoid_repetition_weeks": 3
+    }
+  },
+
+  "accounts": {
+    "housing": {
+      "name": "Greystone at Columbus Park",
+      "type": "apartment_rent",
+      "portal_url": "https://greystoneatcolumbuspark.securecafenet.com/residentservices/greystone-at-columbus-park-0/userlogin",
+      "login_method": "google_sso",
+      "stays_logged_in": true,
+      "payment_card_last4": "7484",
+      "saved_cards": ["4036", "7484", "1014"],
+      "due_day": 1,
+      "typical_amount": 1574.00,
+      "service_fee": 4.95,
+      "total_with_fee": 1578.95,
+      "workflow_learned": true,
+      "workflow_steps": "Dashboard → Go to Payments → Make a Payment → Total Balance → Select Card 7484 → Review → Submit",
+      "last_verified": "2026-02-01",
+      "notes": "Pay full balance each month. Portal stays logged in via Google SSO."
+    },
+    "electric": {
+      "name": "Georgia Power",
+      "provider": "GA Power",
+      "portal_url": "https://www.georgiapower.com",
+      "login_method": "email",
+      "status": "NEEDS_UNLOCK",
+      "current_balance": 366.83,
+      "due_date": "2026-02-02",
+      "urgency": "CRITICAL",
+      "notes": "Account locked - unlock today, pay immediately"
+    },
+    "cable": {
+      "name": "WOW Cable",
+      "provider": "WOW",
+      "portal_url": "https://www.wowway.com",
+      "login_url": "https://login.wowway.com",
+      "type": "cable_internet",
+      "stays_logged_in": true,
+      "current_balance": 131.39,
+      "last_bill": 175.39,
+      "last_checked": "2026-02-03",
+      "autopay": false,
+      "notes": "Cable and internet provider. Account stays logged in."
+    },
+    "groceries": {
+      "primary_store": "Walmart",
+      "portal_url": "https://walmart.com",
+      "stays_logged_in": true,
+      "delivery_preference": "pickup_or_delivery",
+      "order_frequency": "weekly",
+      "last_order": "2026-02-03",
+      "last_order_total": 98.27,
+      "last_order_id": "200014302230318",
+      "notes": "Weekly orders to reduce food waste"
+    }
+  },
+
+  "shopping_preferences": {
+    "grocery": {
+      "order_frequency": "weekly",
+      "budget_target": 150,
+      "priorities": [
+        "Easy meals for 2 adults",
+        "Mix of healthy and snacks",
+        "Variety - don't repeat same meals",
+        "Household essentials"
+      ],
+      "meal_categories": {
+        "proteins": ["chicken", "ground beef", "pork chops", "fish", "eggs"],
+        "easy_meals": ["frozen pizzas", "rotisserie chicken", "deli items", "instant pot friendly"],
+        "sides": ["rice", "pasta", "potatoes", "frozen veggies", "canned goods"],
+        "snacks": ["chips", "crackers", "nuts", "fruit", "granola bars"],
+        "breakfast": ["cereal", "eggs", "bacon", "sausage", "pancake mix"],
+        "beverages": ["water", "juice", "soda", "coffee"]
+      }
+    },
+    "household": {
+      "personal_care": {
+        "body_wash": "Old Spice",
+        "deodorant": "Old Spice",
+        "notes": "Dad's preferred brands"
+      },
+      "laundry": {
+        "detergent": "Tide Pods (large size)",
+        "fabric_softener": "Downy"
+      },
+      "cleaning": {
+        "dish_soap": "Dawn"
+      },
+      "paper_products": {
+        "toilet_paper": true,
+        "paper_towels": true,
+        "preferred_brands": "any good value"
+      }
+    }
+  },
+
+  "financial_context": {
+    "pay_schedule": "CHECK_WITH_USER",
+    "typical_monthly_expenses": {
+      "rent": "CHECK_PORTAL",
+      "electric": 200,
+      "groceries": 600,
+      "other": "varies"
+    },
+    "buffer_preference": 500,
+    "notes": "Georgia Power past due - priority #1"
+  },
+
+  "meal_history": {
+    "recent_proteins": [],
+    "recent_meals": [],
+    "avoid_this_week": [],
+    "last_updated": "2026-02-01"
+  },
+
+  "current_priorities": [
+    {
+      "priority": 1,
+      "item": "Georgia Power Bill",
+      "amount": 366.83,
+      "due": "2026-02-02",
+      "status": "BLOCKED - Account locked",
+      "action": "Unlock account TODAY, pay immediately"
+    },
+    {
+      "priority": 2,
+      "item": "Rent",
+      "amount": "CHECK_PORTAL",
+      "due": "2026-02-01",
+      "status": "DUE NOW",
+      "action": "Pay full balance with card ending 7484"
+    },
+    {
+      "priority": 3,
+      "item": "Groceries",
+      "amount": 98.27,
+      "due": "This week",
+      "status": "COMPLETED",
+      "action": "Order placed 2026-02-03, arrives within 3 hours",
+      "order_id": "200014302230318"
+    }
+  ]
+}

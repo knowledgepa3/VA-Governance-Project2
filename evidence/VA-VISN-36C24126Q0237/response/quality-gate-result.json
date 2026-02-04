@@ -1,0 +1,81 @@
+{
+  "quality_gate_evaluation": {
+    "status": "PASS",
+    "workforceType": "BD_CAPTURE",
+    "timestamp": "2026-02-04T11:30:00Z",
+    "evaluatedDocument": "sources-sought-response.md",
+
+    "domainAlignment": {
+      "score": 95,
+      "expectedDomain": "BD Capture / Proposal Development",
+      "detectedDomain": "BD Capture / Proposal Development",
+      "mismatch": false,
+      "analysis": "Output correctly uses BD/proposal terminology throughout. No VA disability claims or cyber IR terminology detected."
+    },
+
+    "heuristicChecks": [
+      {
+        "name": "Domain Keywords Present",
+        "passed": true,
+        "details": "Found 15+ of expected keywords: solicitation, sources sought, proposal, technical approach, past performance, compliance, capability, naics, set-aside, contract, evaluation criteria, teaming"
+      },
+      {
+        "name": "No Wrong-Domain Keywords",
+        "passed": true,
+        "details": "No cross-domain contamination detected. No VA disability claims terms (service connection, nexus opinion, etc.) or cyber IR terms (kill chain, malware, IOC) found."
+      },
+      {
+        "name": "Expected Structure Present",
+        "passed": true,
+        "details": "Found 6 of 6 expected sections: company overview, technical approach, past performance, teaming strategy, capability statement, questions for government"
+      },
+      {
+        "name": "Quality Indicators",
+        "passed": true,
+        "details": "4 of 5 quality indicators present: specific past performance citations, quantified results, compliance mapping, teaming strategy"
+      },
+      {
+        "name": "Red Flag Detection",
+        "passed": true,
+        "details": "No red flags detected. Output uses correct domain terminology."
+      },
+      {
+        "name": "Output Length",
+        "passed": true,
+        "details": "9,589 characters (expected 500-50,000). Appropriate length for Sources Sought response."
+      }
+    ],
+
+    "issues": [],
+
+    "recommendations": [
+      "Output passes automated quality checks",
+      "Human review still recommended for critical deliverables",
+      "Verify teaming partner identification before submission deadline"
+    ],
+
+    "fullReviewRecommended": false,
+    "tokenCost": 0,
+
+    "comparison_to_failed_review": {
+      "note": "The earlier red team review that showed 0% compliance was using WRONG DOMAIN CRITERIA",
+      "problem": "VA disability claims evaluation criteria were applied to a BD Capture output",
+      "solution": "This Quality Gate correctly identifies the workflow type and applies BD Capture criteria",
+      "result": "PASS instead of FAIL - because we're evaluating against the RIGHT domain"
+    }
+  },
+
+  "what_the_quality_gate_prevents": {
+    "domain_mismatch": "Catches when output uses wrong terminology (e.g., VA claims terms in BD response)",
+    "incomplete_structure": "Ensures all required sections are present",
+    "cross_contamination": "Detects when agent pulls from wrong knowledge base",
+    "quality_issues": "Flags generic boilerplate, missing specifics, etc."
+  },
+
+  "integration_recommendation": {
+    "when_to_run": "Automatically on every workflow Stage C (Output) completion",
+    "cost": "Near zero for heuristic checks (no API calls)",
+    "escalation": "Only call full LLM review if FAIL or user requests",
+    "blocking": "FAIL status should prevent output delivery without human override"
+  }
+}

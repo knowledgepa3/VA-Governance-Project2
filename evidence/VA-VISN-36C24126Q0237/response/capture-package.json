@@ -1,0 +1,259 @@
+{
+  "capture_package": {
+    "version": "1.0.0",
+    "generated_at": "2026-02-04T11:00:00Z",
+    "generated_by": "ACE BD Capture Workflow"
+  },
+
+  "opportunity": {
+    "notice_id": "36C24126Q0237",
+    "title": "VISN Radiology Artificial Intelligence",
+    "agency": "Department of Veterans Affairs",
+    "sub_agency": "Veterans Health Administration",
+    "office": "241-Network Contract Office 01 (36C241)",
+    "type": "Sources Sought",
+    "naics": "541512",
+    "set_aside": "Total Small Business",
+    "response_deadline": "2026-02-13T10:00:00-05:00",
+    "place_of_performance": "Bedford VA Medical Center, MA",
+    "estimated_value_range": "$500K - $2M",
+    "sam_gov_url": "https://sam.gov/opp/36C24126Q0237/view"
+  },
+
+  "requirements_analysis": {
+    "mandatory_requirements": [
+      {
+        "id": "M-1",
+        "requirement": "FDA-approved AI radiology platform",
+        "ace_capability": "TEAMING_REQUIRED",
+        "notes": "ACE would partner with FDA-approved AI vendor"
+      },
+      {
+        "id": "M-2",
+        "requirement": "Authority to Operate (ATO) with VA systems",
+        "ace_capability": "STRONG_MATCH",
+        "notes": "Core ACE competency - 10+ ATOs achieved"
+      },
+      {
+        "id": "M-3",
+        "requirement": "VHA Handbook 6500.6 compliance",
+        "ace_capability": "STRONG_MATCH",
+        "notes": "Federal security compliance expertise directly applicable"
+      },
+      {
+        "id": "M-4",
+        "requirement": "Integration with VA PACS",
+        "ace_capability": "TEAMING_REQUIRED",
+        "notes": "Partner with PACS integration specialist"
+      },
+      {
+        "id": "M-5",
+        "requirement": "Integration with Vista Imaging",
+        "ace_capability": "PARTIAL_MATCH",
+        "notes": "Federal system integration experience, specific Vista training needed"
+      },
+      {
+        "id": "M-6",
+        "requirement": "Integration with EMHR",
+        "ace_capability": "PARTIAL_MATCH",
+        "notes": "Healthcare IT integration experience applicable"
+      }
+    ],
+    "total_requirements": 6,
+    "strong_matches": 2,
+    "partial_matches": 2,
+    "teaming_required": 2,
+    "compliance_percentage": 67
+  },
+
+  "pwin_assessment": {
+    "overall_score": 65,
+    "rating": "BID_WITH_TEAMING",
+    "factors": {
+      "technical_capability": {
+        "score": 75,
+        "notes": "Strong on security/ATO, need teaming for clinical AI"
+      },
+      "past_performance": {
+        "score": 70,
+        "notes": "Relevant federal security work, limited healthcare-specific"
+      },
+      "price_competitiveness": {
+        "score": 80,
+        "notes": "Small business overhead advantage"
+      },
+      "compliance": {
+        "score": 90,
+        "notes": "Strong compliance matrix coverage with teaming"
+      }
+    },
+    "win_themes": [
+      "Proven ATO track record reduces VA authorization risk",
+      "AI governance expertise addresses emerging federal AI requirements",
+      "Small business teaming brings both agility and clinical capability",
+      "Cleared personnel enable immediate access to sensitive VA systems"
+    ],
+    "risk_factors": [
+      "No direct VA PACS experience - mitigate through teaming",
+      "FDA-approved AI platform required - partner selection critical",
+      "Sources Sought means requirements may evolve significantly"
+    ]
+  },
+
+  "teaming_strategy": {
+    "recommended_approach": "Prime contractor with FDA-approved AI vendor as major subcontractor",
+    "ace_role": "Security/ATO Lead, AI Governance, Compliance",
+    "partner_requirements": [
+      {
+        "capability_needed": "FDA-approved radiology AI platform",
+        "partner_type": "Major Subcontractor",
+        "potential_partners": [
+          "Aidoc",
+          "Viz.ai",
+          "Zebra Medical Vision",
+          "Qure.ai"
+        ],
+        "selection_criteria": [
+          "FDA 510(k) clearance for relevant modalities",
+          "Existing VA/federal contract experience preferred",
+          "PACS integration capability",
+          "Willingness to support federal ATO process"
+        ]
+      },
+      {
+        "capability_needed": "VA PACS/Vista Imaging integration",
+        "partner_type": "Subcontractor",
+        "potential_partners": [
+          "VA-experienced healthcare IT integrators"
+        ],
+        "selection_criteria": [
+          "Prior VA PACS integration experience",
+          "Vista Imaging certified",
+          "Cleared personnel"
+        ]
+      }
+    ],
+    "ace_value_to_partners": [
+      "Small business status enables set-aside participation",
+      "Federal ATO expertise most vendors lack",
+      "Cleared personnel for sensitive VA work",
+      "AI governance compliance knowledge"
+    ]
+  },
+
+  "past_performance_citations": [
+    {
+      "id": "pp-002",
+      "contract_name": "Radial Solutions ISSO Support",
+      "contract_value": 750000,
+      "period": "2022-Present",
+      "client": "Radial Solutions (DoD subcontract)",
+      "relevance_score": 95,
+      "relevance_justification": "Direct ATO/RMF experience, ISSO services, continuous monitoring - exactly what VA needs for AI platform authorization",
+      "key_accomplishments": [
+        "Led multiple RMF authorization packages to ATO",
+        "Managed POA&M remediation programs",
+        "Coordinated with AOs on security documentation",
+        "Zero failed authorizations"
+      ]
+    },
+    {
+      "id": "pp-005",
+      "contract_name": "ACE AI Governance Framework",
+      "contract_value": 45000,
+      "period": "2024-2025",
+      "client": "Commercial (AI compliance)",
+      "relevance_score": 85,
+      "relevance_justification": "AI governance framework development directly applicable to clinical AI governance requirements",
+      "key_accomplishments": [
+        "NIST AI RMF aligned framework development",
+        "AI risk assessment methodology",
+        "Human oversight requirements documentation",
+        "Integration with RMF security controls"
+      ]
+    },
+    {
+      "id": "pp-001",
+      "contract_name": "Cherokee Nation Federal IT Consulting",
+      "contract_value": 1997,
+      "period": "2024",
+      "client": "Cherokee Nation Federal (Federal health services)",
+      "relevance_score": 60,
+      "relevance_justification": "Federal healthcare IT exposure, though limited scope",
+      "key_accomplishments": [
+        "Federal healthcare IT consulting",
+        "Demonstrated federal contracting capability"
+      ]
+    }
+  ],
+
+  "response_strategy": {
+    "response_type": "Sources Sought / Market Research",
+    "key_messages": [
+      "ACE brings proven federal ATO expertise VA needs for AI deployment",
+      "Teaming approach ensures both security and clinical capabilities",
+      "Small business status with enterprise-grade compliance capability",
+      "AI governance expertise addresses emerging NIST AI RMF requirements"
+    ],
+    "discriminators": [
+      "10+ successful ATOs vs. competitors with limited federal security experience",
+      "Rare combination of AI governance + federal security authorization expertise",
+      "Cleared personnel ready for immediate VA system access",
+      "Agile small business responsiveness"
+    ],
+    "questions_for_government": [
+      "ATO inheritance and authorization boundary expectations",
+      "Teaming preference (integrated vs. separate responses)",
+      "FDA clearance class requirements",
+      "Contract vehicle under consideration",
+      "Set-aside determination"
+    ]
+  },
+
+  "capture_milestones": [
+    {
+      "milestone": "Sources Sought Response Due",
+      "date": "2026-02-13",
+      "status": "IN_PROGRESS",
+      "owner": "William Storey"
+    },
+    {
+      "milestone": "Identify FDA AI Teaming Partners",
+      "date": "2026-02-07",
+      "status": "NOT_STARTED",
+      "owner": "William Storey"
+    },
+    {
+      "milestone": "Partner Outreach Calls",
+      "date": "2026-02-10",
+      "status": "NOT_STARTED",
+      "owner": "William Storey"
+    },
+    {
+      "milestone": "Final Response Review",
+      "date": "2026-02-12",
+      "status": "NOT_STARTED",
+      "owner": "William Storey"
+    }
+  ],
+
+  "decision_recommendation": {
+    "decision": "PURSUE_WITH_TEAMING",
+    "rationale": "Strong alignment with ACE core competencies (ATO, security, AI governance). Teaming strategy addresses clinical AI capability gap. VA healthcare IT market strategically valuable for ACE growth.",
+    "resource_commitment": "MEDIUM",
+    "expected_effort_hours": 40,
+    "go_no_go_factors": {
+      "go_factors": [
+        "Core ATO/security capability match",
+        "Small business set-aside advantage",
+        "Strategic VA market entry",
+        "AI governance differentiator"
+      ],
+      "concern_factors": [
+        "Teaming partner identification critical",
+        "Sources Sought - requirements may change",
+        "Competition from larger healthcare IT firms with teaming"
+      ]
+    }
+  }
+}

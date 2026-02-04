@@ -1,0 +1,373 @@
+{
+  "pack_id": "SAM_GOV_OPPORTUNITY_CAPTURE",
+  "pack_version": "1.0.0",
+  "pack_hash": null,
+  "created_at": "2026-01-31T12:00:00Z",
+  "updated_at": "2026-01-31T12:00:00Z",
+  "author": "ACE Governance Platform",
+
+  "role": {
+    "name": "SAM.gov Opportunity Researcher",
+    "description": "Extracts contract opportunity data from SAM.gov for BD capture analysis",
+    "mission": "Search, navigate, and extract opportunity details from SAM.gov in a read-only, evidence-driven manner",
+    "success_criteria": [
+      "Opportunity data extracted with ≥70% confidence score",
+      "Evidence bundle created with required screenshots",
+      "All critical fields (notice_id, response_deadline, title, agency) captured",
+      "No prohibited actions taken"
+    ],
+    "outputs": [
+      "opportunity.json - Structured opportunity data",
+      "opportunity.md - Human-readable summary",
+      "source_context.json - Provenance record",
+      "extraction_log.json - Audit trail",
+      "evidence/ - Screenshot evidence"
+    ],
+    "acceptance_criteria": [
+      "Evidence bundle passes seal validation",
+      "All required semantic screenshots captured",
+      "Critical field confidence gates pass",
+      "No policy violations in extraction log"
+    ]
+  },
+
+  "authority": {
+    "informational_actions": [
+      { "action": "navigate", "allowed": true, "mai_level": "INFORMATIONAL", "requires_human_approval": false, "description": "Navigate to URLs within SAM.gov" },
+      { "action": "search", "allowed": true, "mai_level": "INFORMATIONAL", "requires_human_approval": false, "description": "Execute search queries" },
+      { "action": "scroll", "allowed": true, "mai_level": "INFORMATIONAL", "requires_human_approval": false, "description": "Scroll to view content" },
+      { "action": "read_page", "allowed": true, "mai_level": "INFORMATIONAL", "requires_human_approval": false, "description": "Read page content and text" },
+      { "action": "screenshot", "allowed": true, "mai_level": "INFORMATIONAL", "requires_human_approval": false, "description": "Capture screenshots for evidence" },
+      { "action": "click_link", "allowed": true, "mai_level": "INFORMATIONAL", "requires_human_approval": false, "description": "Click links to navigate" },
+      { "action": "extract_text", "allowed": true, "mai_level": "INFORMATIONAL", "requires_human_approval": false, "description": "Extract text from page" }
+    ],
+    "advisory_actions": [
+      { "action": "fill_search_box", "allowed": true, "mai_level": "ADVISORY", "requires_human_approval": false, "description": "Enter search terms (read-only context)" },
+      { "action": "apply_filter", "allowed": true, "mai_level": "ADVISORY", "requires_human_approval": false, "description": "Apply search filters" },
+      { "action": "select_opportunity", "allowed": true, "mai_level": "ADVISORY", "requires_human_approval": false, "description": "Select opportunity from list to view details" }
+    ],
+    "mandatory_actions": [
+      { "action": "download_attachment", "allowed": false, "mai_level": "MANDATORY", "requires_human_approval": true, "description": "Download files - REQUIRES EXPLICIT APPROVAL" },
+      { "action": "save_search", "allowed": false, "mai_level": "MANDATORY", "requires_human_approval": true, "description": "Save search to account - REQUIRES APPROVAL" }
+    ]
+  },
+
+  "permissions": {
+    "allowed": [
+      { "action": "navigate", "description": "Navigate to SAM.gov pages", "conditions": "Domain must be sam.gov" },
+      { "action": "search", "description": "Execute opportunity searches" },
+      { "action": "filter", "description": "Apply search filters" },
+      { "action": "scroll", "description": "Scroll page to view content" },
+      { "action": "click_opportunity_link", "description": "Click to open opportunity details" },
+      { "action": "read_page_content", "description": "Read and extract page text" },
+      { "action": "take_screenshot", "description": "Capture evidence screenshots" },
+      { "action": "extract_metadata", "description": "Extract opportunity metadata" },
+      { "action": "create_evidence_bundle", "description": "Create evidence bundle artifacts" }
+    ],
+    "forbidden": [
+      { "action": "login", "description": "Log into SAM.gov account", "reason": "Read-only operation - no authentication required" },
+      { "action": "create_account", "description": "Create new SAM.gov account", "reason": "Account creation prohibited" },
+      { "action": "submit_form", "description": "Submit any form", "reason": "No form submission in read-only mode" },
+      { "action": "upload_file", "description": "Upload files", "reason": "No uploads in read-only mode" },
+      { "action": "download_file", "description": "Download attachments", "reason": "Downloads require explicit user approval" },
+      { "action": "register_interest", "description": "Register interest in opportunity", "reason": "This is a write action requiring account" },
+      { "action": "submit_bid", "description": "Submit bid or response", "reason": "Absolutely prohibited - requires human action" },
+      { "action": "modify_saved_search", "description": "Modify saved searches", "reason": "No account modifications" },
+      { "action": "contact_via_form", "description": "Contact using SAM.gov forms", "reason": "No form submission" },
+      { "action": "accept_terms", "description": "Accept terms or agreements", "reason": "No agreement acceptance without user" }
+    ]
+  },
+
+  "procedure_index": {
+    "mini_index": [
+      {
+        "task": "Search for opportunities by keyword",
+        "route": "SAM.gov Home → Search → Contract Opportunities → Enter Keywords → Submit",
+        "stop_condition": "Search results displayed with result count visible",
+        "evidence": "Screenshot of search results with query visible",
+        "estimated_steps": 5
+      },
+      {
+        "task": "Open opportunity detail page",
+        "route": "Search Results → Click Opportunity Title → Wait for Detail Page",
+        "stop_condition": "Opportunity detail page loaded with Notice ID visible",
+        "evidence": "Screenshot of opportunity header",
+        "estimated_steps": 3
+      },
+      {
+        "task": "Extract opportunity metadata",
+        "route": "Detail Page → Scroll through sections → Capture key fields",
+        "stop_condition": "All visible fields extracted, page_text captured",
+        "evidence": "Screenshots of header, dates, description, contacts",
+        "estimated_steps": 6
+      },
+      {
+        "task": "Filter by set-aside type",
+        "route": "Search → Filter By → Set Aside → Select Type → Apply",
+        "stop_condition": "Filtered results displayed",
+        "evidence": "Screenshot showing active filter",
+        "estimated_steps": 4
+      },
+      {
+        "task": "Filter by NAICS code",
+        "route": "Search → Filter By → NAICS → Enter Code → Apply",
+        "stop_condition": "Filtered results displayed",
+        "evidence": "Screenshot showing NAICS filter active",
+        "estimated_steps": 4
+      },
+      {
+        "task": "View opportunity attachments list",
+        "route": "Detail Page → Scroll to Attachments/Links section",
+        "stop_condition": "Attachments section visible (or 'No attachments' message)",
+        "evidence": "Screenshot of attachments section",
+        "estimated_steps": 2
+      },
+      {
+        "task": "Extract contact information",
+        "route": "Detail Page → Scroll to Contact Information section",
+        "stop_condition": "Contact name and email visible (or blank indicators)",
+        "evidence": "Screenshot of contact section",
+        "estimated_steps": 2
+      },
+      {
+        "task": "Create evidence bundle",
+        "route": "After extraction → Write opportunity.json → Write source_context.json → Compile screenshots",
+        "stop_condition": "All bundle artifacts created",
+        "evidence": "Bundle manifest with file list",
+        "estimated_steps": 4
+      }
+    ],
+    "micro_sops": [
+      {
+        "sop_id": "SOP-01",
+        "title": "Execute Keyword Search",
+        "pre_checks": [
+          "Browser tab is on sam.gov domain",
+          "Search input is visible"
+        ],
+        "steps": [
+          {
+            "step_id": "S01-1",
+            "intent": "Locate the search input field",
+            "action": "find: search input box",
+            "ui_anchor": { "type": "aria_label", "value": "New Search", "fallback": "search" },
+            "verification": { "type": "element_visible", "target": "search input" },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "retry",
+            "max_retries": 2
+          },
+          {
+            "step_id": "S01-2",
+            "intent": "Enter the search keywords",
+            "action": "form_input: enter search terms",
+            "ui_anchor": { "type": "field_label", "value": "Keyword Search" },
+            "verification": { "type": "field_value", "target": "search input", "expected": "{{keywords}}" },
+            "mai_level": "ADVISORY",
+            "on_failure": "retry",
+            "max_retries": 2
+          },
+          {
+            "step_id": "S01-3",
+            "intent": "Submit the search",
+            "action": "left_click: search button",
+            "ui_anchor": { "type": "button_text", "value": "Search", "fallback": "submit" },
+            "verification": { "type": "url_matches", "target": "search results URL pattern" },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "retry",
+            "max_retries": 2
+          },
+          {
+            "step_id": "S01-4",
+            "intent": "Verify search executed and results displayed",
+            "action": "wait for results",
+            "ui_anchor": { "type": "text_contains", "value": "results" },
+            "verification": { "type": "text_contains", "target": "page", "expected": "Showing" },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "escalate"
+          }
+        ],
+        "validation": { "type": "text_contains", "target": "page", "expected": "results" },
+        "failure_handling": "If search fails after retries, escalate with screenshot of current state",
+        "evidence_on_success": [
+          { "trigger": "completion", "capture_type": "screenshot", "description": "Search results page", "required": true }
+        ]
+      },
+      {
+        "sop_id": "SOP-02",
+        "title": "Extract Opportunity Detail",
+        "pre_checks": [
+          "On opportunity detail page",
+          "Notice ID visible in header"
+        ],
+        "steps": [
+          {
+            "step_id": "S02-1",
+            "intent": "Capture opportunity header",
+            "action": "screenshot: header section",
+            "ui_anchor": { "type": "heading", "value": "Contract Opportunity" },
+            "verification": { "type": "screenshot_capture", "target": "opportunity_header" },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "retry",
+            "max_retries": 1
+          },
+          {
+            "step_id": "S02-2",
+            "intent": "Scroll to view dates section",
+            "action": "scroll: to dates section",
+            "ui_anchor": { "type": "text_contains", "value": "Response Date" },
+            "verification": { "type": "element_visible", "target": "Response Date" },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "skip"
+          },
+          {
+            "step_id": "S02-3",
+            "intent": "Capture dates section",
+            "action": "screenshot: dates section",
+            "ui_anchor": { "type": "text_contains", "value": "Response Date" },
+            "verification": { "type": "screenshot_capture", "target": "dates_section" },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "retry",
+            "max_retries": 1
+          },
+          {
+            "step_id": "S02-4",
+            "intent": "Scroll to description",
+            "action": "scroll: to description section",
+            "ui_anchor": { "type": "heading", "value": "Description" },
+            "verification": { "type": "element_visible", "target": "Description" },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "skip"
+          },
+          {
+            "step_id": "S02-5",
+            "intent": "Capture description section",
+            "action": "screenshot: description",
+            "ui_anchor": { "type": "heading", "value": "Description" },
+            "verification": { "type": "screenshot_capture", "target": "description" },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "retry",
+            "max_retries": 1
+          },
+          {
+            "step_id": "S02-6",
+            "intent": "Extract full page text for parsing",
+            "action": "get_page_text",
+            "ui_anchor": { "type": "page_title", "value": "SAM.gov" },
+            "verification": { "type": "text_contains", "target": "extracted_text", "expected": "Notice ID" },
+            "mai_level": "INFORMATIONAL",
+            "on_failure": "escalate"
+          }
+        ],
+        "validation": { "type": "text_contains", "target": "extracted_text", "expected": "Notice ID" },
+        "failure_handling": "If page text extraction fails, capture screenshot and escalate",
+        "evidence_on_success": [
+          { "trigger": "completion", "capture_type": "page_text", "description": "Raw page text for parsing", "required": true }
+        ]
+      }
+    ]
+  },
+
+  "ui_map": {
+    "domain": "sam.gov",
+    "stable_anchors": [
+      {
+        "name": "main_search",
+        "anchors": [
+          { "type": "aria_label", "value": "New Search" },
+          { "type": "field_label", "value": "e.g. 1606N020Q02" },
+          { "type": "button_text", "value": "Search" }
+        ],
+        "description": "Main search bar on SAM.gov"
+      },
+      {
+        "name": "opportunity_header",
+        "anchors": [
+          { "type": "heading", "value": "Contract Opportunity" },
+          { "type": "text_contains", "value": "Notice ID" },
+          { "type": "text_contains", "value": "Active" }
+        ],
+        "description": "Opportunity detail page header"
+      },
+      {
+        "name": "dates_section",
+        "anchors": [
+          { "type": "text_contains", "value": "Response Date" },
+          { "type": "text_contains", "value": "Published Date" },
+          { "type": "text_contains", "value": "Inactive" }
+        ],
+        "description": "Important dates section"
+      },
+      {
+        "name": "contact_section",
+        "anchors": [
+          { "type": "heading", "value": "Contact Information" },
+          { "type": "text_contains", "value": "Primary Point of Contact" },
+          { "type": "text_contains", "value": "Email" }
+        ],
+        "description": "Contact information section"
+      },
+      {
+        "name": "attachments_section",
+        "anchors": [
+          { "type": "heading", "value": "Attachments/Links" },
+          { "type": "text_contains", "value": "Download All" },
+          { "type": "text_contains", "value": "No links have been added" }
+        ],
+        "description": "Attachments and links section"
+      }
+    ],
+    "url_patterns": [
+      { "pattern": "sam.gov/search", "page_type": "search_results", "expected_elements": ["search input", "results count", "opportunity list"] },
+      { "pattern": "sam.gov/opp/*/view", "page_type": "opportunity_detail", "expected_elements": ["Notice ID", "Title", "Agency"] },
+      { "pattern": "sam.gov/workspace/contract/opp/*/view", "page_type": "opportunity_detail_workspace", "expected_elements": ["Notice ID", "Title", "Agency"] }
+    ]
+  },
+
+  "escalation": {
+    "triggers": [
+      { "trigger_id": "ESC-01", "condition": "login prompt", "description": "Site asks for login credentials", "action": "stop_and_ask", "severity": "HIGH" },
+      { "trigger_id": "ESC-02", "condition": "MFA required", "description": "Multi-factor authentication requested", "action": "abort_job", "severity": "CRITICAL" },
+      { "trigger_id": "ESC-03", "condition": "CAPTCHA", "description": "CAPTCHA or human verification required", "action": "stop_and_ask", "severity": "HIGH" },
+      { "trigger_id": "ESC-04", "condition": "access denied", "description": "Access denied or permission error", "action": "capture_evidence", "severity": "MEDIUM" },
+      { "trigger_id": "ESC-05", "condition": "submit button", "description": "Action would submit/finalize something", "action": "stop_and_ask", "severity": "CRITICAL" },
+      { "trigger_id": "ESC-06", "condition": "payment required", "description": "Payment or purchase requested", "action": "abort_job", "severity": "CRITICAL" },
+      { "trigger_id": "ESC-07", "condition": "terms acceptance", "description": "Terms or agreement acceptance required", "action": "stop_and_ask", "severity": "HIGH" },
+      { "trigger_id": "ESC-08", "condition": "download prompt", "description": "File download initiated", "action": "stop_and_ask", "severity": "MEDIUM" },
+      { "trigger_id": "ESC-09", "condition": "unexpected domain", "description": "Navigated away from sam.gov", "action": "abort_job", "severity": "HIGH" },
+      { "trigger_id": "ESC-10", "condition": "PII detected", "description": "Personal data beyond expected scope", "action": "capture_evidence", "severity": "MEDIUM" }
+    ],
+    "default_action": "capture_evidence"
+  },
+
+  "evidence": {
+    "lightweight_capture": [
+      { "trigger": "milestone", "capture_type": "screenshot", "description": "One screenshot per major state change", "required": true },
+      { "trigger": "completion", "capture_type": "page_text", "description": "Raw page text at extraction completion", "required": true }
+    ],
+    "heavy_capture_triggers": [
+      "Escalation triggered",
+      "Error during extraction",
+      "Confidence score below threshold",
+      "Critical field missing",
+      "Dispute or audit request"
+    ],
+    "milestone_screenshots": [
+      "Search results displayed",
+      "Opportunity detail header",
+      "Dates section",
+      "Description section",
+      "Contact section (if present)",
+      "Attachments section (if present)"
+    ],
+    "retention_policy": "90 days standard, indefinite for sealed bundles used in proposals"
+  },
+
+  "constraints": {
+    "max_actions_per_session": 100,
+    "max_retries_per_step": 3,
+    "timeout_per_step_ms": 30000,
+    "timeout_per_job_ms": 300000,
+    "requires_sealed_evidence_bundle": true,
+    "environment_modes": ["DEMO", "PROD"]
+  }
+}

@@ -1,0 +1,181 @@
+{
+  "schema_version": "1.1.0",
+  "bundle_id": "FDA-SS-75F40126Q00036",
+  "source": "sam.gov",
+  "captured_at": "2026-01-31T12:00:00Z",
+  "url": "https://sam.gov/workspace/contract/opp/9d90dd0e471445e88e988bd545f8e427/view",
+
+  "policy": {
+    "name": "SAM_GOV_AUTOMATION_POLICY",
+    "version": "v1",
+    "mode": "read-only"
+  },
+
+  "extracted": {
+    "_comment": "Verbatim or near-verbatim from page - these are facts",
+    "notice_id": "SS-75F40126Q00036",
+    "title": "FDA Cybersecurity Risk Management and Compliance Services",
+    "notice_type": "Sources Sought",
+    "agency": "HEALTH AND HUMAN SERVICES, DEPARTMENT OF",
+    "sub_tier": "FOOD AND DRUG ADMINISTRATION",
+    "office": "FDA OFFICE OF ACQ GRANT SVCS",
+    "posted_date": {
+      "raw": "Jan 06, 2026 11:53 AM EST",
+      "iso": "2026-01-06T11:53:00-05:00"
+    },
+    "response_deadline": {
+      "raw": "Feb 04, 2026 2:00 PM EST",
+      "iso": "2026-02-04T14:00:00-05:00"
+    },
+    "archive_date": {
+      "raw": "Feb 19, 2026",
+      "iso": "2026-02-19T00:00:00-05:00"
+    },
+    "inactive_policy": "15 days after response date",
+    "primary_contact": {
+      "name": "Michelle Dacanay",
+      "email": "michelle.dacanay@fda.hhs.gov",
+      "phone": null
+    },
+    "contracting_office_address": "4041 Powder Mill Road 4th Floor Beltsville, MD 20705 USA",
+    "description_text": "The U.S. Food and Drug Administration (FDA) is issuing this source sought notice as a means of conducting market research, pursuant to FAR Part 10 Market Research, to identify potential parties from the marketplace capable of providing professional services for Cybersecurity Risk Management and Compliance Services. This is a SOURCES SOUGHT ONLY, not a Request for Quote (RFQ) and does not commit the Government to award a contract now or in the future. The purpose of this sources sought is to identify SMALL BUSINESSES, specifically SBA certified 8(a) vendors, in the following GSA Multiple Award Schedule (MAS) categories with the capabilities to provide the services needed for this requirement.",
+    "gsa_mas_codes_mentioned": ["54151S", "54151HACS"],
+    "attachments": [
+      {
+        "filename": "SS_75F40126Q00036 Attachment Draft SOW.pdf",
+        "size": "823.99 KB",
+        "access": "Public",
+        "updated": "Jan 6, 2026"
+      },
+      {
+        "filename": "SS_75F40126Q00036 Cybersecurity Compliance.pdf",
+        "size": "291.67 KB",
+        "access": "Public",
+        "updated": "Jan 6, 2026"
+      }
+    ]
+  },
+
+  "inferred": {
+    "_comment": "Derived from context - marked with inference source",
+    "set_aside_type": {
+      "value": "8(a) Small Business",
+      "inference_source": "Description mentions 'SBA certified 8(a) vendors' but Set Aside field shows '(blank)'",
+      "confidence": "MEDIUM"
+    },
+    "is_small_business_opportunity": {
+      "value": true,
+      "inference_source": "Description explicitly targets 'SMALL BUSINESSES'",
+      "confidence": "HIGH"
+    },
+    "requires_8a_certification": {
+      "value": true,
+      "inference_source": "Description says 'specifically SBA certified 8(a) vendors'",
+      "confidence": "HIGH"
+    },
+    "gsa_mas_categories": [
+      {
+        "code": "54151S",
+        "description": "Information Technology Professional Services",
+        "inference_source": "Mentioned in description text",
+        "confidence": "HIGH"
+      },
+      {
+        "code": "54151HACS",
+        "description": "Highly Adaptive Cybersecurity Services",
+        "inference_source": "Mentioned in description text",
+        "confidence": "HIGH"
+      }
+    ]
+  },
+
+  "missing_fields": {
+    "_comment": "Fields not present on source page - with explicit reasons",
+    "naics_code": {
+      "page_value": "(blank)",
+      "reason": "Not specified in notice - field explicitly shows blank on SAM.gov",
+      "next_step": "Check attachments (Draft SOW) for NAICS specification"
+    },
+    "psc_code": {
+      "page_value": "(blank)",
+      "reason": "Not specified in notice - field explicitly shows blank on SAM.gov",
+      "next_step": "Check attachments for PSC code"
+    },
+    "place_of_performance": {
+      "page_value": "(blank)",
+      "reason": "Not specified in notice - field explicitly shows blank",
+      "next_step": "Check attachments (Draft SOW) for PoP details"
+    },
+    "secondary_contact": {
+      "page_value": "(blank)",
+      "reason": "Alternative Point of Contact shows blank",
+      "next_step": null
+    },
+    "primary_contact_phone": {
+      "page_value": "(blank)",
+      "reason": "Phone Number field shows blank",
+      "next_step": null
+    },
+    "related_notice": {
+      "page_value": "(blank)",
+      "reason": "Related Notice field shows blank - this may be initial posting",
+      "next_step": null
+    },
+    "contract_line_item_number": {
+      "page_value": "(blank)",
+      "reason": "Field explicitly shows blank",
+      "next_step": null
+    }
+  },
+
+  "confidence": {
+    "_comment": "Field-level confidence scores",
+    "notice_id": "HIGH",
+    "title": "HIGH",
+    "agency": "HIGH",
+    "notice_type": "HIGH",
+    "response_deadline": "HIGH",
+    "posted_date": "HIGH",
+    "primary_contact": "HIGH",
+    "description_text": "HIGH",
+    "set_aside": "MEDIUM",
+    "naics_code": "UNKNOWN",
+    "psc_code": "UNKNOWN",
+    "overall_score": 95
+  },
+
+  "evidence": {
+    "bundle_path": "evidence/FDA-SS-75F40126Q00036",
+    "screenshots": [
+      "evidence/001-search-results.png",
+      "evidence/002-opportunity-header.png",
+      "evidence/003-description-section.png",
+      "evidence/004-contact-attachments.png"
+    ],
+    "raw_page_text": "raw/page_text.txt",
+    "extraction_log": "extraction_log.json"
+  },
+
+  "extraction_metadata": {
+    "extraction_timestamp": "2026-01-31T12:00:00Z",
+    "extraction_method": "browser_automation",
+    "source_tool": "Claude_in_Chrome MCP",
+    "mcp_actions_used": [
+      "tabs_context_mcp",
+      "navigate",
+      "find",
+      "form_input",
+      "left_click",
+      "scroll",
+      "screenshot",
+      "get_page_text"
+    ],
+    "extracted_fields_count": 15,
+    "inferred_fields_count": 5,
+    "missing_fields_count": 7,
+    "total_expected_fields": 27
+  },
+
+  "environment_mode": "DEMO",
+  "demo_mode_notice": "This extraction is for demonstration purposes. All data is from live SAM.gov but should be verified before operational use."
+}

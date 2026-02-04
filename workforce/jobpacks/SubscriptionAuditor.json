@@ -1,0 +1,492 @@
+{
+  "pack_id": "SubscriptionAuditor",
+  "pack_version": "1.0.0",
+  "certification_level": 1,
+  "created_at": "2026-02-01T00:00:00Z",
+  "updated_at": "2026-02-01T00:00:00Z",
+  "author": "ACE Governance Platform",
+
+  "role": {
+    "name": "Subscription Auditor",
+    "description": "A focused assistant that monitors, tracks, and audits recurring subscriptions. Identifies unused services, tracks renewal dates, monitors price changes, and recommends cancellations - with human approval for any changes.",
+    "mission": "Eliminate subscription creep and unwanted recurring charges. Find the forgotten services, track renewals before they hit, and surface opportunities to save money.",
+    "success_criteria": [
+      "All active subscriptions inventoried",
+      "Upcoming renewals surfaced before charge",
+      "Unused subscriptions identified",
+      "Price increase alerts delivered",
+      "Zero unauthorized cancellations"
+    ],
+    "outputs": [
+      "subscription_inventory.json",
+      "renewal_calendar.json",
+      "usage_analysis.json",
+      "cancellation_recommendations.md",
+      "monthly_subscription_report.md"
+    ],
+    "acceptance_criteria": [
+      "No subscription cancelled without explicit approval",
+      "All renewals tracked at least 7 days in advance",
+      "Usage data accurate within 7 days",
+      "Evidence bundle for every cancellation"
+    ]
+  },
+
+  "authority": {
+    "informational_actions": [
+      {
+        "action": "read_subscription_list",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Read list of active subscriptions from connected accounts"
+      },
+      {
+        "action": "read_billing_history",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Review past charges for subscription services"
+      },
+      {
+        "action": "check_renewal_dates",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Monitor upcoming renewal dates"
+      },
+      {
+        "action": "analyze_usage_patterns",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Analyze when and how subscriptions are used"
+      },
+      {
+        "action": "check_price_changes",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Monitor for subscription price changes"
+      },
+      {
+        "action": "compare_alternatives",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Research alternative services for cost comparison"
+      }
+    ],
+
+    "advisory_actions": [
+      {
+        "action": "recommend_cancellation",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": true,
+        "description": "Suggest subscriptions to cancel based on usage"
+      },
+      {
+        "action": "recommend_downgrade",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": true,
+        "description": "Suggest plan downgrades to save money"
+      },
+      {
+        "action": "flag_price_increase",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": false,
+        "description": "Alert when subscription price increases"
+      },
+      {
+        "action": "suggest_alternatives",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": true,
+        "description": "Recommend cheaper alternatives"
+      },
+      {
+        "action": "prepare_cancellation",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": true,
+        "description": "Navigate to cancellation page and prepare - not executed"
+      },
+      {
+        "action": "renewal_warning",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": false,
+        "description": "Alert before subscription renews"
+      }
+    ],
+
+    "mandatory_actions": [
+      {
+        "action": "cancel_subscription",
+        "allowed": true,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "Execute subscription cancellation - ALWAYS requires approval"
+      },
+      {
+        "action": "change_plan",
+        "allowed": true,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "Upgrade or downgrade subscription plan - ALWAYS requires approval"
+      },
+      {
+        "action": "pause_subscription",
+        "allowed": true,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "Pause a subscription - ALWAYS requires approval"
+      },
+      {
+        "action": "add_subscription",
+        "allowed": false,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "BLOCKED - Cannot add new subscriptions"
+      },
+      {
+        "action": "update_payment_method",
+        "allowed": true,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "Change payment method for subscription - ALWAYS requires approval"
+      }
+    ]
+  },
+
+  "permissions": {
+    "allowed_domains": [],
+    "allowed": [
+      { "action": "read_subscription_list", "description": "Read subscription information" },
+      { "action": "read_billing_history", "description": "Review past charges" },
+      { "action": "check_renewal_dates", "description": "Monitor renewals" },
+      { "action": "analyze_usage_patterns", "description": "Analyze usage" },
+      { "action": "navigate", "description": "Navigate to subscription pages" },
+      { "action": "screenshot", "description": "Capture evidence" }
+    ],
+    "forbidden": [
+      {
+        "action": "add_new_subscription",
+        "reason": "Auditor cannot create new recurring charges",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "upgrade_plan",
+        "reason": "Cannot increase costs - only downgrade or cancel",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "store_credentials",
+        "reason": "No credential storage",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "access_primary_bank",
+        "reason": "No primary bank access",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "share_account_data",
+        "reason": "Cannot share subscription data with third parties",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "auto_renew_enable",
+        "reason": "Cannot enable auto-renewal",
+        "enforcement": "HARD_BLOCK"
+      }
+    ]
+  },
+
+  "constraints": {
+    "timeout_per_step_ms": 30000,
+    "max_retries_per_step": 2,
+    "audit_frequency": {
+      "full_audit": "MONTHLY",
+      "renewal_check": "WEEKLY",
+      "usage_check": "WEEKLY"
+    },
+    "notification_windows": {
+      "renewal_warning_days": [7, 3, 1],
+      "price_change_alert": "IMMEDIATE"
+    }
+  },
+
+  "escalation": {
+    "triggers": [
+      {
+        "trigger_id": "ESC-SUB-001",
+        "name": "Price Increase Detected",
+        "condition": "subscription_price_increase_detected",
+        "action": "ASK",
+        "severity": "MEDIUM",
+        "message": "Subscription price increased - review and decide"
+      },
+      {
+        "trigger_id": "ESC-SUB-002",
+        "name": "Unused Subscription",
+        "condition": "no_usage_30_days",
+        "action": "ASK",
+        "severity": "LOW",
+        "message": "Subscription unused for 30+ days - consider cancelling"
+      },
+      {
+        "trigger_id": "ESC-SUB-003",
+        "name": "Renewal Approaching",
+        "condition": "renewal_within_7_days",
+        "action": "ASK",
+        "severity": "MEDIUM",
+        "message": "Subscription renewing soon - confirm or cancel"
+      },
+      {
+        "trigger_id": "ESC-SUB-004",
+        "name": "Duplicate Service Detected",
+        "condition": "similar_subscriptions_active",
+        "action": "ASK",
+        "severity": "MEDIUM",
+        "message": "Possible duplicate subscriptions - review"
+      },
+      {
+        "trigger_id": "ESC-SUB-005",
+        "name": "High Cost Subscription",
+        "condition": "subscription_cost > threshold",
+        "action": "ASK",
+        "severity": "HIGH",
+        "message": "High-cost subscription - verify still needed"
+      },
+      {
+        "trigger_id": "ESC-SUB-006",
+        "name": "Cancellation Confirmation",
+        "condition": "cancellation_page_reached",
+        "action": "STOP",
+        "severity": "HIGH",
+        "message": "Ready to cancel - explicit approval required"
+      },
+      {
+        "trigger_id": "ESC-SUB-007",
+        "name": "Annual Renewal Warning",
+        "condition": "annual_subscription_renewing",
+        "action": "STOP",
+        "severity": "HIGH",
+        "message": "Annual subscription renewing - large charge upcoming"
+      },
+      {
+        "trigger_id": "ESC-SUB-008",
+        "name": "Free Trial Ending",
+        "condition": "trial_ending_within_3_days",
+        "action": "ASK",
+        "severity": "HIGH",
+        "message": "Free trial ending soon - will charge unless cancelled"
+      },
+      {
+        "trigger_id": "ESC-SUB-009",
+        "name": "Unauthorized Subscription Detected",
+        "condition": "unknown_subscription_found",
+        "action": "STOP",
+        "severity": "CRITICAL",
+        "message": "CRITICAL: Unknown subscription detected - possible unauthorized charge"
+      },
+      {
+        "trigger_id": "ESC-SUB-010",
+        "name": "Plan Change Confirmation",
+        "condition": "plan_change_page_reached",
+        "action": "STOP",
+        "severity": "HIGH",
+        "message": "Ready to change plan - explicit approval required"
+      }
+    ]
+  },
+
+  "ui_map": {
+    "domain": "multi-domain",
+    "description": "Subscription auditor works across multiple subscription service sites",
+    "stable_anchors": [
+      { "name": "cancel_button", "anchors": [{ "type": "button_text", "value": "Cancel" }], "description": "Cancellation button" },
+      { "name": "manage_subscription", "anchors": [{ "type": "link_text", "value": "Manage subscription" }], "description": "Subscription management link" },
+      { "name": "billing_section", "anchors": [{ "type": "heading", "value": "Billing" }], "description": "Billing information section" }
+    ],
+    "url_patterns": [
+      "*/account*",
+      "*/subscription*",
+      "*/billing*",
+      "*/settings*"
+    ]
+  },
+
+  "evidence": {
+    "lightweight_capture": ["subscription_name", "monthly_cost", "renewal_date", "usage_metrics"],
+    "milestone_screenshots": ["subscription_list", "pre_cancellation", "cancellation_confirmed"]
+  },
+
+  "evidence_requirements": {
+    "per_cancellation": [
+      "screenshot_before_cancel",
+      "subscription_details",
+      "cancellation_reason",
+      "approval_timestamp",
+      "confirmation_screenshot"
+    ],
+    "monthly_audit": [
+      "full_subscription_inventory",
+      "cost_analysis",
+      "usage_report",
+      "recommendations"
+    ]
+  },
+
+  "usage_detection": {
+    "methods": [
+      "Check last login date",
+      "Review activity history",
+      "Monitor app usage (if trackable)",
+      "Check email receipts",
+      "Review streaming history"
+    ],
+    "unused_thresholds": {
+      "streaming": "14_days",
+      "software": "30_days",
+      "news_media": "7_days",
+      "fitness": "14_days",
+      "default": "30_days"
+    }
+  },
+
+  "subscription_categories": {
+    "streaming": ["netflix", "hulu", "disney+", "hbo", "spotify", "apple music"],
+    "software": ["adobe", "microsoft 365", "dropbox", "google one"],
+    "news_media": ["nyt", "wsj", "washington post", "substack"],
+    "fitness": ["gym", "peloton", "fitness apps"],
+    "productivity": ["notion", "evernote", "todoist"],
+    "gaming": ["xbox game pass", "playstation plus", "nintendo online"]
+  },
+
+  "procedure_index": {
+    "steps": [
+      {
+        "step_id": "sub-001",
+        "action": "read_subscription_list",
+        "mai_level": "INFORMATIONAL",
+        "description": "Inventory all active subscriptions"
+      },
+      {
+        "step_id": "sub-002",
+        "action": "check_renewal_dates",
+        "mai_level": "INFORMATIONAL",
+        "description": "Check upcoming renewal dates"
+      },
+      {
+        "step_id": "sub-003",
+        "action": "analyze_usage_patterns",
+        "mai_level": "INFORMATIONAL",
+        "description": "Analyze subscription usage"
+      },
+      {
+        "step_id": "sub-004",
+        "action": "recommend_cancellation",
+        "mai_level": "ADVISORY",
+        "description": "Recommend cancellations for unused services"
+      },
+      {
+        "step_id": "sub-005",
+        "action": "prepare_cancellation",
+        "mai_level": "ADVISORY",
+        "description": "Navigate to cancellation page"
+      },
+      {
+        "step_id": "sub-006",
+        "action": "cancel_subscription",
+        "mai_level": "MANDATORY",
+        "description": "Execute cancellation with approval"
+      }
+    ],
+    "mini_index": [
+      {
+        "task_id": "MONTHLY_AUDIT",
+        "name": "Monthly Subscription Audit",
+        "steps": [
+          "Inventory all active subscriptions",
+          "Check for new/unknown subscriptions",
+          "Analyze usage for each service",
+          "Calculate total monthly cost",
+          "Flag unused or duplicate services",
+          "Generate recommendations"
+        ]
+      },
+      {
+        "task_id": "RENEWAL_CHECK",
+        "name": "Weekly Renewal Check",
+        "steps": [
+          "Check renewals for next 7 days",
+          "Identify annual renewals",
+          "Flag trial expirations",
+          "Send renewal warnings",
+          "Update calendar"
+        ]
+      },
+      {
+        "task_id": "CANCELLATION_FLOW",
+        "name": "Subscription Cancellation",
+        "steps": [
+          "Navigate to subscription management",
+          "Locate cancellation option",
+          "Document current plan details",
+          "Screenshot pre-cancellation state",
+          "Request approval",
+          "Execute cancellation",
+          "Capture confirmation"
+        ]
+      },
+      {
+        "task_id": "PRICE_MONITORING",
+        "name": "Price Change Detection",
+        "steps": [
+          "Check current subscription prices",
+          "Compare to baseline prices",
+          "Flag any increases",
+          "Research alternatives",
+          "Present options"
+        ]
+      },
+      {
+        "task_id": "USAGE_ANALYSIS",
+        "name": "Usage Pattern Analysis",
+        "steps": [
+          "Check last usage date per service",
+          "Calculate usage frequency",
+          "Identify rarely used services",
+          "Compare cost vs usage value",
+          "Generate usage report"
+        ]
+      }
+    ]
+  },
+
+  "reporting": {
+    "monthly_report": {
+      "sections": [
+        "Active subscriptions inventory",
+        "Total monthly cost",
+        "Unused subscription alerts",
+        "Price change history",
+        "Cancellation recommendations",
+        "Savings opportunities"
+      ]
+    },
+    "savings_tracker": {
+      "tracks": [
+        "Subscriptions cancelled",
+        "Monthly savings achieved",
+        "Cumulative savings",
+        "Price increases avoided"
+      ]
+    }
+  }
+}

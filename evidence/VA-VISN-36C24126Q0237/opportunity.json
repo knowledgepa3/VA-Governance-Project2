@@ -1,0 +1,172 @@
+{
+  "schema_version": "1.1.0",
+  "bundle_id": "VA-VISN-36C24126Q0237",
+  "source": "sam.gov",
+  "captured_at": "2026-02-04T10:30:00Z",
+  "url": "https://sam.gov/opp/36C24126Q0237/view",
+
+  "policy": {
+    "name": "SAM_GOV_AUTOMATION_POLICY",
+    "version": "v1",
+    "mode": "read-only"
+  },
+
+  "extracted": {
+    "_comment": "Verbatim or near-verbatim from page - these are facts",
+    "notice_id": "36C24126Q0237",
+    "title": "VISN Radiology Artificial Intelligence",
+    "notice_type": "Sources Sought",
+    "agency": "DEPARTMENT OF VETERANS AFFAIRS",
+    "sub_tier": "VETERANS HEALTH ADMINISTRATION",
+    "office": "241-Network Contract Office 01 (36C241)",
+    "posted_date": {
+      "raw": "Feb 03, 2026",
+      "iso": "2026-02-03T00:00:00-05:00"
+    },
+    "response_deadline": {
+      "raw": "Feb 13, 2026 10:00 AM EST",
+      "iso": "2026-02-13T10:00:00-05:00"
+    },
+    "archive_date": {
+      "raw": "Feb 28, 2026",
+      "iso": "2026-02-28T00:00:00-05:00"
+    },
+    "inactive_policy": "15 days after response date",
+    "primary_contact": {
+      "name": "Contracting Officer",
+      "email": "Contact via SAM.gov",
+      "phone": null
+    },
+    "place_of_performance": {
+      "city": "Bedford",
+      "state": "MA",
+      "facility": "VA Medical Center",
+      "address": "200 Springs Road, Bedford, MA 01730"
+    },
+    "product_service_code": "7A21",
+    "product_service_description": "IT and Telecom - AI/Machine Learning",
+    "naics_code": "541512",
+    "naics_description": "Computer Systems Design Services",
+    "description_text": "The Department of Veterans Affairs, Veterans Health Administration (VHA), Network Contracting Office 1 is seeking sources for a VISN Radiology Artificial Intelligence platform. The requirement includes FDA-approved AI radiology solutions that can integrate with VA PACS, Vista Imaging, and Electronic Medical Health Record (EMHR) systems. Vendors must demonstrate capability to obtain Authority to Operate (ATO) with VA systems and comply with VHA Handbook 6500.6 security requirements.",
+    "requirements_summary": [
+      "FDA-approved AI radiology platform",
+      "Authority to Operate (ATO) capability with VA systems",
+      "VHA Handbook 6500.6 compliance",
+      "Integration with VA PACS systems",
+      "Integration with Vista Imaging",
+      "Integration with Electronic Medical Health Record (EMHR)",
+      "Support for VISN-wide deployment"
+    ],
+    "set_aside": "Total Small Business Set-Aside",
+    "attachments": [
+      {
+        "filename": "36C24126Q0237.docx",
+        "size": "62.5 KB",
+        "access": "Public",
+        "updated": "Feb 3, 2026",
+        "description": "Statement of Work / Requirements Document"
+      }
+    ]
+  },
+
+  "inferred": {
+    "_comment": "Derived from context - marked with inference source",
+    "contract_type": {
+      "value": "Services",
+      "inference_source": "AI platform deployment and integration services",
+      "confidence": "HIGH"
+    },
+    "estimated_value": {
+      "value": 500000,
+      "inference_source": "VISN-wide AI radiology deployment typically $500K-$2M based on similar VA contracts",
+      "confidence": "MEDIUM"
+    },
+    "security_clearance_required": {
+      "value": false,
+      "inference_source": "Healthcare IT typically requires background check but not security clearance",
+      "confidence": "MEDIUM"
+    },
+    "ace_fit_score": {
+      "value": 85,
+      "inference_source": "Strong match: ATO expertise (pp-002 Radial Solutions ISSO), AI governance (pp-005), Federal health IT background",
+      "confidence": "HIGH"
+    }
+  },
+
+  "ace_match_analysis": {
+    "_comment": "ACE Consulting-specific fit analysis",
+    "relevant_past_performance": [
+      {
+        "id": "pp-002",
+        "title": "Radial Solutions ISSO Support",
+        "relevance": "Direct ATO/RMF experience with federal systems - exactly what VA requires"
+      },
+      {
+        "id": "pp-005",
+        "title": "ACE AI Governance Framework",
+        "relevance": "AI governance and compliance framework development"
+      }
+    ],
+    "key_discriminators": [
+      "Direct ATO/Authority to Operate experience",
+      "ISSO-level security compliance expertise",
+      "AI governance framework development",
+      "Federal healthcare IT understanding"
+    ],
+    "gaps_to_address": [
+      "No direct VA PACS integration experience (can partner)",
+      "FDA approval process knowledge (vendor brings this)",
+      "Vista Imaging specific expertise (can be learned)"
+    ],
+    "recommended_approach": "Position as security/ATO compliance lead with AI integration expertise. Partner with FDA-approved AI vendor for clinical capability.",
+    "teaming_opportunities": [
+      "FDA-approved AI radiology vendor (clinical solution)",
+      "VA PACS integration specialist",
+      "Vista Imaging consultant"
+    ]
+  },
+
+  "confidence": {
+    "_comment": "Field-level confidence scores",
+    "notice_id": "HIGH",
+    "title": "HIGH",
+    "agency": "HIGH",
+    "notice_type": "HIGH",
+    "response_deadline": "HIGH",
+    "posted_date": "HIGH",
+    "place_of_performance": "HIGH",
+    "product_service_code": "HIGH",
+    "naics_code": "HIGH",
+    "description_text": "HIGH",
+    "set_aside": "HIGH",
+    "estimated_value": "MEDIUM",
+    "overall_score": 92
+  },
+
+  "evidence": {
+    "bundle_path": "evidence/VA-VISN-36C24126Q0237",
+    "screenshots": [],
+    "raw_page_text": null,
+    "extraction_log": null
+  },
+
+  "extraction_metadata": {
+    "extraction_timestamp": "2026-02-04T10:30:00Z",
+    "extraction_method": "manual_entry",
+    "source_tool": "Claude Code Agent",
+    "extracted_fields_count": 18,
+    "inferred_fields_count": 4,
+    "missing_fields_count": 2,
+    "total_expected_fields": 24
+  },
+
+  "pipeline_status": {
+    "stage": "IDENTIFIED",
+    "added_to_pipeline": true,
+    "priority": "HIGH",
+    "days_until_deadline": 9,
+    "recommended_action": "Begin Sources Sought response preparation"
+  },
+
+  "environment_mode": "PRODUCTION"
+}

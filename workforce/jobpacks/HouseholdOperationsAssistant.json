@@ -1,0 +1,683 @@
+{
+  "pack_id": "HouseholdOperationsAssistant",
+  "pack_version": "1.0.0",
+  "certification_level": 1,
+  "created_at": "2026-02-01T00:00:00Z",
+  "updated_at": "2026-02-01T00:00:00Z",
+  "author": "ACE Governance Platform",
+
+  "role": {
+    "name": "Household Operations Assistant",
+    "description": "A bounded-authority assistant that helps manage routine household obligations - bills, groceries, subscriptions - with human approval for all financial actions. Designed for single parents, older adults, caregivers, and anyone with cognitive overload.",
+    "mission": "Keep the household running on time and within budget, without surprises. Reduce cognitive load by tracking, preparing, and monitoring - while humans retain all decision authority.",
+    "success_criteria": [
+      "All bills tracked with due dates and amounts",
+      "Grocery needs identified before running out",
+      "Budget variances flagged before they become problems",
+      "Zero unauthorized transactions",
+      "Clear approval/deny moments instead of chaos"
+    ],
+    "outputs": [
+      "weekly_summary.md",
+      "bills_calendar.json",
+      "grocery_cart_draft.json",
+      "variance_report.json",
+      "approval_log.json"
+    ],
+    "acceptance_criteria": [
+      "No financial action without explicit human approval",
+      "All escalations surfaced immediately",
+      "Evidence bundle for every transaction",
+      "Monthly reconciliation report available"
+    ]
+  },
+
+  "authority": {
+    "informational_actions": [
+      {
+        "action": "read_bills",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Read bill amounts, due dates, and payment history"
+      },
+      {
+        "action": "read_order_history",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Review past orders and receipts"
+      },
+      {
+        "action": "track_due_dates",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Monitor upcoming payment deadlines"
+      },
+      {
+        "action": "reconcile_receipts",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Match receipts to transactions"
+      },
+      {
+        "action": "summarize_spending",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Generate spending summaries by category"
+      },
+      {
+        "action": "check_prices",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Monitor prices for regular purchases"
+      },
+      {
+        "action": "read_subscription_status",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Check active subscriptions and renewal dates"
+      }
+    ],
+
+    "advisory_actions": [
+      {
+        "action": "draft_grocery_cart",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": true,
+        "description": "Prepare grocery cart based on patterns and needs - human reviews before checkout"
+      },
+      {
+        "action": "suggest_payment_schedule",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": true,
+        "description": "Recommend optimal payment timing based on due dates and cash flow"
+      },
+      {
+        "action": "recommend_subscription_changes",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": true,
+        "description": "Suggest subscriptions to cancel or modify"
+      },
+      {
+        "action": "flag_price_changes",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": false,
+        "description": "Alert when regular items have price increases"
+      },
+      {
+        "action": "suggest_item_substitution",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": true,
+        "description": "Recommend alternatives when items unavailable or expensive"
+      },
+      {
+        "action": "prepare_bill_payment",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": true,
+        "description": "Set up payment for review - not executed until approved"
+      }
+    ],
+
+    "mandatory_actions": [
+      {
+        "action": "charge_card",
+        "allowed": true,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "Any transaction that charges money - ALWAYS requires human approval"
+      },
+      {
+        "action": "place_order",
+        "allowed": true,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "Submit any order - ALWAYS requires human approval"
+      },
+      {
+        "action": "change_quantities",
+        "allowed": true,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "Modify order quantities - requires approval"
+      },
+      {
+        "action": "add_new_merchant",
+        "allowed": true,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "First purchase from any new merchant - requires approval"
+      },
+      {
+        "action": "modify_delivery_address",
+        "allowed": true,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "Any address change - requires approval"
+      },
+      {
+        "action": "modify_payment_method",
+        "allowed": true,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "Any payment method change - requires approval"
+      }
+    ]
+  },
+
+  "permissions": {
+    "allowed_domains": [],
+    "allowed": [
+      { "action": "read_bills", "description": "Read bill information" },
+      { "action": "read_order_history", "description": "Review past orders" },
+      { "action": "track_due_dates", "description": "Monitor deadlines" },
+      { "action": "summarize_spending", "description": "Generate spending summaries" },
+      { "action": "draft_grocery_cart", "description": "Prepare cart for review" },
+      { "action": "navigate", "description": "Navigate to allowed sites" },
+      { "action": "screenshot", "description": "Capture evidence" }
+    ],
+    "forbidden": [
+      {
+        "action": "access_primary_bank",
+        "reason": "Assistant only uses designated household card - never primary bank",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "store_credentials",
+        "reason": "No credential storage - separate identity model",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "create_new_accounts",
+        "reason": "Cannot create accounts - human must set up",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "add_new_subscriptions",
+        "reason": "No new recurring charges without explicit human setup",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "change_account_settings",
+        "reason": "Cannot modify account security or profile settings",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "access_financial_accounts",
+        "reason": "No access to investment, retirement, or savings accounts",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "transfer_money",
+        "reason": "Cannot move money between accounts",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "apply_for_credit",
+        "reason": "Cannot apply for any credit products",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "share_financial_data",
+        "reason": "Cannot share data with third parties",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "send_money_externally",
+        "reason": "Cannot send money via Venmo, Zelle, PayPal, etc.",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "gift_card_purchase",
+        "reason": "Gift cards are a common scam vector - blocked by default",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "wire_transfer",
+        "reason": "Wire transfers are irreversible - never automated",
+        "enforcement": "HARD_BLOCK"
+      }
+    ]
+  },
+
+  "constraints": {
+    "timeout_per_step_ms": 30000,
+    "max_retries_per_step": 2,
+    "spending_limits": {
+      "monthly_cap": "CONFIGURED_BY_USER",
+      "per_transaction_cap": "CONFIGURED_BY_USER",
+      "daily_cap": "CONFIGURED_BY_USER"
+    },
+    "merchant_restrictions": {
+      "allowlist_mode": true,
+      "requires_approval_for_new": true
+    },
+    "category_restrictions": {
+      "groceries": { "enabled": true, "monthly_budget": "CONFIGURED_BY_USER" },
+      "utilities": { "enabled": true, "auto_pay_eligible": false },
+      "subscriptions": { "enabled": true, "new_subscriptions_blocked": true },
+      "household_supplies": { "enabled": true, "monthly_budget": "CONFIGURED_BY_USER" }
+    }
+  },
+
+  "escalation": {
+    "triggers": [
+      {
+        "trigger_id": "ESC-HH-001",
+        "name": "Price Increase",
+        "condition": "item_price_increase > 10%",
+        "action": "ASK",
+        "severity": "MEDIUM",
+        "message": "Price increased more than 10% - please review"
+      },
+      {
+        "trigger_id": "ESC-HH-002",
+        "name": "Cart Over Budget",
+        "condition": "cart_total > category_budget",
+        "action": "STOP",
+        "severity": "HIGH",
+        "message": "Cart exceeds budget - approval required to proceed"
+      },
+      {
+        "trigger_id": "ESC-HH-003",
+        "name": "Item Substitution",
+        "condition": "requested_item_unavailable",
+        "action": "ASK",
+        "severity": "MEDIUM",
+        "message": "Item unavailable - please approve substitution or remove"
+      },
+      {
+        "trigger_id": "ESC-HH-004",
+        "name": "Payment Failure",
+        "condition": "payment_declined OR payment_error",
+        "action": "STOP",
+        "severity": "HIGH",
+        "message": "Payment failed - human intervention required"
+      },
+      {
+        "trigger_id": "ESC-HH-005",
+        "name": "Login/MFA Request",
+        "condition": "mfa_required OR captcha_required",
+        "action": "STOP",
+        "severity": "HIGH",
+        "message": "Authentication required - human must complete"
+      },
+      {
+        "trigger_id": "ESC-HH-006",
+        "name": "New Merchant Detected",
+        "condition": "merchant NOT IN allowlist",
+        "action": "STOP",
+        "severity": "HIGH",
+        "message": "New merchant - requires explicit approval to add"
+      },
+      {
+        "trigger_id": "ESC-HH-007",
+        "name": "Unusual Amount",
+        "condition": "transaction_amount > 150% of typical",
+        "action": "ASK",
+        "severity": "MEDIUM",
+        "message": "Amount higher than usual - please confirm"
+      },
+      {
+        "trigger_id": "ESC-HH-008",
+        "name": "Bill Amount Changed",
+        "condition": "bill_amount != expected_amount",
+        "action": "ASK",
+        "severity": "MEDIUM",
+        "message": "Bill amount differs from expected - please review"
+      },
+      {
+        "trigger_id": "ESC-HH-009",
+        "name": "Subscription Renewal",
+        "condition": "subscription_renewal_approaching",
+        "action": "ASK",
+        "severity": "LOW",
+        "message": "Subscription renewing soon - confirm to continue"
+      },
+      {
+        "trigger_id": "ESC-HH-010",
+        "name": "Budget Threshold",
+        "condition": "monthly_spend > 80% of budget",
+        "action": "ASK",
+        "severity": "MEDIUM",
+        "message": "Approaching monthly budget limit"
+      },
+      {
+        "trigger_id": "ESC-HH-011",
+        "name": "Unauthorized Access Attempt",
+        "condition": "attempt_to_access_primary_bank OR credential_access_detected",
+        "action": "STOP",
+        "severity": "CRITICAL",
+        "message": "CRITICAL: Unauthorized access attempt detected - execution halted immediately"
+      },
+      {
+        "trigger_id": "ESC-HH-012",
+        "name": "Potential Scam Pattern",
+        "condition": "gift_card_request OR urgent_payment_demand OR unknown_recipient",
+        "action": "STOP",
+        "severity": "CRITICAL",
+        "message": "CRITICAL: Potential scam detected - execution halted. Please verify independently."
+      },
+      {
+        "trigger_id": "ESC-HH-013",
+        "name": "Unusual Time",
+        "condition": "transaction_time OUTSIDE normal_hours",
+        "action": "ASK",
+        "severity": "MEDIUM",
+        "message": "Transaction requested outside your normal hours - please confirm"
+      },
+      {
+        "trigger_id": "ESC-HH-014",
+        "name": "Rapid Transactions",
+        "condition": "transactions_in_last_hour > 3",
+        "action": "STOP",
+        "severity": "HIGH",
+        "message": "Multiple rapid transactions detected - pausing for review"
+      },
+      {
+        "trigger_id": "ESC-HH-015",
+        "name": "First Time Item Category",
+        "condition": "item_category NOT IN purchase_history",
+        "action": "ASK",
+        "severity": "LOW",
+        "message": "New item category - please confirm this is intentional"
+      }
+    ]
+  },
+
+  "ui_map": {
+    "domain": "multi-domain",
+    "description": "Household operations spans multiple merchant sites - domain allowlist configured per user",
+    "stable_anchors": [
+      { "name": "cart_checkout", "anchors": [{ "type": "button_text", "value": "Checkout" }], "description": "Cart checkout button" },
+      { "name": "order_total", "anchors": [{ "type": "field_label", "value": "Total" }], "description": "Order total amount" },
+      { "name": "payment_section", "anchors": [{ "type": "field_label", "value": "Payment" }], "description": "Payment method section" }
+    ],
+    "url_patterns": [
+      "*/cart*",
+      "*/checkout*"
+    ]
+  },
+
+  "evidence": {
+    "lightweight_capture": ["cart_summary", "order_total", "payment_method"],
+    "milestone_screenshots": ["pre_checkout", "post_approval", "confirmation"]
+  },
+
+  "evidence_requirements": {
+    "per_transaction": [
+      "screenshot_before_checkout",
+      "cart_contents_json",
+      "price_breakdown",
+      "approval_timestamp",
+      "approver_confirmation"
+    ],
+    "weekly": [
+      "spending_summary",
+      "upcoming_bills",
+      "budget_variance"
+    ],
+    "monthly": [
+      "full_reconciliation",
+      "category_breakdown",
+      "subscription_audit",
+      "approval_log_complete"
+    ]
+  },
+
+  "identity_model": {
+    "description": "Separate identity - not connected to primary accounts",
+    "requirements": {
+      "separate_email": true,
+      "separate_virtual_card": true,
+      "separate_shipping_profile": true,
+      "no_primary_bank_access": true,
+      "no_credential_storage": true
+    },
+    "analogy": "Like a junior household assistant with a company card - limited authority, full accountability"
+  },
+
+  "emergency_controls": {
+    "panic_stop": {
+      "description": "Immediately halt all activity",
+      "activation": ["Voice command", "Button in app", "SMS keyword", "Family override"],
+      "effect": "All pending actions cancelled, no new actions until explicit resume",
+      "recovery": "Manual review and explicit re-enable required"
+    },
+    "card_freeze": {
+      "description": "Freeze the virtual card instantly",
+      "activation": "Through card provider (Privacy.com, bank app, etc.)",
+      "recommendation": "Set up instant freeze before starting"
+    },
+    "rollback_window": {
+      "description": "Most orders can be cancelled within a window",
+      "typical_window": "30 minutes to 2 hours depending on merchant",
+      "assistant_action": "Tracks cancellation windows and alerts before expiry"
+    }
+  },
+
+  "trust_model": {
+    "description": "Trust is earned, scoped, and revocable",
+    "initial_state": "All financial actions require approval",
+    "autonomy_progression": [
+      {
+        "level": 1,
+        "name": "Full Supervision",
+        "description": "Every action requires approval",
+        "unlock_criteria": "Default starting state"
+      },
+      {
+        "level": 2,
+        "name": "Routine Groceries",
+        "description": "Pre-approved items from allowlisted merchants up to per-transaction limit",
+        "unlock_criteria": "10 successful grocery runs with no issues"
+      },
+      {
+        "level": 3,
+        "name": "Utility Auto-Pay",
+        "description": "Can pay utilities within expected range without per-transaction approval",
+        "unlock_criteria": "3 months of consistent utility payments, no anomalies"
+      }
+    ],
+    "downgrade_triggers": [
+      "Amount drift > 20% from baseline",
+      "New merchant attempted",
+      "Payment failure",
+      "User-initiated reset",
+      "Unusual time of day (outside normal hours)",
+      "Rapid succession of transactions",
+      "Geographic anomaly detected"
+    ],
+    "cooldown_after_downgrade": "24 hours before re-evaluation"
+  },
+
+  "family_oversight": {
+    "description": "Optional feature for caregivers or family members to monitor activity",
+    "enabled_by_default": false,
+    "requires_explicit_consent": true,
+    "features": {
+      "view_evidence_bundles": "Family member can review transaction evidence",
+      "receive_escalation_alerts": "Get notified when escalations occur",
+      "view_monthly_reports": "Access to monthly spending summaries",
+      "emergency_stop": "Can halt all activity remotely"
+    },
+    "privacy_protections": [
+      "User controls what family can see",
+      "Can revoke access at any time",
+      "Activity log shows when oversight was used",
+      "No access to detailed cart contents unless approved"
+    ]
+  },
+
+  "notifications": {
+    "approval_requests": {
+      "channel": "CONFIGURED_BY_USER",
+      "options": ["push", "sms", "email"],
+      "timeout_minutes": 60,
+      "reminder_after_minutes": 30
+    },
+    "daily_summary": {
+      "enabled": true,
+      "time": "CONFIGURED_BY_USER",
+      "includes": ["pending_bills", "budget_status", "upcoming_renewals"]
+    },
+    "escalation_alerts": {
+      "immediate": true,
+      "channels": ["push", "sms"]
+    }
+  },
+
+  "user_personas": {
+    "single_parent": {
+      "primary_benefit": "Less cognitive load, fewer missed deadlines, predictable groceries",
+      "key_features": ["Bill tracking", "Grocery cart prep", "Budget alerts"]
+    },
+    "older_adult": {
+      "primary_benefit": "Fewer logins, scam protection, anomaly detection",
+      "key_features": ["Price monitoring", "Subscription audit", "Family oversight option"]
+    },
+    "caregiver": {
+      "primary_benefit": "Oversight without micromanaging, audit trail, escalation-only involvement",
+      "key_features": ["Evidence bundles", "Approval delegation", "Monthly reports"]
+    },
+    "busy_professional": {
+      "primary_benefit": "Routine tasks handled, exceptions surfaced, time saved",
+      "key_features": ["Smart scheduling", "Variance detection", "One-tap approvals"]
+    }
+  },
+
+  "pattern_learning": {
+    "description": "What the assistant learns vs. what it cannot learn",
+    "learns": [
+      "Your typical grocery items and quantities",
+      "Normal bill amounts and due dates",
+      "Your preferred shopping times",
+      "Price baselines for regular items",
+      "Seasonal spending patterns"
+    ],
+    "never_learns_to_bypass": [
+      "Approval requirements - always enforced",
+      "Forbidden actions - hard-coded blocks",
+      "Spending limits - user-controlled",
+      "Merchant allowlist - explicit additions only",
+      "Security controls - immutable"
+    ],
+    "pattern_reset": "User can clear learned patterns anytime without affecting safety controls"
+  },
+
+  "messaging": {
+    "what_this_is": "A household assistant that prepares, monitors, and safeguards routine obligations - with human approval",
+    "what_this_is_not": "An AI that spends money autonomously",
+    "key_differentiator": "Operational dignity for people who are overloaded - not automation for automation's sake",
+    "safety_promise": "The assistant gets better at predicting your needs, but never learns to bypass your controls"
+  },
+
+  "procedure_index": {
+    "steps": [
+      {
+        "step_id": "hh-001",
+        "action": "read_bills",
+        "mai_level": "INFORMATIONAL",
+        "description": "Check all tracked bills for due dates and amounts"
+      },
+      {
+        "step_id": "hh-002",
+        "action": "summarize_spending",
+        "mai_level": "INFORMATIONAL",
+        "description": "Generate current week spending summary"
+      },
+      {
+        "step_id": "hh-003",
+        "action": "check_prices",
+        "mai_level": "INFORMATIONAL",
+        "description": "Monitor prices for regular grocery items"
+      },
+      {
+        "step_id": "hh-004",
+        "action": "flag_price_changes",
+        "mai_level": "ADVISORY",
+        "description": "Alert on any significant price increases"
+      },
+      {
+        "step_id": "hh-005",
+        "action": "draft_grocery_cart",
+        "mai_level": "ADVISORY",
+        "description": "Prepare grocery cart for review"
+      },
+      {
+        "step_id": "hh-006",
+        "action": "suggest_payment_schedule",
+        "mai_level": "ADVISORY",
+        "description": "Recommend bill payment timing"
+      }
+    ],
+    "mini_index": [
+    {
+      "task_id": "WEEKLY_GROCERY_PREP",
+      "name": "Weekly Grocery Preparation",
+      "steps": [
+        "Review past orders for pattern",
+        "Check pantry status (if tracked)",
+        "Draft cart with regular items",
+        "Check prices against baseline",
+        "Present cart for approval"
+      ]
+    },
+    {
+      "task_id": "BILL_MONITORING",
+      "name": "Bill Monitoring Cycle",
+      "steps": [
+        "Check all bill portals for new statements",
+        "Compare amounts to expected",
+        "Flag any variances",
+        "Update due date calendar",
+        "Prepare payment queue for approval"
+      ]
+    },
+    {
+      "task_id": "SUBSCRIPTION_AUDIT",
+      "name": "Monthly Subscription Audit",
+      "steps": [
+        "List all active subscriptions",
+        "Note renewal dates and amounts",
+        "Flag unused or duplicate services",
+        "Present recommendations",
+        "Execute approved cancellations"
+      ]
+    },
+    {
+      "task_id": "PRICE_CHECK",
+      "name": "Regular Price Monitoring",
+      "steps": [
+        "Check prices for frequently purchased items",
+        "Compare to baseline prices",
+        "Flag increases over threshold",
+        "Suggest alternatives if available",
+        "Update price baseline"
+      ]
+    },
+    {
+      "task_id": "BUDGET_REVIEW",
+      "name": "Weekly Budget Review",
+      "steps": [
+        "Calculate spending by category",
+        "Compare to monthly budget",
+        "Flag categories approaching limit",
+        "Generate variance report",
+        "Present recommendations"
+      ]
+    }
+  ]
+  }
+}

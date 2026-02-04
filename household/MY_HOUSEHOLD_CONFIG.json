@@ -1,0 +1,132 @@
+{
+  "_instructions": "Fill in YOUR account URLs below. This is your personal config.",
+  "_privacy": "This file stays on YOUR computer. Never share it.",
+
+  "household_name": "My Household",
+
+  "financial_accounts": [
+    {
+      "name": "Primary Bank",
+      "url": "YOUR_BANK_URL_HERE",
+      "type": "checking",
+      "notes": "Main checking account"
+    },
+    {
+      "name": "Credit Card",
+      "url": "YOUR_CARD_URL_HERE",
+      "type": "credit",
+      "notes": "Primary card"
+    }
+  ],
+
+  "shopping_sites": [
+    {
+      "name": "Instacart",
+      "cart_url": "https://www.instacart.com/store/checkout",
+      "order_history_url": "https://www.instacart.com/orders",
+      "enabled": true
+    },
+    {
+      "name": "Amazon",
+      "cart_url": "https://www.amazon.com/gp/cart/view.html",
+      "order_history_url": "https://www.amazon.com/gp/your-account/order-history",
+      "enabled": true
+    },
+    {
+      "name": "Walmart",
+      "cart_url": "https://www.walmart.com/cart",
+      "order_history_url": "https://www.walmart.com/orders",
+      "enabled": false
+    },
+    {
+      "name": "Target",
+      "cart_url": "https://www.target.com/cart",
+      "order_history_url": "https://www.target.com/orders",
+      "enabled": false
+    }
+  ],
+
+  "utility_bills": [
+    {
+      "name": "Electric",
+      "provider": "YOUR_ELECTRIC_COMPANY",
+      "url": "YOUR_ELECTRIC_URL_HERE",
+      "typical_amount": 150,
+      "due_day_of_month": 15,
+      "enabled": true
+    },
+    {
+      "name": "Internet",
+      "provider": "YOUR_INTERNET_COMPANY",
+      "url": "YOUR_INTERNET_URL_HERE",
+      "typical_amount": 80,
+      "due_day_of_month": 10,
+      "enabled": true
+    },
+    {
+      "name": "Water",
+      "provider": "YOUR_WATER_COMPANY",
+      "url": "YOUR_WATER_URL_HERE",
+      "typical_amount": 50,
+      "due_day_of_month": 20,
+      "enabled": true
+    },
+    {
+      "name": "Gas",
+      "provider": "YOUR_GAS_COMPANY",
+      "url": "YOUR_GAS_URL_HERE",
+      "typical_amount": 60,
+      "due_day_of_month": 18,
+      "enabled": false
+    },
+    {
+      "name": "Phone",
+      "provider": "YOUR_PHONE_COMPANY",
+      "url": "YOUR_PHONE_URL_HERE",
+      "typical_amount": 85,
+      "due_day_of_month": 22,
+      "enabled": false
+    }
+  ],
+
+  "subscriptions": [
+    {
+      "name": "Netflix",
+      "url": "https://www.netflix.com/YourAccount",
+      "monthly_cost": 15.99,
+      "renewal_day": 15,
+      "enabled": true
+    },
+    {
+      "name": "Spotify",
+      "url": "https://www.spotify.com/account",
+      "monthly_cost": 10.99,
+      "renewal_day": 22,
+      "enabled": true
+    },
+    {
+      "name": "Add More Here",
+      "url": "",
+      "monthly_cost": 0,
+      "renewal_day": 1,
+      "enabled": false
+    }
+  ],
+
+  "calendar": {
+    "url": "https://calendar.google.com",
+    "payday_schedule": "biweekly",
+    "next_payday": "YYYY-MM-DD"
+  },
+
+  "preferences": {
+    "minimum_buffer": 500,
+    "alert_days_before_due": 5,
+    "weekly_scan_day": "Sunday"
+  },
+
+  "family_oversight": {
+    "enabled": false,
+    "members": []
+  }
+}

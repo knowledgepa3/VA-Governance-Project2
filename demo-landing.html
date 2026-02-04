@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GIA - Governed Intelligence Architecture | Request a Demo</title>
+  <meta name="description" content="Enterprise AI governance middleware. Request a governed workflow run and receive full evidence bundle.">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --secondary: #10b981;
+      --dark: #0f172a;
+      --gray-900: #1e293b;
+      --gray-700: #334155;
+      --gray-500: #64748b;
+      --gray-300: #cbd5e1;
+      --gray-100: #f1f5f9;
+      --white: #ffffff;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+      background: var(--dark);
+      color: var(--white);
+      line-height: 1.6;
+    }
+
+    /* Header */
+    .header {
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--gray-700);
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+    }
+
+    .nav-links a {
+      color: var(--gray-300);
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--white);
+    }
+
+    /* Hero */
+    .hero {
+      padding: 6rem 2rem;
+      text-align: center;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: 100px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1.5rem;
+    }
+
+    .hero h1 {
+      font-size: 3.5rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 1.5rem;
+    }
+
+    .hero h1 span {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero p {
+      font-size: 1.25rem;
+      color: var(--gray-300);
+      max-width: 600px;
+      margin: 0 auto 2rem;
+    }
+
+    /* Platform Visual */
+    .platform-visual {
+      background: var(--gray-900);
+      border: 1px solid var(--gray-700);
+      border-radius: 16px;
+      padding: 2rem;
+      margin: 3rem auto;
+      max-width: 700px;
+    }
+
+    .platform-diagram {
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 0.8rem;
+      color: var(--gray-300);
+      text-align: left;
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    .platform-diagram .highlight {
+      color: var(--secondary);
+      font-weight: bold;
+    }
+
+    .platform-diagram .primary {
+      color: var(--primary);
+    }
+
+    /* Demo Request Section */
+    .demo-section {
+      padding: 4rem 2rem;
+      background: linear-gradient(180deg, transparent 0%, rgba(99, 102, 241, 0.05) 100%);
+    }
+
+    .demo-container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .demo-header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .demo-header h2 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+
+    .demo-header p {
+      color: var(--gray-300);
+      font-size: 1.1rem;
+    }
+
+    /* Demo Form */
+    .demo-form {
+      background: var(--gray-900);
+      border: 1px solid var(--gray-700);
+      border-radius: 16px;
+      padding: 2.5rem;
+    }
+
+    .form-section {
+      margin-bottom: 2rem;
+    }
+
+    .form-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .form-label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      font-size: 0.95rem;
+    }
+
+    .form-sublabel {
+      display: block;
+      color: var(--gray-500);
+      font-size: 0.8rem;
+      margin-bottom: 0.75rem;
+      font-weight: normal;
+    }
+
+    /* Workflow Options */
+    .workflow-options {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    @media (max-width: 600px) {
+      .workflow-options {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .workflow-option {
+      position: relative;
+    }
+
+    .workflow-option input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .workflow-option label {
+      display: block;
+      padding: 1.25rem;
+      background: var(--dark);
+      border: 2px solid var(--gray-700);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .workflow-option input:checked + label {
+      border-color: var(--primary);
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    .workflow-option label:hover {
+      border-color: var(--gray-500);
+    }
+
+    .workflow-icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .workflow-title {
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .workflow-desc {
+      font-size: 0.8rem;
+      color: var(--gray-500);
+    }
+
+    /* Governance Mode */
+    .governance-options {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .governance-option {
+      flex: 1;
+      position: relative;
+    }
+
+    .governance-option input {
+      position: absolute;
+      opacity: 0;
+    }
+
+    .governance-option label {
+      display: block;
+      padding: 1rem;
+      text-align: center;
+      background: var(--dark);
+      border: 2px solid var(--gray-700);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .governance-option input:checked + label {
+      border-color: var(--secondary);
+      background: rgba(16, 185, 129, 0.1);
+    }
+
+    .governance-option label:hover {
+      border-color: var(--gray-500);
+    }
+
+    .governance-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .governance-desc {
+      font-size: 0.7rem;
+      color: var(--gray-500);
+      margin-top: 0.25rem;
+    }
+
+    /* Text Inputs */
+    .text-input {
+      width: 100%;
+      padding: 1rem;
+      background: var(--dark);
+      border: 2px solid var(--gray-700);
+      border-radius: 8px;
+      color: var(--white);
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+
+    .text-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .text-input::placeholder {
+      color: var(--gray-500);
+    }
+
+    textarea.text-input {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    /* Submit Button */
+    .submit-btn {
+      width: 100%;
+      padding: 1.25rem;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      border: none;
+      border-radius: 8px;
+      color: var(--white);
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 1.5rem;
+    }
+
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
+    }
+
+    .submit-btn:active {
+      transform: translateY(0);
+    }
+
+    /* Form Footer */
+    .form-footer {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--gray-700);
+    }
+
+    .form-footer-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--gray-500);
+    }
+
+    .form-footer-item .icon {
+      color: var(--secondary);
+    }
+
+    /* What You Get Section */
+    .deliverable-section {
+      padding: 4rem 2rem;
+    }
+
+    .deliverable-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .deliverable-header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .deliverable-header h2 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .deliverable-header p {
+      color: var(--gray-500);
+    }
+
+    .deliverable-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 800px) {
+      .deliverable-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .deliverable-card {
+      background: var(--gray-900);
+      border: 1px solid var(--gray-700);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .deliverable-icon {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    .deliverable-title {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .deliverable-desc {
+      font-size: 0.8rem;
+      color: var(--gray-500);
+    }
+
+    /* Trust Section */
+    .trust-section {
+      padding: 3rem 2rem;
+      background: var(--gray-900);
+      border-top: 1px solid var(--gray-700);
+      border-bottom: 1px solid var(--gray-700);
+    }
+
+    .trust-container {
+      max-width: 800px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      gap: 2rem;
+    }
+
+    .trust-item {
+      text-align: center;
+    }
+
+    .trust-value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--primary);
+    }
+
+    .trust-label {
+      font-size: 0.85rem;
+      color: var(--gray-500);
+      margin-top: 0.25rem;
+    }
+
+    /* Footer */
+    .footer {
+      padding: 3rem 2rem;
+      text-align: center;
+      color: var(--gray-500);
+      font-size: 0.85rem;
+    }
+
+    .footer a {
+      color: var(--gray-300);
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      color: var(--white);
+    }
+
+    /* Confirmation State */
+    .confirmation {
+      display: none;
+      text-align: center;
+      padding: 3rem;
+    }
+
+    .confirmation.show {
+      display: block;
+    }
+
+    .confirmation-icon {
+      font-size: 4rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .confirmation h3 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .confirmation p {
+      color: var(--gray-400);
+      margin-bottom: 1.5rem;
+    }
+
+    .run-id {
+      display: inline-block;
+      padding: 0.75rem 1.5rem;
+      background: var(--dark);
+      border: 1px solid var(--gray-700);
+      border-radius: 8px;
+      font-family: 'Monaco', monospace;
+      font-size: 0.9rem;
+      color: var(--secondary);
+    }
+
+    .form-container.hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="logo">GIA</div>
+    <nav class="nav-links">
+      <a href="#demo">Request Demo</a>
+      <a href="#deliverables">What You Get</a>
+      <a href="mailto:contact@ace-consulting.io">Contact</a>
+    </nav>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-badge">Governed Intelligence Architecture</div>
+    <h1>The <span>Middleware Layer</span> for Enterprise AI</h1>
+    <p>One governance plane for all your AI tools. Audit trails, approval gates, and domain-aware execution — built in.</p>
+
+    <div class="platform-visual">
+      <div class="platform-diagram">
+                      ┌─────────────────────────────────┐
+    Your Request ──▶ │         <span class="highlight">GIA LAYER</span>              │
+                      │                                 │
+                      │  • MAI Classification          │
+                      │  • Domain Governance           │
+                      │  • Approval Gates              │
+                      │  • Cost Controls               │
+                      │  • Audit Trail                 │
+                      └───────────────┬───────────────┘
+                                      │
+                      ┌───────────────┼───────────────┐
+                      ▼               ▼               ▼
+                  <span class="primary">Claude</span>          <span class="primary">Browser</span>        <span class="primary">APIs</span>
+                                      │
+                      ┌───────────────┴───────────────┐
+                      ▼                               ▼
+              Evidence Pack               Governed Output
+      </div>
+    </div>
+  </section>
+
+  <!-- Demo Request Section -->
+  <section class="demo-section" id="demo">
+    <div class="demo-container">
+      <div class="demo-header">
+        <h2>Request a Governed Run</h2>
+        <p>Submit a task. We execute it under governance. You receive the full evidence bundle.</p>
+      </div>
+
+      <div class="demo-form">
+        <!-- Form Content -->
+        <div class="form-container" id="formContainer">
+          <form id="demoForm" action="https://formspree.io/f/xwvqggle" method="POST">
+
+            <!-- Workflow Selection -->
+            <div class="form-section">
+              <label class="form-label">Select Workflow</label>
+              <span class="form-sublabel">What type of task do you want to run?</span>
+              <div class="workflow-options">
+                <div class="workflow-option">
+                  <input type="radio" id="wf-bd" name="workflow" value="bd-capture" checked>
+                  <label for="wf-bd">
+                    <div class="workflow-icon">🎯</div>
+                    <div class="workflow-title">Federal Opportunity Search</div>
+                    <div class="workflow-desc">Find matching RFPs on SAM.gov with compliance snapshot</div>
+                  </label>
+                </div>
+                <div class="workflow-option">
+                  <input type="radio" id="wf-research" name="workflow" value="research-brief">
+                  <label for="wf-research">
+                    <div class="workflow-icon">📊</div>
+                    <div class="workflow-title">Research Brief</div>
+                    <div class="workflow-desc">Governed sourcing with citations and audit trail</div>
+                  </label>
+                </div>
+                <div class="workflow-option">
+                  <input type="radio" id="wf-price" name="workflow" value="price-compare">
+                  <label for="wf-price">
+                    <div class="workflow-icon">💰</div>
+                    <div class="workflow-title">Price Comparison</div>
+                    <div class="workflow-desc">Find best prices across multiple sources</div>
+                  </label>
+                </div>
+                <div class="workflow-option">
+                  <input type="radio" id="wf-custom" name="workflow" value="custom">
+                  <label for="wf-custom">
+                    <div class="workflow-icon">⚡</div>
+                    <div class="workflow-title">Custom Task</div>
+                    <div class="workflow-desc">Describe your use case, we'll scope it</div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Governance Mode -->
+            <div class="form-section">
+              <label class="form-label">Governance Mode</label>
+              <span class="form-sublabel">How strict should the oversight be?</span>
+              <div class="governance-options">
+                <div class="governance-option">
+                  <input type="radio" id="gov-advisory" name="governance" value="advisory">
+                  <label for="gov-advisory">
+                    <div class="governance-name">Advisory</div>
+                    <div class="governance-desc">Fast execution, logged</div>
+                  </label>
+                </div>
+                <div class="governance-option">
+                  <input type="radio" id="gov-strict" name="governance" value="strict" checked>
+                  <label for="gov-strict">
+                    <div class="governance-name">Strict</div>
+                    <div class="governance-desc">Approval gates enabled</div>
+                  </label>
+                </div>
+                <div class="governance-option">
+                  <input type="radio" id="gov-regulated" name="governance" value="regulated">
+                  <label for="gov-regulated">
+                    <div class="governance-name">Regulated</div>
+                    <div class="governance-desc">Full evidence pack</div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Task Input -->
+            <div class="form-section">
+              <label class="form-label" for="taskInput">Your Task</label>
+              <span class="form-sublabel">Describe what you want the workflow to do</span>
+              <textarea
+                class="text-input"
+                id="taskInput"
+                name="task"
+                placeholder="e.g., 'Find AI governance RFPs for small businesses' or 'Research the latest NIST AI RMF requirements' or 'Compare prices for MacBook Pro 14&quot; across retailers'"
+                required
+              ></textarea>
+            </div>
+
+            <!-- Contact Info -->
+            <div class="form-section">
+              <label class="form-label" for="emailInput">Email</label>
+              <span class="form-sublabel">Where should we send your results?</span>
+              <input
+                type="email"
+                class="text-input"
+                id="emailInput"
+                name="email"
+                placeholder="you@company.com"
+                required
+              >
+            </div>
+
+            <!-- Name (optional) -->
+            <div class="form-section">
+              <label class="form-label" for="nameInput">Name <span style="color: var(--gray-500); font-weight: normal;">(optional)</span></label>
+              <input
+                type="text"
+                class="text-input"
+                id="nameInput"
+                name="name"
+                placeholder="Your name"
+              >
+            </div>
+
+            <!-- Hidden field for timestamp -->
+            <input type="hidden" name="_subject" value="New GIA Demo Request">
+
+            <!-- Submit -->
+            <button type="submit" class="submit-btn">Request Governed Run →</button>
+
+            <div class="form-footer">
+              <div class="form-footer-item">
+                <span class="icon">✓</span> No install required
+              </div>
+              <div class="form-footer-item">
+                <span class="icon">✓</span> Results by next business day
+              </div>
+              <div class="form-footer-item">
+                <span class="icon">✓</span> Full audit trail included
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- Confirmation State -->
+        <div class="confirmation" id="confirmation">
+          <div class="confirmation-icon">✅</div>
+          <h3>Request Received</h3>
+          <p>We'll execute your workflow and send results to your email.</p>
+          <div class="run-id" id="runId">GIA-2026-0000-000</div>
+          <p style="margin-top: 1.5rem; font-size: 0.85rem;">
+            Typical turnaround: same day to next business day
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- What You Get -->
+  <section class="deliverable-section" id="deliverables">
+    <div class="deliverable-container">
+      <div class="deliverable-header">
+        <h2>What You Receive</h2>
+        <p>Every governed run includes a complete evidence bundle</p>
+      </div>
+
+      <div class="deliverable-grid">
+        <div class="deliverable-card">
+          <div class="deliverable-icon">📄</div>
+          <div class="deliverable-title">Outcome Summary</div>
+          <div class="deliverable-desc">Clean 1-page results document with key findings</div>
+        </div>
+        <div class="deliverable-card">
+          <div class="deliverable-icon">📋</div>
+          <div class="deliverable-title">Audit Log</div>
+          <div class="deliverable-desc">Every decision, gate triggered, and tool call logged</div>
+        </div>
+        <div class="deliverable-card">
+          <div class="deliverable-icon">📦</div>
+          <div class="deliverable-title">Evidence Pack</div>
+          <div class="deliverable-desc">Screenshots, manifests, and verification hashes</div>
+        </div>
+        <div class="deliverable-card">
+          <div class="deliverable-icon">🎬</div>
+          <div class="deliverable-title">Execution Recording</div>
+          <div class="deliverable-desc">2-5 minute video showing the governed workflow</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trust Metrics -->
+  <section class="trust-section">
+    <div class="trust-container">
+      <div class="trust-item">
+        <div class="trust-value">100%</div>
+        <div class="trust-label">Auditable Actions</div>
+      </div>
+      <div class="trust-item">
+        <div class="trust-value">0</div>
+        <div class="trust-label">Black Box Decisions</div>
+      </div>
+      <div class="trust-item">
+        <div class="trust-value">MAI</div>
+        <div class="trust-label">Classification Standard</div>
+      </div>
+      <div class="trust-item">
+        <div class="trust-value">24hr</div>
+        <div class="trust-label">Typical Turnaround</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>
+      GIA - Governed Intelligence Architecture<br>
+      Built by <a href="mailto:contact@ace-consulting.io">ACE Consulting</a>
+    </p>
+    <p style="margin-top: 1rem; opacity: 0.7;">
+      One governance layer to rule all AI tools.
+    </p>
+  </footer>
+
+  <script>
+    // Generate Run ID
+    function generateRunId() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const seq = String(Math.floor(Math.random() * 999) + 1).padStart(3, '0');
+      return `GIA-${year}-${month}${day}-${seq}`;
+    }
+
+    // Form submission
+    document.getElementById('demoForm').addEventListener('submit', function(e) {
+      // For Formspree, let it submit normally
+      // But show confirmation after a delay
+
+      const form = this;
+      const formContainer = document.getElementById('formContainer');
+      const confirmation = document.getElementById('confirmation');
+      const runIdEl = document.getElementById('runId');
+
+      // Generate and display run ID
+      const runId = generateRunId();
+      runIdEl.textContent = runId;
+
+      // Add run ID to form data
+      const runIdInput = document.createElement('input');
+      runIdInput.type = 'hidden';
+      runIdInput.name = 'run_id';
+      runIdInput.value = runId;
+      form.appendChild(runIdInput);
+
+      // Show confirmation after form submits
+      setTimeout(() => {
+        formContainer.classList.add('hidden');
+        confirmation.classList.add('show');
+      }, 100);
+    });
+
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth' });
+        }
+      });
+    });
+  </script>
+
+</body>
+</html>

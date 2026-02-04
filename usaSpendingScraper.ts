@@ -187,7 +187,7 @@ async function searchViaAPI(
     // Transform API response to our format
     const awards: PastAwardData[] = (data.results || []).map((award: any) => ({
       recipient_name: award.recipient_name || award['Recipient Name'] || 'Unknown',
-      award_amount: parseFloat(award.Award Amount || award.total_obligation || 0),
+      award_amount: parseFloat(award['Award Amount'] || award.total_obligation || 0),
       award_date: award['Start Date'] || award.period_of_performance_start_date || new Date().toISOString(),
       award_id: award['Award ID'] || award.generated_unique_award_id || '',
       contract_type: award['Award Type'] || award.type_description || 'Unknown',
@@ -408,4 +408,165 @@ function generateMockPastAwards(agency: string, naicsCode: string): PastAwardDat
   }
 
   return awards.sort((a, b) => b.award_amount - a.award_amount);
+}
+
+/**
+ * Data source result with audit tracking
+ */
+export interface DataSourceResult<T> {
+  data: T;
+  source: 'USA_SPENDING_API' | 'USA_SPENDING_SCRAPE' | 'MOCK';
+  timestamp: Date;
+  warnings?: string[];
+}
+
+/**
+ * Search past awards with data source tracking for audit
+ * Supports strict mode that throws instead of falling back to mock data
+ */
+export async function searchPastAwardsWithSource(
+  agency: string,
+  naicsCode: string,
+  yearsBack: number = 3,
+  strictMode: boolean = false
+): Promise<DataSourceResult<PastAwardData[]>> {
+  const timestamp = new Date();
+  const warnings: string[] = [];
+
+  try {
+    // Try the real API first
+    const startYear = new Date().getFullYear() - yearsBack;
+    const endYear = new Date().getFullYear();
+
+    const apiResults = await searchViaAPIWithSource(agency, naicsCode, startYear, endYear);
+
+    if (apiResults.length > 0) {
+      console.log(`[USASpending] Successfully retrieved ${apiResults.length} awards from API`);
+      return {
+        data: apiResults,
+        source: 'USA_SPENDING_API',
+        timestamp
+      };
+    }
+
+    // API returned empty results - not necessarily an error
+    warnings.push('USASpending API returned no results for the given criteria');
+
+    // In strict mode, throw error instead of using mock data
+    if (strictMode) {
+      throw new Error(
+        `USASpending API returned no results for agency="${agency}", NAICS="${naicsCode}". ` +
+        `Strict mode is enabled - mock data fallback is disabled. ` +
+        `Verify the agency name and NAICS code are correct.`
+      );
+    }
+
+    // Fall back to mock data in non-strict mode
+    console.warn(`[USASpending] No API results, falling back to mock data (strict mode: ${strictMode})`);
+    return {
+      data: generateMockPastAwards(agency, naicsCode),
+      source: 'MOCK',
+      timestamp,
+      warnings: [...warnings, 'Using mock data due to empty API results']
+    };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`[USASpending] Error searching awards:`, errorMessage);
+
+    // In strict mode, propagate the error
+    if (strictMode) {
+      throw new Error(
+        `USASpending data fetch failed: ${errorMessage}. ` +
+        `Strict mode is enabled - mock data fallback is disabled.`
+      );
+    }
+
+    // Fall back to mock data in non-strict mode
+    warnings.push(`API error: ${errorMessage}`);
+    return {
+      data: generateMockPastAwards(agency, naicsCode),
+      source: 'MOCK',
+      timestamp,
+      warnings: [...warnings, 'Using mock data due to API error']
+    };
+  }
+}
+
+/**
+ * Internal API call with better error handling
+ */
+async function searchViaAPIWithSource(
+  agency: string,
+  naicsCode: string,
+  startYear: number,
+  endYear: number
+): Promise<PastAwardData[]> {
+  const apiUrl = 'https://api.usaspending.gov/api/v2/search/spending_by_award/';
+
+  const requestBody = {
+    filters: {
+      time_period: [
+        {
+          start_date: `${startYear}-01-01`,
+          end_date: `${endYear}-12-31`
+        }
+      ],
+      naics_codes: [naicsCode],
+      award_type_codes: ['A', 'B', 'C', 'D'],
+      agencies: [
+        {
+          type: 'awarding',
+          tier: 'toptier',
+          name: agency
+        }
+      ]
+    },
+    fields: [
+      'Award ID',
+      'Recipient Name',
+      'Award Amount',
+      'Start Date',
+      'End Date',
+      'Award Type',
+      'Awarding Agency',
+      'Awarding Sub Agency',
+      'NAICS Code',
+      'NAICS Description',
+      'Place of Performance'
+    ],
+    page: 1,
+    limit: 100,
+    sort: 'Award Amount',
+    order: 'desc'
+  };
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!response.ok) {
+    throw new Error(`USASpending API returned ${response.status}: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+
+  return (data.results || []).map((award: any) => ({
+    recipient_name: award.recipient_name || award['Recipient Name'] || 'Unknown',
+    award_amount: parseFloat(award['Award Amount'] || award.total_obligation || 0),
+    award_date: award['Start Date'] || award.period_of_performance_start_date || new Date().toISOString(),
+    award_id: award['Award ID'] || award.generated_unique_award_id || '',
+    contract_type: award['Award Type'] || award.type_description || 'Unknown',
+    naics_code: naicsCode,
+    naics_description: award['NAICS Description'] || award.naics_description || '',
+    awarding_agency: agency,
+    awarding_sub_agency: award['Awarding Sub Agency'] || '',
+    place_of_performance: award['Place of Performance'] || award.place_of_performance || '',
+    period_of_performance: `${award['Start Date'] || ''} to ${award['End Date'] || ''}`,
+    description: award.description || award['Award Description'] || ''
+  }));
 }

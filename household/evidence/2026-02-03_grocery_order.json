@@ -1,0 +1,72 @@
+{
+  "session_id": "grocery-2026-02-03",
+  "session_type": "grocery_order",
+  "timestamp": "2026-02-03T14:30:00-05:00",
+  "status": "COMPLETED",
+
+  "order_details": {
+    "store": "Walmart",
+    "order_id": "200014302230318",
+    "subtotal": 76.72,
+    "savings": 5.66,
+    "delivery_fee": 14.95,
+    "taxes": 5.15,
+    "driver_tip": 7.11,
+    "total": 98.27,
+    "items_count": 24,
+    "delivery_method": "Delivery from store - 3 hours or less",
+    "delivery_address": "6500 Whittlesey Blvd, Apt 307, Columbus, GA 31909",
+    "delivery_instructions": "Leave at my door",
+    "confirmation_email": "knowledgepa3@gmail.com"
+  },
+
+  "items_observed": [
+    "Tropicana Refreshers Strawberry Limeade 46oz - $2.28",
+    "Minute Maid juice - $1.97",
+    "M&M's Milk Chocolate Sharing Size x2 - $5.56",
+    "Kraft Mexican 4 Cheese 16oz - $5.64",
+    "Fresh Bananas x6 - $1.20",
+    "Smucker's Uncrustables PB&J 10ct - $10.46",
+    "Tide PODS with Downy 45ct - $17.94",
+    "Tru Fru Freeze Dried Strawberries - $5.23",
+    "Plus 16 more items..."
+  ],
+
+  "governance": {
+    "domain_check": "PASSED - walmart.com in allowlist",
+    "approval_gates": [
+      {
+        "gate": "checkout_initiation",
+        "status": "USER_APPROVED",
+        "timestamp": "2026-02-03T14:25:00-05:00"
+      },
+      {
+        "gate": "place_order",
+        "status": "USER_APPROVED",
+        "timestamp": "2026-02-03T14:28:00-05:00",
+        "user_message": "delivery soonest and you have approval to place order"
+      }
+    ]
+  },
+
+  "agent_actions": [
+    "Navigate to walmart.com",
+    "Verify logged in as William S",
+    "Navigate to cart",
+    "Review 24 items totaling $71.06",
+    "Scroll through cart items",
+    "STOP - Asked user for checkout approval",
+    "Received approval - proceed to checkout",
+    "Select delivery option (3 hours or less)",
+    "Review order total ($98.27)",
+    "STOP - Asked user for final approval",
+    "Received approval - place order",
+    "Click Place Order button",
+    "Capture confirmation screenshot"
+  ],
+
+  "screenshots_taken": 18,
+  "session_duration_minutes": 15,
+
+  "notes": "Successful grocery order using household agent. User approved both checkout and place order gates. Cart contained good mix per profile preferences: proteins, easy meals, snacks, household items (Tide+Downy combo matched laundry preferences)."
+}

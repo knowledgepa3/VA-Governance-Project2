@@ -1,0 +1,496 @@
+{
+  "pack_id": "BillTracker",
+  "pack_version": "1.0.0",
+  "certification_level": 1,
+  "created_at": "2026-02-01T00:00:00Z",
+  "updated_at": "2026-02-01T00:00:00Z",
+  "author": "ACE Governance Platform",
+
+  "role": {
+    "name": "Bill Tracker",
+    "description": "A dedicated assistant for monitoring bills, tracking due dates, detecting unusual charges, and ensuring nothing falls through the cracks. Designed for people who need reliable bill oversight without the cognitive load of remembering everything.",
+    "mission": "Never miss a bill again. Track due dates, monitor amounts, flag anomalies, and ensure predictable household finances. No surprises, no late fees.",
+    "success_criteria": [
+      "All recurring bills tracked with due dates",
+      "Amount changes detected and flagged",
+      "Due date reminders delivered on time",
+      "Unusual charges identified immediately",
+      "Zero missed payments due to oversight"
+    ],
+    "outputs": [
+      "bills_calendar.json",
+      "upcoming_bills.json",
+      "amount_variance_report.json",
+      "payment_history.json",
+      "monthly_bills_summary.md"
+    ],
+    "acceptance_criteria": [
+      "No bill payment executed without approval",
+      "All due dates tracked with multiple reminders",
+      "Amount variances flagged before payment",
+      "Evidence bundle for every payment"
+    ]
+  },
+
+  "authority": {
+    "informational_actions": [
+      {
+        "action": "read_bill_statement",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Read current bill amount and details"
+      },
+      {
+        "action": "read_due_date",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Check when bill is due"
+      },
+      {
+        "action": "read_payment_history",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Review past payment records"
+      },
+      {
+        "action": "compare_amounts",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Compare current bill to typical amount"
+      },
+      {
+        "action": "check_auto_pay_status",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Check if auto-pay is enabled"
+      },
+      {
+        "action": "read_account_balance",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Check account balance to verify payment capability"
+      }
+    ],
+
+    "advisory_actions": [
+      {
+        "action": "flag_amount_variance",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": false,
+        "description": "Alert when bill amount differs from expected"
+      },
+      {
+        "action": "send_due_date_reminder",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": false,
+        "description": "Send reminder about upcoming due date"
+      },
+      {
+        "action": "recommend_payment_timing",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": true,
+        "description": "Suggest optimal payment timing based on cash flow"
+      },
+      {
+        "action": "prepare_payment",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": true,
+        "description": "Set up payment for review - not executed"
+      },
+      {
+        "action": "flag_unusual_charge",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": false,
+        "description": "Alert on unusual or unexpected charges"
+      },
+      {
+        "action": "suggest_paperless",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": true,
+        "description": "Recommend switching to paperless billing"
+      }
+    ],
+
+    "mandatory_actions": [
+      {
+        "action": "pay_bill",
+        "allowed": true,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "Execute bill payment - ALWAYS requires approval"
+      },
+      {
+        "action": "enable_auto_pay",
+        "allowed": true,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "Enable automatic payments - ALWAYS requires approval"
+      },
+      {
+        "action": "disable_auto_pay",
+        "allowed": true,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "Disable automatic payments - ALWAYS requires approval"
+      },
+      {
+        "action": "change_payment_method",
+        "allowed": true,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "Change payment method - ALWAYS requires approval"
+      },
+      {
+        "action": "dispute_charge",
+        "allowed": true,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "Initiate charge dispute - ALWAYS requires approval"
+      },
+      {
+        "action": "schedule_payment",
+        "allowed": true,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "Schedule future payment - ALWAYS requires approval"
+      }
+    ]
+  },
+
+  "permissions": {
+    "allowed_domains": [],
+    "allowed": [
+      { "action": "read_bill_statement", "description": "Read bill details" },
+      { "action": "read_due_date", "description": "Check due dates" },
+      { "action": "read_payment_history", "description": "Review payment history" },
+      { "action": "navigate", "description": "Navigate to billing portals" },
+      { "action": "screenshot", "description": "Capture evidence" }
+    ],
+    "forbidden": [
+      {
+        "action": "access_primary_bank",
+        "reason": "Uses designated payment card only",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "store_credentials",
+        "reason": "No credential storage",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "modify_account_settings",
+        "reason": "Cannot change account settings",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "cancel_service",
+        "reason": "Bill tracker cannot cancel services",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "add_new_service",
+        "reason": "Cannot add new services",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "transfer_funds",
+        "reason": "Cannot transfer money between accounts",
+        "enforcement": "HARD_BLOCK"
+      }
+    ]
+  },
+
+  "constraints": {
+    "timeout_per_step_ms": 30000,
+    "max_retries_per_step": 2,
+    "reminder_schedule": {
+      "days_before_due": [7, 3, 1],
+      "urgent_reminder": "due_today"
+    },
+    "variance_thresholds": {
+      "minor_variance_percent": 5,
+      "significant_variance_percent": 15,
+      "critical_variance_percent": 30
+    }
+  },
+
+  "escalation": {
+    "triggers": [
+      {
+        "trigger_id": "ESC-BILL-001",
+        "name": "Bill Amount Variance",
+        "condition": "current_amount > expected * 1.15",
+        "action": "ASK",
+        "severity": "MEDIUM",
+        "message": "Bill amount is 15% higher than expected"
+      },
+      {
+        "trigger_id": "ESC-BILL-002",
+        "name": "Large Bill Variance",
+        "condition": "current_amount > expected * 1.30",
+        "action": "STOP",
+        "severity": "HIGH",
+        "message": "Bill amount is 30% higher than expected - review before paying"
+      },
+      {
+        "trigger_id": "ESC-BILL-003",
+        "name": "Due Date Imminent",
+        "condition": "due_date <= today + 1",
+        "action": "ASK",
+        "severity": "HIGH",
+        "message": "Bill due tomorrow or today - urgent action needed"
+      },
+      {
+        "trigger_id": "ESC-BILL-004",
+        "name": "Past Due Warning",
+        "condition": "due_date < today",
+        "action": "STOP",
+        "severity": "CRITICAL",
+        "message": "CRITICAL: Bill is past due - immediate attention required"
+      },
+      {
+        "trigger_id": "ESC-BILL-005",
+        "name": "New Charge Detected",
+        "condition": "charge_not_in_expected_bills",
+        "action": "ASK",
+        "severity": "MEDIUM",
+        "message": "New or unexpected charge detected"
+      },
+      {
+        "trigger_id": "ESC-BILL-006",
+        "name": "Payment Ready",
+        "condition": "payment_page_reached",
+        "action": "STOP",
+        "severity": "HIGH",
+        "message": "Payment prepared - explicit approval required"
+      },
+      {
+        "trigger_id": "ESC-BILL-007",
+        "name": "Auto-Pay Change",
+        "condition": "auto_pay_modification_requested",
+        "action": "STOP",
+        "severity": "HIGH",
+        "message": "Auto-pay change requested - approval required"
+      },
+      {
+        "trigger_id": "ESC-BILL-008",
+        "name": "Suspicious Charge",
+        "condition": "charge_from_unknown_biller",
+        "action": "STOP",
+        "severity": "CRITICAL",
+        "message": "CRITICAL: Charge from unknown source - verify before proceeding"
+      },
+      {
+        "trigger_id": "ESC-BILL-009",
+        "name": "Late Fee Risk",
+        "condition": "payment_after_grace_period",
+        "action": "ASK",
+        "severity": "LOW",
+        "message": "Payment may incur late fee - proceed anyway?"
+      },
+      {
+        "trigger_id": "ESC-BILL-010",
+        "name": "Insufficient Funds Warning",
+        "condition": "payment_amount > available_balance",
+        "action": "STOP",
+        "severity": "CRITICAL",
+        "message": "CRITICAL: Insufficient funds for payment"
+      }
+    ]
+  },
+
+  "ui_map": {
+    "domain": "multi-domain",
+    "description": "Bill tracker works across multiple utility and service provider sites",
+    "stable_anchors": [
+      { "name": "pay_button", "anchors": [{ "type": "button_text", "value": "Pay" }, { "type": "button_text", "value": "Pay Now" }, { "type": "button_text", "value": "Make Payment" }], "description": "Payment button" },
+      { "name": "balance_due", "anchors": [{ "type": "field_label", "value": "Amount Due" }, { "type": "field_label", "value": "Balance Due" }], "description": "Amount due field" },
+      { "name": "due_date", "anchors": [{ "type": "field_label", "value": "Due Date" }], "description": "Due date field" }
+    ],
+    "url_patterns": [
+      "*/account*",
+      "*/billing*",
+      "*/payment*",
+      "*/mybill*"
+    ]
+  },
+
+  "evidence": {
+    "lightweight_capture": ["bill_amount", "due_date", "account_number_last4", "payment_confirmation"],
+    "milestone_screenshots": ["bill_statement", "pre_payment", "payment_confirmation"]
+  },
+
+  "evidence_requirements": {
+    "per_payment": [
+      "bill_statement_screenshot",
+      "amount_verified",
+      "due_date_captured",
+      "approval_timestamp",
+      "payment_confirmation"
+    ],
+    "weekly_check": [
+      "upcoming_bills_list",
+      "variance_analysis",
+      "payment_schedule"
+    ]
+  },
+
+  "bill_categories": {
+    "utilities": {
+      "types": ["electric", "gas", "water", "sewer", "trash"],
+      "variance_sensitivity": "MEDIUM",
+      "typical_cycle": "monthly"
+    },
+    "communications": {
+      "types": ["phone", "internet", "cable"],
+      "variance_sensitivity": "LOW",
+      "typical_cycle": "monthly"
+    },
+    "insurance": {
+      "types": ["auto", "home", "health", "life"],
+      "variance_sensitivity": "HIGH",
+      "typical_cycle": "monthly_or_quarterly"
+    },
+    "housing": {
+      "types": ["rent", "mortgage", "hoa"],
+      "variance_sensitivity": "HIGH",
+      "typical_cycle": "monthly"
+    },
+    "other": {
+      "types": ["misc"],
+      "variance_sensitivity": "MEDIUM",
+      "typical_cycle": "varies"
+    }
+  },
+
+  "procedure_index": {
+    "steps": [
+      {
+        "step_id": "bill-001",
+        "action": "read_bill_statement",
+        "mai_level": "INFORMATIONAL",
+        "description": "Check current bill statement"
+      },
+      {
+        "step_id": "bill-002",
+        "action": "compare_amounts",
+        "mai_level": "INFORMATIONAL",
+        "description": "Compare to expected amount"
+      },
+      {
+        "step_id": "bill-003",
+        "action": "flag_amount_variance",
+        "mai_level": "ADVISORY",
+        "description": "Alert if amount differs significantly"
+      },
+      {
+        "step_id": "bill-004",
+        "action": "prepare_payment",
+        "mai_level": "ADVISORY",
+        "description": "Set up payment for review"
+      },
+      {
+        "step_id": "bill-005",
+        "action": "pay_bill",
+        "mai_level": "MANDATORY",
+        "description": "Execute payment with approval"
+      },
+      {
+        "step_id": "bill-006",
+        "action": "read_payment_history",
+        "mai_level": "INFORMATIONAL",
+        "description": "Verify payment recorded"
+      }
+    ],
+    "mini_index": [
+      {
+        "task_id": "WEEKLY_BILL_CHECK",
+        "name": "Weekly Bill Review",
+        "steps": [
+          "Check all tracked bill portals",
+          "Note current amounts and due dates",
+          "Compare to expected amounts",
+          "Flag any variances",
+          "Update payment calendar",
+          "Send reminders for upcoming dues"
+        ]
+      },
+      {
+        "task_id": "BILL_PAYMENT_FLOW",
+        "name": "Bill Payment Process",
+        "steps": [
+          "Navigate to bill portal",
+          "Verify current amount",
+          "Compare to baseline",
+          "Screenshot statement",
+          "Prepare payment",
+          "Request approval",
+          "Execute payment",
+          "Capture confirmation"
+        ]
+      },
+      {
+        "task_id": "VARIANCE_INVESTIGATION",
+        "name": "Bill Variance Analysis",
+        "steps": [
+          "Identify variance amount",
+          "Review billing details",
+          "Check for new charges",
+          "Compare to previous months",
+          "Present findings",
+          "Recommend action"
+        ]
+      },
+      {
+        "task_id": "AUTO_PAY_MANAGEMENT",
+        "name": "Auto-Pay Setup/Changes",
+        "steps": [
+          "Navigate to payment settings",
+          "Review current auto-pay status",
+          "Document current configuration",
+          "Request approval for change",
+          "Make approved changes",
+          "Confirm new settings"
+        ]
+      },
+      {
+        "task_id": "MONTHLY_RECONCILIATION",
+        "name": "Monthly Bill Reconciliation",
+        "steps": [
+          "List all bills paid this month",
+          "Verify each against statement",
+          "Calculate total spent",
+          "Compare to budget",
+          "Generate variance report",
+          "Archive evidence bundles"
+        ]
+      }
+    ]
+  },
+
+  "notifications": {
+    "due_date_reminders": {
+      "7_days": { "channel": "email", "urgency": "LOW" },
+      "3_days": { "channel": "push", "urgency": "MEDIUM" },
+      "1_day": { "channel": "push_and_sms", "urgency": "HIGH" },
+      "due_today": { "channel": "all", "urgency": "CRITICAL" }
+    },
+    "variance_alerts": {
+      "minor": { "channel": "email", "immediate": false },
+      "significant": { "channel": "push", "immediate": true },
+      "critical": { "channel": "all", "immediate": true }
+    }
+  }
+}

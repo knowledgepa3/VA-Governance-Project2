@@ -8,10 +8,15 @@
  * 4. Export results for stakeholders
  *
  * This is the reference implementation showing the full workflow.
+ *
+ * MODES:
+ * - DEMO MODE (ACE_DEMO_MODE=true): No API calls, simulated data
+ * - PRODUCTION MODE: Live API calls with Anthropic
  */
 
 import { BDWorkforce, BidDecision } from '../bdWorkforce';
 import { PlaybookEngine } from '../playbookEngine';
+import { config, printConfigStatus, validateConfig } from '../config';
 import * as fs from 'fs';
 
 /**
@@ -22,6 +27,19 @@ async function demoCompleteBDWorkflow() {
   console.log('║   ACE BUSINESS DEVELOPMENT WORKFORCE DEMO                     ║');
   console.log('║   Full BD Pipeline: Ingest → Qualify → Decide                ║');
   console.log('╚═══════════════════════════════════════════════════════════════╝\n');
+
+  // Print configuration status
+  printConfigStatus();
+
+  // Validate configuration
+  const validation = validateConfig();
+  if (!validation.valid) {
+    console.log('❌ Configuration Error:');
+    validation.issues.forEach(issue => console.log(`   - ${issue}`));
+    console.log('\n💡 To run in demo mode: set ACE_DEMO_MODE=true');
+    console.log('   To run with API: set ANTHROPIC_API_KEY=sk-ant-...\n');
+    return;
+  }
 
   // Initialize BD workforce
   const bdTeam = new BDWorkforce();
@@ -368,7 +386,7 @@ async function main() {
   }
 }
 
-// Uncomment to run
-// main().catch(console.error);
+// Run the demo
+main().catch(console.error);
 
 export { demoCompleteBDWorkflow, demoLiveQualification, demoBDManagerWorkflow };

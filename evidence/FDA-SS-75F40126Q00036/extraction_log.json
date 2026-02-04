@@ -1,0 +1,135 @@
+{
+  "session_id": "sam-gov-extraction-2026-01-31",
+  "evidence_bundle_id": "FDA-SS-75F40126Q00036",
+  "extraction_log": [
+    {
+      "timestamp": "2026-01-31T11:55:00Z",
+      "action": "tabs_context_mcp",
+      "result": "success",
+      "details": "Created MCP tab group with createIfEmpty: true"
+    },
+    {
+      "timestamp": "2026-01-31T11:55:05Z",
+      "action": "navigate",
+      "result": "success",
+      "details": "Navigated to SAM.gov search page",
+      "url": "https://sam.gov/search/?index=opp&page=1&sort=-modifiedDate"
+    },
+    {
+      "timestamp": "2026-01-31T11:55:15Z",
+      "action": "screenshot",
+      "result": "success",
+      "details": "Captured search page initial state",
+      "screenshot_id": "ss_0383pwset"
+    },
+    {
+      "timestamp": "2026-01-31T11:55:20Z",
+      "action": "find",
+      "result": "success",
+      "details": "Located search input box",
+      "ref": "ref_74"
+    },
+    {
+      "timestamp": "2026-01-31T11:55:25Z",
+      "action": "form_input",
+      "result": "success",
+      "details": "Entered search term: cybersecurity services",
+      "ref": "ref_74"
+    },
+    {
+      "timestamp": "2026-01-31T11:55:30Z",
+      "action": "find",
+      "result": "success",
+      "details": "Located search button",
+      "ref": "ref_75"
+    },
+    {
+      "timestamp": "2026-01-31T11:55:32Z",
+      "action": "left_click",
+      "result": "success",
+      "details": "Clicked search button",
+      "ref": "ref_75"
+    },
+    {
+      "timestamp": "2026-01-31T11:55:40Z",
+      "action": "scroll",
+      "result": "success",
+      "details": "Scrolled down to view results",
+      "coordinate": [400, 300],
+      "scroll_amount": 5
+    },
+    {
+      "timestamp": "2026-01-31T11:55:45Z",
+      "action": "screenshot",
+      "result": "success",
+      "details": "Captured search results showing 3 opportunities",
+      "screenshot_id": "ss_8160uqmlw"
+    },
+    {
+      "timestamp": "2026-01-31T11:55:50Z",
+      "action": "find",
+      "result": "success",
+      "details": "Located FDA Cybersecurity opportunity link",
+      "ref": "ref_1108"
+    },
+    {
+      "timestamp": "2026-01-31T11:55:55Z",
+      "action": "left_click",
+      "result": "success",
+      "details": "Clicked to open opportunity detail page",
+      "ref": "ref_1108"
+    },
+    {
+      "timestamp": "2026-01-31T11:56:00Z",
+      "action": "screenshot",
+      "result": "success",
+      "details": "Captured opportunity detail header",
+      "screenshot_id": "ss_85392fjv2"
+    },
+    {
+      "timestamp": "2026-01-31T11:56:10Z",
+      "action": "scroll",
+      "result": "success",
+      "details": "Scrolled to view full opportunity details",
+      "coordinate": [400, 300],
+      "scroll_amount": 4
+    },
+    {
+      "timestamp": "2026-01-31T11:56:20Z",
+      "action": "get_page_text",
+      "result": "success",
+      "details": "Extracted full page text content for parsing",
+      "content_length": 4521
+    },
+    {
+      "timestamp": "2026-01-31T11:56:25Z",
+      "action": "parse_opportunity",
+      "result": "success",
+      "details": "Parsed structured data from page text",
+      "confidence_score": 95,
+      "fields_extracted": 18,
+      "fields_missing": 4
+    },
+    {
+      "timestamp": "2026-01-31T11:56:30Z",
+      "action": "build_evidence_bundle",
+      "result": "success",
+      "details": "Created evidence bundle with JSON, Markdown, and extraction log"
+    }
+  ],
+  "summary": {
+    "total_actions": 16,
+    "successful_actions": 16,
+    "failed_actions": 0,
+    "partial_actions": 0,
+    "duration_seconds": 90,
+    "policy_violations": 0
+  },
+  "governance_attestation": {
+    "policy_applied": "SAM_GOV_AUTOMATION_POLICY",
+    "all_actions_permitted": true,
+    "no_prohibited_actions": true,
+    "evidence_captured": true,
+    "human_review_required": false
+  }
+}

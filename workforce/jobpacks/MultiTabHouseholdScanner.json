@@ -1,0 +1,516 @@
+{
+  "pack_id": "MultiTabHouseholdScanner",
+  "pack_version": "1.0.0",
+  "certification_level": 1,
+  "created_at": "2026-02-01T00:00:00Z",
+  "updated_at": "2026-02-01T00:00:00Z",
+  "author": "ACE Governance Platform",
+
+  "role": {
+    "name": "Multi-Tab Household Scanner",
+    "description": "Orchestrates multiple browser tabs simultaneously to build a unified view of household finances. Scans bank statements, shopping carts, utility bills, and calendars in parallel - then synthesizes actionable insights. The 'control center' for household awareness.",
+    "mission": "See everything at once. Understand how bills, balances, and timing interact. Surface the 'can I afford this?' answer without mental math or tab-switching.",
+    "success_criteria": [
+      "All relevant accounts scanned in single session",
+      "Cross-tab data synthesized into unified view",
+      "Affordability calculated with timing context",
+      "Anomalies detected through cross-reference",
+      "Zero data stored - ephemeral analysis only"
+    ],
+    "outputs": [
+      "household_snapshot.json",
+      "affordability_analysis.json",
+      "reconciliation_report.json",
+      "anomaly_flags.json",
+      "recommended_actions.md"
+    ],
+    "acceptance_criteria": [
+      "No actions taken - read-only scanning",
+      "All tabs closed after analysis",
+      "Data not persisted beyond session",
+      "Cross-tab findings presented for human decision"
+    ]
+  },
+
+  "authority": {
+    "informational_actions": [
+      {
+        "action": "open_tab",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Open a new browser tab to an allowed domain"
+      },
+      {
+        "action": "read_balance",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Read account balance from bank/card tab"
+      },
+      {
+        "action": "read_cart",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Read shopping cart contents and total"
+      },
+      {
+        "action": "read_bill",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Read bill amount and due date"
+      },
+      {
+        "action": "read_calendar",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Read calendar events (payday, bill due dates)"
+      },
+      {
+        "action": "read_transactions",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Read recent transaction history"
+      },
+      {
+        "action": "read_subscriptions",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Read active subscriptions from account pages"
+      },
+      {
+        "action": "screenshot_tab",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Capture screenshot for evidence bundle"
+      },
+      {
+        "action": "close_tab",
+        "allowed": true,
+        "mai_level": "INFORMATIONAL",
+        "requires_human_approval": false,
+        "description": "Close a browser tab"
+      }
+    ],
+
+    "advisory_actions": [
+      {
+        "action": "synthesize_dashboard",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": false,
+        "description": "Combine data from all tabs into unified view"
+      },
+      {
+        "action": "calculate_affordability",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": false,
+        "description": "Determine if pending purchases are affordable"
+      },
+      {
+        "action": "flag_anomalies",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": false,
+        "description": "Identify suspicious or unexpected findings"
+      },
+      {
+        "action": "recommend_timing",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": false,
+        "description": "Suggest optimal timing for payments"
+      },
+      {
+        "action": "cross_reference_charges",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": false,
+        "description": "Match bank charges to order receipts"
+      },
+      {
+        "action": "compare_prices",
+        "allowed": true,
+        "mai_level": "ADVISORY",
+        "requires_human_approval": true,
+        "description": "Compare prices across multiple merchant tabs"
+      }
+    ],
+
+    "mandatory_actions": [
+      {
+        "action": "execute_payment",
+        "allowed": false,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "BLOCKED - Scanner is read-only, cannot execute payments"
+      },
+      {
+        "action": "place_order",
+        "allowed": false,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "BLOCKED - Scanner is read-only, cannot place orders"
+      },
+      {
+        "action": "modify_account",
+        "allowed": false,
+        "mai_level": "MANDATORY",
+        "requires_human_approval": true,
+        "description": "BLOCKED - Scanner cannot modify any account settings"
+      }
+    ]
+  },
+
+  "permissions": {
+    "allowed_domains": [],
+    "allowed": [
+      { "action": "open_tab", "description": "Open tabs to allowed domains" },
+      { "action": "read_page", "description": "Read page content" },
+      { "action": "screenshot", "description": "Capture evidence" },
+      { "action": "navigate", "description": "Navigate within allowed domains" }
+    ],
+    "forbidden": [
+      {
+        "action": "click_pay_button",
+        "reason": "Scanner is read-only - no financial actions",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "click_checkout",
+        "reason": "Scanner is read-only - no purchase actions",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "submit_form",
+        "reason": "Scanner is read-only - no form submissions",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "enter_credentials",
+        "reason": "Scanner uses existing sessions only",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "store_data",
+        "reason": "Ephemeral analysis - no data persistence",
+        "enforcement": "HARD_BLOCK"
+      },
+      {
+        "action": "export_data",
+        "reason": "Data stays in session only",
+        "enforcement": "HARD_BLOCK"
+      }
+    ]
+  },
+
+  "constraints": {
+    "timeout_per_step_ms": 30000,
+    "max_retries_per_step": 2,
+    "max_concurrent_tabs": 6,
+    "tab_timeout_ms": 60000,
+    "session_max_duration_ms": 300000,
+    "data_retention": "SESSION_ONLY"
+  },
+
+  "escalation": {
+    "triggers": [
+      {
+        "trigger_id": "ESC-SCAN-001",
+        "name": "Unmatched Charge",
+        "condition": "bank_charge_no_matching_receipt",
+        "action": "ASK",
+        "severity": "MEDIUM",
+        "message": "Found charge with no matching order - verify legitimacy"
+      },
+      {
+        "trigger_id": "ESC-SCAN-002",
+        "name": "Insufficient Funds Detected",
+        "condition": "pending_total > available_balance",
+        "action": "STOP",
+        "severity": "HIGH",
+        "message": "Pending purchases exceed available balance"
+      },
+      {
+        "trigger_id": "ESC-SCAN-003",
+        "name": "Bill Due Before Payday",
+        "condition": "bill_due_date < next_payday AND balance < bill_amount",
+        "action": "ASK",
+        "severity": "HIGH",
+        "message": "Bill due before payday and insufficient funds currently"
+      },
+      {
+        "trigger_id": "ESC-SCAN-004",
+        "name": "Duplicate Subscription",
+        "condition": "similar_subscriptions_found",
+        "action": "ASK",
+        "severity": "LOW",
+        "message": "Possible duplicate subscriptions detected"
+      },
+      {
+        "trigger_id": "ESC-SCAN-005",
+        "name": "Unknown Recurring Charge",
+        "condition": "recurring_charge_not_in_known_subscriptions",
+        "action": "ASK",
+        "severity": "MEDIUM",
+        "message": "Recurring charge found that doesn't match known subscriptions"
+      },
+      {
+        "trigger_id": "ESC-SCAN-006",
+        "name": "Price Increase Detected",
+        "condition": "subscription_price > previous_price",
+        "action": "ASK",
+        "severity": "LOW",
+        "message": "Subscription price increased since last scan"
+      },
+      {
+        "trigger_id": "ESC-SCAN-007",
+        "name": "Large Pending Charge",
+        "condition": "pending_charge > 20% of balance",
+        "action": "ASK",
+        "severity": "MEDIUM",
+        "message": "Large pending charge - will significantly impact balance"
+      },
+      {
+        "trigger_id": "ESC-SCAN-008",
+        "name": "Potential Fraud",
+        "condition": "charge_from_unknown_merchant AND unusual_amount",
+        "action": "STOP",
+        "severity": "CRITICAL",
+        "message": "CRITICAL: Potential fraudulent charge detected"
+      },
+      {
+        "trigger_id": "ESC-SCAN-009",
+        "name": "Login Required",
+        "condition": "session_expired_on_tab",
+        "action": "STOP",
+        "severity": "HIGH",
+        "message": "Login required on tab - human must authenticate"
+      },
+      {
+        "trigger_id": "ESC-SCAN-010",
+        "name": "Budget Exceeded",
+        "condition": "monthly_spend > monthly_budget",
+        "action": "ASK",
+        "severity": "MEDIUM",
+        "message": "Monthly spending has exceeded budget"
+      }
+    ]
+  },
+
+  "ui_map": {
+    "domain": "multi-domain",
+    "description": "Scanner works across multiple domains simultaneously",
+    "stable_anchors": [
+      { "name": "balance_display", "anchors": [{ "type": "field_label", "value": "Balance" }, { "type": "field_label", "value": "Available" }], "description": "Account balance display" },
+      { "name": "cart_total", "anchors": [{ "type": "field_label", "value": "Total" }, { "type": "field_label", "value": "Subtotal" }], "description": "Shopping cart total" },
+      { "name": "bill_amount", "anchors": [{ "type": "field_label", "value": "Amount Due" }, { "type": "field_label", "value": "Balance Due" }], "description": "Bill amount" }
+    ],
+    "url_patterns": [
+      "*/account*",
+      "*/dashboard*",
+      "*/cart*",
+      "*/billing*",
+      "*/statements*"
+    ]
+  },
+
+  "evidence": {
+    "lightweight_capture": ["tab_url", "data_extracted", "timestamp"],
+    "milestone_screenshots": ["all_tabs_open", "dashboard_generated", "anomalies_flagged"]
+  },
+
+  "tab_orchestration": {
+    "description": "How tabs are managed during a scan session",
+    "tab_groups": {
+      "financial": {
+        "description": "Bank and card accounts",
+        "max_tabs": 2,
+        "data_points": ["balance", "pending_transactions", "recent_history"]
+      },
+      "shopping": {
+        "description": "Shopping carts and order history",
+        "max_tabs": 3,
+        "data_points": ["cart_contents", "cart_total", "recent_orders"]
+      },
+      "utilities": {
+        "description": "Utility and service providers",
+        "max_tabs": 4,
+        "data_points": ["bill_amount", "due_date", "account_status"]
+      },
+      "calendar": {
+        "description": "Calendar for timing context",
+        "max_tabs": 1,
+        "data_points": ["payday", "bill_reminders", "upcoming_events"]
+      }
+    },
+    "orchestration_flow": [
+      "1. Open financial tabs first (need balance for analysis)",
+      "2. Open shopping tabs (pending purchases)",
+      "3. Open utility tabs (upcoming bills)",
+      "4. Open calendar tab (timing context)",
+      "5. Extract data from all tabs",
+      "6. Synthesize unified dashboard",
+      "7. Run anomaly detection",
+      "8. Present findings",
+      "9. Close all tabs"
+    ]
+  },
+
+  "cross_tab_analysis": {
+    "reconciliation": {
+      "description": "Match bank charges to order receipts",
+      "method": "Compare charge amounts and dates to order confirmations",
+      "flags_if": ["Amount matches no order", "Merchant unknown", "Duplicate charge"]
+    },
+    "affordability": {
+      "description": "Can pending purchases be covered?",
+      "formula": "available_balance - pending_bills - pending_carts",
+      "considers": ["Payday timing", "Bill due dates", "Buffer preferences"]
+    },
+    "subscription_audit": {
+      "description": "Cross-reference subscriptions across tabs",
+      "method": "Compare bank recurring charges to account pages",
+      "flags_if": ["Charge without matching account", "Duplicate services", "Price changes"]
+    },
+    "timing_optimization": {
+      "description": "Best time to pay bills and make purchases",
+      "considers": ["Current balance", "Payday schedule", "Due dates", "Grace periods"]
+    }
+  },
+
+  "dashboard_output": {
+    "sections": [
+      {
+        "name": "Financial Position",
+        "includes": ["Current balance", "Pending transactions", "Available funds"]
+      },
+      {
+        "name": "Pending Obligations",
+        "includes": ["Shopping carts", "Bills due", "Subscription renewals"]
+      },
+      {
+        "name": "Affordability Analysis",
+        "includes": ["Can afford?", "After obligations", "Buffer remaining"]
+      },
+      {
+        "name": "Timing Recommendations",
+        "includes": ["Pay now vs. wait", "Payday impact", "Optimal schedule"]
+      },
+      {
+        "name": "Anomalies & Alerts",
+        "includes": ["Unmatched charges", "Suspicious activity", "Price changes"]
+      }
+    ]
+  },
+
+  "procedure_index": {
+    "steps": [
+      {
+        "step_id": "scan-001",
+        "action": "open_financial_tabs",
+        "mai_level": "INFORMATIONAL",
+        "description": "Open bank and card account tabs"
+      },
+      {
+        "step_id": "scan-002",
+        "action": "read_balances",
+        "mai_level": "INFORMATIONAL",
+        "description": "Extract current balances"
+      },
+      {
+        "step_id": "scan-003",
+        "action": "open_shopping_tabs",
+        "mai_level": "INFORMATIONAL",
+        "description": "Open shopping cart tabs"
+      },
+      {
+        "step_id": "scan-004",
+        "action": "read_carts",
+        "mai_level": "INFORMATIONAL",
+        "description": "Extract cart contents and totals"
+      },
+      {
+        "step_id": "scan-005",
+        "action": "open_utility_tabs",
+        "mai_level": "INFORMATIONAL",
+        "description": "Open utility bill tabs"
+      },
+      {
+        "step_id": "scan-006",
+        "action": "read_bills",
+        "mai_level": "INFORMATIONAL",
+        "description": "Extract bill amounts and due dates"
+      }
+    ],
+    "mini_index": [
+      {
+        "task_id": "FULL_HOUSEHOLD_SCAN",
+        "name": "Complete Household Scan",
+        "steps": [
+          "Open all configured account tabs",
+          "Extract balance and transaction data",
+          "Extract pending carts and orders",
+          "Extract bills and due dates",
+          "Read calendar for timing",
+          "Synthesize unified dashboard",
+          "Run anomaly detection",
+          "Calculate affordability",
+          "Generate recommendations",
+          "Present findings"
+        ]
+      },
+      {
+        "task_id": "QUICK_BALANCE_CHECK",
+        "name": "Quick Balance Check",
+        "steps": [
+          "Open bank tab only",
+          "Extract current balance",
+          "Extract pending transactions",
+          "Report available funds"
+        ]
+      },
+      {
+        "task_id": "CART_AFFORDABILITY",
+        "name": "Cart Affordability Check",
+        "steps": [
+          "Open bank tab",
+          "Open shopping cart tab",
+          "Compare cart total to balance",
+          "Factor in pending bills",
+          "Report: affordable yes/no"
+        ]
+      },
+      {
+        "task_id": "CHARGE_RECONCILIATION",
+        "name": "Monthly Charge Reconciliation",
+        "steps": [
+          "Open bank statement tab",
+          "Open order history tabs (Amazon, Instacart, etc)",
+          "Match each charge to an order",
+          "Flag unmatched charges",
+          "Report findings"
+        ]
+      },
+      {
+        "task_id": "SUBSCRIPTION_CROSS_CHECK",
+        "name": "Subscription Cross-Reference",
+        "steps": [
+          "Open bank statement (filter recurring)",
+          "Open subscription account pages",
+          "Match charges to accounts",
+          "Flag orphaned charges",
+          "Flag unused subscriptions",
+          "Report findings"
+        ]
+      }
+    ]
+  }
+}

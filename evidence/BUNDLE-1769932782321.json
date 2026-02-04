@@ -1,0 +1,108 @@
+{
+  "bundle_id": "BUNDLE-1769932782321",
+  "pack_id": "GrantsGovOpportunityFinder",
+  "execution_id": "EXEC-1769932782320",
+  "started_at": "2026-02-01T07:59:42.321Z",
+  "status": "SEALED",
+  "artifacts": [
+    {
+      "artifact_id": "ART-1769932782322-b42v1y",
+      "artifact_type": "METADATA",
+      "filename": "gate_checks.json",
+      "content_hash": "4e213dd03f7eef4fc7c9c604804aa9102b2444c7fc148a2cd2569d7feb9674f1",
+      "captured_at": "2026-02-01T07:59:42.322Z",
+      "description": "Pre-execution gate check results",
+      "data": {
+        "canExecute": true,
+        "gates": [
+          {
+            "passed": true,
+            "gate": "CERTIFICATION_LEVEL",
+            "reason": "Pack certification (TESTED) meets requirement",
+            "severity": "INFO"
+          },
+          {
+            "passed": true,
+            "gate": "PACK_ENABLED",
+            "reason": "All packs allowed (no restrictions)",
+            "severity": "INFO"
+          },
+          {
+            "passed": true,
+            "gate": "DOMAIN_ALLOWED",
+            "reason": "Domain \"www.grants.gov\" is permitted",
+            "severity": "INFO"
+          }
+        ]
+      }
+    },
+    {
+      "artifact_id": "ART-1769932785053-a3eblk",
+      "artifact_type": "SCREENSHOT",
+      "filename": "initial_page.png",
+      "content_hash": "38c737e026824df90afbda06486199114a4deff436cc7810ea6fe1ed1b11d1b1",
+      "captured_at": "2026-02-01T07:59:45.053Z",
+      "description": "Initial page state after navigation",
+      "data": {
+        "captured": true,
+        "timestamp": "2026-02-01T07:59:45.053Z"
+      }
+    },
+    {
+      "artifact_id": "ART-1769932785355-mj0wfh",
+      "artifact_type": "DATA",
+      "filename": "page_content.txt",
+      "content_hash": "2a2b11cc10b779bd8db1aedad07e6ebae58cba0036bafe6f5d2570f2b2210a52",
+      "captured_at": "2026-02-01T07:59:45.355Z",
+      "description": "Extracted page text",
+      "data": {
+        "text": "\n        Grants.gov - Find and Apply for Federal Grants\n\n        Search for grants by keyword, opportunity number, or CFDA number.\n\n        Featured Opportunities:\n        - Research Innovation Grant (HHS-2024-001)\n        - Small Business Technology Transfer (DOD-SBIR-2024)\n        - Environmental Conservation Fund (EPA-ECF-2024)\n\n        Total Active Opportunities: 2,847\n      "
+      }
+    },
+    {
+      "artifact_id": "ART-1769932785567-8as8ba",
+      "artifact_type": "SCREENSHOT",
+      "filename": "final_page.png",
+      "content_hash": "419344ccc8f0edb10e20a0e26e65616c2367202f82e8224acf776e7f1b6ff552",
+      "captured_at": "2026-02-01T07:59:45.567Z",
+      "description": "Final page state",
+      "data": {
+        "captured": true,
+        "timestamp": "2026-02-01T07:59:45.567Z"
+      }
+    },
+    {
+      "artifact_id": "ART-1769932785567-i1z0pd",
+      "artifact_type": "LOG",
+      "filename": "action_log.json",
+      "content_hash": "529e8475a805159eb773bdc3a4a26eb09cac78ecbc2dd5c7e0463121d76ac377",
+      "captured_at": "2026-02-01T07:59:45.567Z",
+      "description": "Complete action log",
+      "data": [
+        {
+          "timestamp": "2026-02-01T07:59:42.322Z",
+          "action_id": "ACT-1769932782322",
+          "action_type": "navigate",
+          "mai_level": "INFORMATIONAL",
+          "description": "Navigate to target URL",
+          "status": "EXECUTED",
+          "requires_approval": false,
+          "duration_ms": 2528
+        },
+        {
+          "timestamp": "2026-02-01T07:59:45.053Z",
+          "action_id": "ACT-1769932785053",
+          "action_type": "read_page",
+          "mai_level": "INFORMATIONAL",
+          "description": "Read page content",
+          "status": "EXECUTED",
+          "requires_approval": false,
+          "duration_ms": 302
+        }
+      ]
+    }
+  ],
+  "completed_at": "2026-02-01T07:59:45.567Z",
+  "manifest_hash": "8fbc3cdf1bd93ce4d81a0768b17ea123f1a74b35472cc3d58e8b013ac3bbfa0b",
+  "seal_hash": "66f6a868816ac90a1d3b96e86820bae7ad090638b8235e96e903a4bd10b2009f"
+}

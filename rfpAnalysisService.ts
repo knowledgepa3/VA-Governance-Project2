@@ -92,7 +92,7 @@ export async function analyzeOpportunityBrief(
 ): Promise<OpportunityBrief> {
   try {
     const response = await client.messages.create({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-sonnet-4-20250514",
       max_tokens: 2048,
       system: `You are an expert RFP data extraction specialist. Extract structured opportunity data from SAM.gov listings.`,
       messages: [{
@@ -140,7 +140,7 @@ export async function analyzeCompetitiveLandscape(
 ): Promise<CompetitiveLandscape> {
   try {
     const response = await client.messages.create({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-sonnet-4-20250514",
       max_tokens: 3072,
       system: `You are a competitive intelligence analyst specializing in government contracting. Analyze past award data to identify likely competitors and assess competitive dynamics.`,
       messages: [{
@@ -191,7 +191,7 @@ export async function analyzeCapabilityGaps(
 ): Promise<CapabilityGapAnalysis> {
   try {
     const response = await client.messages.create({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-sonnet-4-20250514",
       max_tokens: 3072,
       system: `You are a capability assessment expert for government contractors. Analyze gaps between company capabilities and RFP requirements.`,
       messages: [{
@@ -249,7 +249,7 @@ export async function generateTeamingRecommendations(
 ): Promise<TeamingRecommendation> {
   try {
     const response = await client.messages.create({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-sonnet-4-20250514",
       max_tokens: 2048,
       system: `You are a teaming strategy consultant for government contractors. Recommend optimal teaming partners based on capability gaps and competitive landscape.`,
       messages: [{
@@ -312,7 +312,7 @@ export async function calculateWinProbability(
 ): Promise<WinProbabilityAssessment> {
   try {
     const response = await client.messages.create({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-sonnet-4-20250514",
       max_tokens: 4096,
       system: `You are a BD win probability expert with 20+ years of government contracting experience. Calculate realistic win probabilities using a proven scoring methodology.`,
       messages: [{
@@ -410,7 +410,7 @@ export async function generateBDDecisionMemo(
 ): Promise<string> {
   try {
     const response = await client.messages.create({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-sonnet-4-20250514",
       max_tokens: 8192,
       system: `You are an executive BD strategist. Write clear, concise decision memos for C-suite executives.`,
       messages: [{

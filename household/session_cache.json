@@ -1,0 +1,62 @@
+{
+  "_description": "Session cache for faster household operations. Stores login states and last-known values.",
+  "_updated": "2026-02-03",
+
+  "login_states": {
+    "walmart.com": {
+      "logged_in": true,
+      "method": "persistent_session",
+      "account": "William S",
+      "last_verified": "2026-02-03"
+    },
+    "login.wowway.com": {
+      "logged_in": true,
+      "method": "persistent_session",
+      "account": "William Storey",
+      "last_verified": "2026-02-03"
+    },
+    "greystoneatcolumbuspark.securecafenet.com": {
+      "logged_in": false,
+      "method": "google_sso",
+      "notes": "Requires SSO click each session",
+      "last_verified": "2026-02-03"
+    },
+    "georgiapower.com": {
+      "logged_in": false,
+      "method": "email",
+      "status": "ACCOUNT_LOCKED",
+      "last_verified": "2026-02-01"
+    }
+  },
+
+  "direct_urls": {
+    "walmart_cart": "https://www.walmart.com/cart",
+    "wow_dashboard": "https://login.wowway.com",
+    "rent_portal": "https://greystoneatcolumbuspark.securecafenet.com/residentservices/greystone-at-columbus-park-0/userlogin",
+    "ga_power": "https://www.georgiapower.com"
+  },
+
+  "last_known_values": {
+    "wow_balance": {
+      "amount": 131.39,
+      "as_of": "2026-02-03"
+    },
+    "ga_power_balance": {
+      "amount": 366.83,
+      "as_of": "2026-02-01",
+      "status": "PAST_DUE"
+    },
+    "rent_typical": {
+      "amount": 1578.95,
+      "as_of": "2026-02-01"
+    }
+  },
+
+  "optimization_hints": {
+    "skip_homepage": ["walmart.com", "wowway.com"],
+    "go_direct_to_dashboard": ["login.wowway.com"],
+    "requires_sso_click": ["securecafenet.com"],
+    "screenshot_sparingly": true,
+    "max_screenshots_per_task": 10
+  }
+}
