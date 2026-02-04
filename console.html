@@ -1134,6 +1134,15 @@
           <div class="modal-row"><span class="modal-label">action-tracker.csv</span><span class="modal-value">demo/artifacts/[hash].csv</span></div>
           <div class="modal-row"><span class="modal-label">evidence-pack.json</span><span class="modal-value">demo/artifacts/[hash].json</span></div>
         </div>
+
+        <div class="modal-section" id="storageWarning" style="background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); border-radius: 6px; padding: 0.75rem; margin-top: 1rem;">
+          <div style="color: var(--yellow); font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem;">⚠️ LOCAL DEMO STORAGE</div>
+          <div style="color: var(--text-dim); font-size: 0.7rem; line-height: 1.5;">
+            Evidence stored client-side (localStorage). Not tamper-resistant.<br>
+            Backend sealing with server-side timestamps required for production.<br>
+            Hash chain demonstrates append-only audit model.
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1177,7 +1186,7 @@
     <span class="gov-divider">|</span>
     <span class="gov-item"><span class="gov-icon">⚠</span> Risk: <span class="hl-yellow" id="riskLevel">MODERATE</span></span>
     <span class="gov-divider">|</span>
-    <span class="gov-item"><span class="gov-icon">🔒</span> Integrity: <span class="hl-green" id="integrityStatus">VERIFIED</span></span>
+    <span class="gov-item"><span class="gov-icon">🔒</span> Integrity: <span class="hl-green" id="integrityStatus">VERIFIED (LOCAL)</span></span>
     <span class="gov-divider">|</span>
     <span class="gov-item"><span class="gov-icon">🤖</span> Autonomy: <span class="hl-cyan" id="autonomyLevel">ASSISTED</span></span>
     <span class="gov-divider">|</span>
@@ -1323,18 +1332,24 @@
         return false;
       },
 
+      // Storage mode indicator for UI
+      get storageMode() {
+        return this.isDemoMode ? 'LOCAL_DEMO' : 'BACKEND';
+      },
+
       // Redaction mode for public demos - masks PII
       REDACT_PII: true,
 
-      // Redacted values for public display
+      // Redacted values for public display - NO PII in hashes
       redact: {
-        operator: 'demo-user@example.com',
+        operatorToken: 'DEMO_OPERATOR', // Anonymous token, not email
         operatorDisplay: 'demo-user@███████',
         runIdPrefix: 'DEMO',
         domain: 'BD Capture (Demo)',
       },
 
       // Guard function - call before ANY execution path
+      // This is the SINGLE enforcement point for demo mode
       guardExecution(actionName) {
         if (this.isDemoMode) {
           console.log(`[GIA Guard] Blocked "${actionName}" - DEMO mode active`);
@@ -1343,10 +1358,29 @@
         return true; // Allow execution
       },
 
-      // Cryptographically secure hash generation
+      // Canonical JSON stringify - stable key order for deterministic hashing
+      canonicalize(obj) {
+        if (obj === null || typeof obj !== 'object') {
+          return JSON.stringify(obj);
+        }
+        if (Array.isArray(obj)) {
+          return '[' + obj.map(item => this.canonicalize(item)).join(',') + ']';
+        }
+        // Sort keys alphabetically for deterministic output
+        const sortedKeys = Object.keys(obj).sort();
+        const pairs = sortedKeys.map(key => {
+          const value = this.canonicalize(obj[key]);
+          return JSON.stringify(key) + ':' + value;
+        });
+        return '{' + pairs.join(',') + '}';
+      },
+
+      // Cryptographically secure hash generation with canonical JSON
       async generateHash(data) {
         const encoder = new TextEncoder();
-        const dataBuffer = encoder.encode(typeof data === 'string' ? data : JSON.stringify(data));
+        // Use canonical JSON for deterministic hashing
+        const canonical = typeof data === 'string' ? data : this.canonicalize(data);
+        const dataBuffer = encoder.encode(canonical);
         const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
@@ -1358,15 +1392,20 @@
         return `sha256:${fullHash.slice(0, 8)}...${fullHash.slice(-4)}`;
       },
 
-      // Generate workflow ID with timestamp
+      // Generate collision-safe workflow ID with crypto entropy
       generateWorkflowId(prefix = 'WF') {
         const now = new Date();
         const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
-        const seq = String(Math.floor(now.getTime() % 10000)).padStart(4, '0');
-        return `${prefix}-${dateStr.slice(0, 4)}-${dateStr.slice(4, 8)}-${seq}`;
+        const timeStr = now.toISOString().slice(11, 19).replace(/:/g, '');
+        // Add 6 chars of crypto-random entropy to prevent collisions
+        const entropy = new Uint8Array(3);
+        crypto.getRandomValues(entropy);
+        const entropyHex = Array.from(entropy).map(b => b.toString(16).padStart(2, '0')).join('');
+        return `${prefix}-${dateStr}-${timeStr}-${entropyHex.toUpperCase()}`;
       },
 
       // Safe fetch wrapper - blocks real API calls in demo mode
+      // ALL network calls MUST go through this guard
       async safeFetch(url, options = {}) {
         if (this.isDemoMode) {
           console.warn(`[GIA] Blocked fetch to ${url} - DEMO mode`);
@@ -1376,8 +1415,11 @@
       },
 
       // Evidence capture - stores evidence pack structure
+      // NOTE: localStorage is client-side and NOT tamper-resistant
+      // Production requires backend sealing with server-side timestamps
       evidence: {
         packs: [],
+        hashChain: null, // Append-only hash chain for tamper evidence
 
         create(workflowId, source, endpoint) {
           const pack = {
@@ -1388,9 +1430,12 @@
             timestamp: new Date().toISOString(),
             queryHash: null,
             responseHash: null,
+            packHash: null,
+            prevChainHash: this.hashChain,
             validation: 'PENDING',
             negativeAssurance: null,
-            sealed: false
+            sealed: false,
+            storageMode: GIA.storageMode // Explicitly mark as LOCAL_DEMO
           };
           this.packs.push(pack);
           return pack;
@@ -1400,44 +1445,82 @@
           const pack = this.packs.find(p => p.id === packId);
           if (!pack) return null;
 
+          // Generate separate hashes for query and response (canonical)
           pack.queryHash = await GIA.generateDisplayHash(queryData);
           pack.responseHash = await GIA.generateDisplayHash(responseData);
+
+          // Generate pack hash including metadata + content hashes
+          const packContent = {
+            id: pack.id,
+            workflowId: pack.workflowId,
+            source: pack.source,
+            endpoint: pack.endpoint,
+            timestamp: pack.timestamp,
+            queryHash: pack.queryHash,
+            responseHash: pack.responseHash,
+            prevChainHash: pack.prevChainHash
+          };
+          pack.packHash = await GIA.generateDisplayHash(packContent);
+
+          // Update hash chain (append-only)
+          this.hashChain = pack.packHash;
+
           pack.validation = 'VERIFIED';
           pack.sealed = true;
           pack.sealedAt = new Date().toISOString();
 
           // Persist to localStorage in demo mode
+          // WARNING: This is client-side storage - not tamper-resistant
           if (GIA.isDemoMode) {
             try {
               const stored = JSON.parse(localStorage.getItem('gia_evidence') || '[]');
               stored.push(pack);
-              localStorage.setItem('gia_evidence', JSON.stringify(stored.slice(-50))); // Keep last 50
+              localStorage.setItem('gia_evidence', JSON.stringify(stored.slice(-50)));
+              localStorage.setItem('gia_hash_chain', this.hashChain);
             } catch (e) {
               console.warn('[GIA] Evidence storage failed:', e);
             }
           }
 
           return pack;
+        },
+
+        // Verify hash chain integrity (demo only - shows the model)
+        async verifyChain() {
+          let prevHash = null;
+          for (const pack of this.packs) {
+            if (pack.sealed && pack.prevChainHash !== prevHash) {
+              return { valid: false, brokenAt: pack.id };
+            }
+            prevHash = pack.packHash;
+          }
+          return { valid: true, chainLength: this.packs.length };
         }
       },
 
       // Capsule storage - institutional memory
+      // NOTE: localStorage is client-side and NOT tamper-resistant
       capsules: {
         cache: new Map(),
 
         async store(capsuleId, data) {
+          // Hash the canonical data for deterministic provenance
+          const canonicalData = { ...data };
+          delete canonicalData.inputHash; // Don't include hash in hash
+
           const capsule = {
             id: capsuleId,
             ...data,
-            inputHash: await GIA.generateDisplayHash(data),
+            inputHash: await GIA.generateDisplayHash(canonicalData),
             storedAt: new Date().toISOString(),
             version: data.version || 'v1.0.0',
             ttl: data.ttl || '30d',
-            lastValidated: new Date().toISOString()
+            lastValidated: new Date().toISOString(),
+            storageMode: GIA.storageMode // Explicitly mark as LOCAL_DEMO
           };
           this.cache.set(capsuleId, capsule);
 
-          // Persist to localStorage
+          // Persist to localStorage (demo only)
           if (GIA.isDemoMode) {
             try {
               const stored = JSON.parse(localStorage.getItem('gia_capsules') || '{}');
@@ -1478,6 +1561,17 @@
             capsule.invalidatedAt = new Date().toISOString();
             capsule.invalidationReason = reason;
             this.cache.set(capsuleId, capsule);
+
+            // Persist invalidation
+            if (GIA.isDemoMode) {
+              try {
+                const stored = JSON.parse(localStorage.getItem('gia_capsules') || '{}');
+                stored[capsuleId] = capsule;
+                localStorage.setItem('gia_capsules', JSON.stringify(stored));
+              } catch (e) {
+                console.warn('[GIA] Capsule invalidation storage failed:', e);
+              }
+            }
           }
           return capsule;
         }
@@ -2207,10 +2301,11 @@ POC:           sarah.chen@us.af.mil`);
           await sleep(400);
 
           // Sandboxed artifact paths with crypto-secure hash
+          // Uses anonymous operator token - NO PII in hashes
           const artifactData = {
             workflowId: document.getElementById('workflowTag').textContent,
             timestamp: Date.now(),
-            operator: GIA.redact.operator
+            operatorToken: GIA.redact.operatorToken // Anonymous token, not email
           };
           const artifactHash = (await GIA.generateHash(artifactData)).slice(0, 12);
           addBlock('exported files', `📄 demo/artifacts/${artifactHash}-capture.pdf     12 pages
