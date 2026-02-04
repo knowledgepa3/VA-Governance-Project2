@@ -73,6 +73,7 @@ export default defineConfig(({ mode }) => {
       build: {
         rollupOptions: {
           input: {
+            portal: path.resolve(__dirname, 'portal.html'),
             main: path.resolve(__dirname, 'index-landing.html'),
             demo: path.resolve(__dirname, 'demo-landing.html'),
             onboarding: path.resolve(__dirname, 'onboarding.html'),
