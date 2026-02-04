@@ -873,9 +873,270 @@
       .input-area { padding: 0.75rem 1rem; }
       .sidebar-toggle { display: none; }
     }
+
+    /* Demo Banner */
+    .demo-banner {
+      background: rgba(59, 130, 246, 0.15);
+      border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+      padding: 0.4rem 1rem;
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--blue);
+      font-weight: 500;
+    }
+
+    /* Capsule Tooltip */
+    .capsule-tooltip {
+      position: absolute;
+      background: var(--bg-secondary);
+      border: 1px solid var(--pink);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-size: 0.7rem;
+      z-index: 1000;
+      min-width: 240px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      display: none;
+    }
+
+    .capsule-tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.3rem;
+      color: var(--text-dim);
+    }
+
+    .capsule-tooltip-row span:last-child {
+      color: var(--text);
+      font-family: var(--font-mono);
+    }
+
+    .capsule-block:hover .capsule-tooltip {
+      display: block;
+    }
+
+    /* Evidence Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      width: 90%;
+      max-width: 700px;
+      max-height: 80vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-tertiary);
+    }
+
+    .modal-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 1.5rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .modal-close:hover {
+      color: var(--text);
+    }
+
+    .modal-content {
+      padding: 1.5rem;
+      overflow-y: auto;
+      font-size: 0.85rem;
+    }
+
+    .modal-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .modal-section-title {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .modal-section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .modal-row {
+      display: flex;
+      gap: 1rem;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal-row:last-child {
+      border-bottom: none;
+    }
+
+    .modal-label {
+      color: var(--text-dim);
+      min-width: 120px;
+    }
+
+    .modal-value {
+      color: var(--text);
+      font-family: var(--font-mono);
+    }
+
+    .modal-value.pass {
+      color: var(--green);
+    }
+
+    .modal-value.hash {
+      color: var(--cyan);
+      font-size: 0.75rem;
+    }
+
+    .modal-capsules {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .modal-capsule {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--pink);
+      border-radius: 4px;
+      padding: 0.5rem 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-capsule-name {
+      color: var(--pink);
+      font-weight: 500;
+    }
+
+    .modal-capsule-status {
+      font-size: 0.7rem;
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      background: rgba(34, 197, 94, 0.2);
+      color: var(--green);
+    }
+
+    /* Confidence/Drift indicators */
+    .gov-item .indicator-drift-warn {
+      color: var(--yellow);
+      animation: drift-pulse 2s infinite;
+    }
+
+    @keyframes drift-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
   </style>
 </head>
 <body>
+
+  <!-- Demo Banner (shown on Vercel/production) -->
+  <div class="demo-banner" id="demoBanner" style="display: none;">
+    DEMO MODE — No live external calls. Synthetic data only. <a href="#" style="color: var(--cyan); margin-left: 0.5rem;">Learn more</a>
+  </div>
+
+  <!-- Evidence Pack Modal -->
+  <div class="modal-overlay" id="evidenceModal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">📦 Evidence Pack Viewer</span>
+        <button class="modal-close" id="modalClose">&times;</button>
+      </div>
+      <div class="modal-content">
+        <div class="modal-section">
+          <div class="modal-section-title">Run Metadata</div>
+          <div class="modal-row"><span class="modal-label">Workflow ID</span><span class="modal-value">WF-2026-0204-BD-001</span></div>
+          <div class="modal-row"><span class="modal-label">Operator</span><span class="modal-value">william@ace.io</span></div>
+          <div class="modal-row"><span class="modal-label">Mode</span><span class="modal-value">DEMO (synthetic)</span></div>
+          <div class="modal-row"><span class="modal-label">Started</span><span class="modal-value" id="modalStartTime">--</span></div>
+          <div class="modal-row"><span class="modal-label">Duration</span><span class="modal-value" id="modalDuration">--</span></div>
+        </div>
+
+        <div class="modal-section">
+          <div class="modal-section-title">Sources & Hashes</div>
+          <div class="modal-row"><span class="modal-label">Primary Source</span><span class="modal-value">SAM.gov API (sandbox)</span></div>
+          <div class="modal-row"><span class="modal-label">Query Hash</span><span class="modal-value hash">sha256:9f3a7c2d...e8b1</span></div>
+          <div class="modal-row"><span class="modal-label">Response Hash</span><span class="modal-value hash">sha256:4a2f8b1c...d9e3</span></div>
+          <div class="modal-row"><span class="modal-label">Evidence Sealed</span><span class="modal-value pass">VERIFIED</span></div>
+        </div>
+
+        <div class="modal-section">
+          <div class="modal-section-title">Capsule Reuse Log</div>
+          <div class="modal-capsules" id="modalCapsules">
+            <div class="modal-capsule">
+              <span class="modal-capsule-name">NAICS-541512-RANKING</span>
+              <span class="modal-capsule-status">HIT - $0.12 saved</span>
+            </div>
+            <div class="modal-capsule">
+              <span class="modal-capsule-name">AFRL-WIN-THEMES</span>
+              <span class="modal-capsule-status">HIT - $0.08 saved</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-section">
+          <div class="modal-section-title">Gate Approvals</div>
+          <div class="modal-row"><span class="modal-label">Gate 1</span><span class="modal-value pass">Domain Authorization ✓</span></div>
+          <div class="modal-row"><span class="modal-label">Gate 2</span><span class="modal-value pass">MAI Classification ✓</span></div>
+          <div class="modal-row"><span class="modal-label">Gate 3</span><span class="modal-value pass">Cost Budget ✓</span></div>
+          <div class="modal-row"><span class="modal-label">Gate 4</span><span class="modal-value" id="modalGate4">Pending...</span></div>
+        </div>
+
+        <div class="modal-section">
+          <div class="modal-section-title">Exported Artifacts</div>
+          <div class="modal-row"><span class="modal-label">capture-plan.pdf</span><span class="modal-value">demo/artifacts/[hash].pdf</span></div>
+          <div class="modal-row"><span class="modal-label">competitive-matrix.xlsx</span><span class="modal-value">demo/artifacts/[hash].xlsx</span></div>
+          <div class="modal-row"><span class="modal-label">action-tracker.csv</span><span class="modal-value">demo/artifacts/[hash].csv</span></div>
+          <div class="modal-row"><span class="modal-label">evidence-pack.json</span><span class="modal-value">demo/artifacts/[hash].json</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Header -->
   <header class="header">
@@ -890,6 +1151,7 @@
         <span id="statusText">running</span>
       </div>
       <div class="mode-tag" id="modeTag">DEMO</div>
+      <button class="header-btn" id="evidenceBtn" title="View Evidence Pack">📦</button>
     </div>
     <div class="header-right">
       <div class="cost-tag" id="costTag">$0.00</div>
@@ -918,6 +1180,10 @@
     <span class="gov-item"><span class="gov-icon">🔒</span> Integrity: <span class="hl-green" id="integrityStatus">VERIFIED</span></span>
     <span class="gov-divider">|</span>
     <span class="gov-item"><span class="gov-icon">🤖</span> Autonomy: <span class="hl-cyan" id="autonomyLevel">ASSISTED</span></span>
+    <span class="gov-divider">|</span>
+    <span class="gov-item"><span class="gov-icon">🎯</span> Confidence: <span class="hl-green" id="confidenceLevel">HIGH</span></span>
+    <span class="gov-divider">|</span>
+    <span class="gov-item"><span class="gov-icon">🔄</span> Drift: <span class="hl-green" id="driftStatus">CLEAN</span></span>
   </div>
 
   <!-- Metrics Bar -->
@@ -1031,6 +1297,20 @@
   </div>
 
   <script>
+    // ============================================
+    // DEMO MODE HARD-LOCK FOR PRODUCTION SAFETY
+    // ============================================
+    const IS_VERCEL = window.location.hostname.includes('vercel.app') ||
+                       window.location.hostname.includes('.vercel.') ||
+                       typeof process !== 'undefined' && process.env?.VERCEL === '1';
+    const FORCE_DEMO = true; // Always demo for now - flip to false for local live testing
+    const IS_DEMO_MODE = IS_VERCEL || FORCE_DEMO;
+
+    // If on Vercel, forcibly set demo mode indicator
+    if (IS_DEMO_MODE) {
+      console.log('[GIA] Running in DEMO mode - no live external calls');
+    }
+
     const terminal = document.getElementById('terminal');
     const inputField = document.getElementById('inputField');
     const statusPill = document.getElementById('statusPill');
@@ -1055,7 +1335,63 @@
     const integrityStatus = document.getElementById('integrityStatus');
     const riskLevel = document.getElementById('riskLevel');
     const capsuleHitsMetric = document.getElementById('capsuleHitsMetric');
+    const confidenceLevel = document.getElementById('confidenceLevel');
+    const driftStatus = document.getElementById('driftStatus');
     let capsuleHits = 0;
+
+    // Show demo banner if in demo mode
+    if (IS_DEMO_MODE) {
+      document.getElementById('demoBanner').style.display = 'block';
+      document.getElementById('modeTag').textContent = 'DEMO';
+      document.getElementById('modeTag').classList.remove('live');
+    }
+
+    // Evidence Modal
+    const evidenceModal = document.getElementById('evidenceModal');
+    const evidenceBtn = document.getElementById('evidenceBtn');
+    const modalClose = document.getElementById('modalClose');
+
+    evidenceBtn.addEventListener('click', () => {
+      // Update modal with current data
+      document.getElementById('modalStartTime').textContent = new Date(startTime).toISOString().replace('T', ' ').substr(0, 19);
+      document.getElementById('modalDuration').textContent = timeMetric.textContent;
+      document.getElementById('modalGate4').textContent = gatesPassed >= 4 ? 'Export Approved ✓' : 'Pending...';
+      document.getElementById('modalGate4').className = gatesPassed >= 4 ? 'modal-value pass' : 'modal-value';
+      evidenceModal.classList.add('open');
+    });
+
+    modalClose.addEventListener('click', () => {
+      evidenceModal.classList.remove('open');
+    });
+
+    evidenceModal.addEventListener('click', (e) => {
+      if (e.target === evidenceModal) {
+        evidenceModal.classList.remove('open');
+      }
+    });
+
+    // Confidence and Drift functions
+    function setConfidence(level) {
+      confidenceLevel.textContent = level;
+      if (level === 'HIGH') {
+        confidenceLevel.className = 'hl-green';
+      } else if (level === 'MEDIUM') {
+        confidenceLevel.className = 'hl-yellow';
+      } else if (level === 'LOW') {
+        confidenceLevel.className = 'hl-red';
+      }
+    }
+
+    function setDrift(status) {
+      driftStatus.textContent = status;
+      if (status === 'CLEAN') {
+        driftStatus.className = 'hl-green';
+      } else if (status === 'POLICY CHANGED') {
+        driftStatus.className = 'indicator-drift-warn';
+      } else if (status === 'INVALIDATED') {
+        driftStatus.className = 'hl-red';
+      }
+    }
 
     // Update timer every second
     setInterval(() => {
@@ -1133,6 +1469,14 @@
     function addCapsule(capsuleId, data) {
       const block = document.createElement('div');
       block.className = 'capsule-block';
+      block.style.position = 'relative';
+
+      // Generate provenance data
+      const packVersion = data.version || 'v1.0.0';
+      const inputHash = data.inputHash || 'sha256:' + Math.random().toString(36).substr(2, 8) + '...';
+      const ttlCountdown = data.ttl || '30d';
+      const lastValidated = new Date().toISOString().replace('T', ' ').substr(0, 19);
+
       block.innerHTML = `
         <div class="capsule-header">
           <div class="capsule-header-left">
@@ -1149,6 +1493,12 @@
             <span class="capsule-stat">💰 Saved: <span class="capsule-stat-value">$${data.saved || '0.00'}</span></span>
             ${data.ttl ? `<span class="capsule-stat">⏱ TTL: <span class="capsule-stat-value">${data.ttl}</span></span>` : ''}
           </div>
+        </div>
+        <div class="capsule-tooltip" style="top: 100%; left: 0; margin-top: 4px;">
+          <div class="capsule-tooltip-row"><span>Pack Version:</span><span>${packVersion}</span></div>
+          <div class="capsule-tooltip-row"><span>Input Hash:</span><span>${inputHash}</span></div>
+          <div class="capsule-tooltip-row"><span>TTL Countdown:</span><span>${ttlCountdown}</span></div>
+          <div class="capsule-tooltip-row"><span>Last Validated:</span><span>${lastValidated}</span></div>
         </div>
       `;
       terminal.appendChild(block);
@@ -1633,10 +1983,14 @@ POC:           sarah.chen@us.af.mil`);
           await typeText('step', '→', 'exporting artifacts...');
           await sleep(400);
 
-          addBlock('exported files', `📄 capture-FA8750-26-R-0042.pdf     12 pages
-📊 competitive-matrix.xlsx          3 competitors
-📋 action-tracker.csv               14 tasks
-📦 evidence-pack.json               full audit trail`);
+          // Sandboxed artifact paths - no real filesystem exposure
+          const artifactHash = Math.random().toString(36).substr(2, 8);
+          addBlock('exported files', `📄 demo/artifacts/${artifactHash}-capture.pdf     12 pages
+📊 demo/artifacts/${artifactHash}-matrix.xlsx      3 competitors
+📋 demo/artifacts/${artifactHash}-tracker.csv      14 tasks
+📦 demo/artifacts/${artifactHash}-evidence.json    full audit trail
+
+Note: Artifacts stored in sandboxed demo environment`);
 
           addSpacer();
 
