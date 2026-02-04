@@ -2,13 +2,13 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "rewrites": [
-    { "source": "/demo", "destination": "/demo-landing.html" },
-    { "source": "/", "destination": "/demo-landing.html" },
-    { "source": "/onboarding", "destination": "/onboarding.html" },
-    { "source": "/setup", "destination": "/onboarding.html" },
-    { "source": "/get-started", "destination": "/onboarding.html" },
-    { "source": "/app", "destination": "/index-landing.html" },
-    { "source": "/bd", "destination": "/bd.html" }
+  "routes": [
+    { "src": "/demo", "dest": "/demo-landing.html" },
+    { "src": "/onboarding", "dest": "/onboarding.html" },
+    { "src": "/setup", "dest": "/onboarding.html" },
+    { "src": "/get-started", "dest": "/onboarding.html" },
+    { "src": "/app", "dest": "/index-landing.html" },
+    { "src": "/bd", "dest": "/bd.html" },
+    { "src": "/", "dest": "/demo-landing.html" }
   ]
 }
