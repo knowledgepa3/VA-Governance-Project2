@@ -1077,7 +1077,7 @@
 
   <!-- Demo Banner (shown on Vercel/production) -->
   <div class="demo-banner" id="demoBanner" style="display: none;">
-    DEMO MODE — No live external calls. Synthetic data only. <a href="#" style="color: var(--cyan); margin-left: 0.5rem;">Learn more</a>
+    DEMO MODE — No live external calls. Synthetic data only. <a href="/onboarding" style="color: var(--cyan); margin-left: 0.5rem;">Request live access →</a>
   </div>
 
   <!-- Evidence Pack Modal -->
@@ -1343,6 +1343,29 @@
         return true; // Allow execution
       },
 
+      // Cryptographically secure hash generation
+      async generateHash(data) {
+        const encoder = new TextEncoder();
+        const dataBuffer = encoder.encode(typeof data === 'string' ? data : JSON.stringify(data));
+        const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      },
+
+      // Generate truncated hash for display (first 8 + last 4 chars)
+      async generateDisplayHash(data) {
+        const fullHash = await this.generateHash(data);
+        return `sha256:${fullHash.slice(0, 8)}...${fullHash.slice(-4)}`;
+      },
+
+      // Generate workflow ID with timestamp
+      generateWorkflowId(prefix = 'WF') {
+        const now = new Date();
+        const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+        const seq = String(Math.floor(now.getTime() % 10000)).padStart(4, '0');
+        return `${prefix}-${dateStr.slice(0, 4)}-${dateStr.slice(4, 8)}-${seq}`;
+      },
+
       // Safe fetch wrapper - blocks real API calls in demo mode
       async safeFetch(url, options = {}) {
         if (this.isDemoMode) {
@@ -1350,6 +1373,114 @@
           return { ok: false, status: 0, statusText: 'DEMO_MODE_BLOCKED' };
         }
         return fetch(url, options);
+      },
+
+      // Evidence capture - stores evidence pack structure
+      evidence: {
+        packs: [],
+
+        create(workflowId, source, endpoint) {
+          const pack = {
+            id: `EVD-${Date.now().toString(36).toUpperCase()}`,
+            workflowId,
+            source,
+            endpoint,
+            timestamp: new Date().toISOString(),
+            queryHash: null,
+            responseHash: null,
+            validation: 'PENDING',
+            negativeAssurance: null,
+            sealed: false
+          };
+          this.packs.push(pack);
+          return pack;
+        },
+
+        async seal(packId, queryData, responseData) {
+          const pack = this.packs.find(p => p.id === packId);
+          if (!pack) return null;
+
+          pack.queryHash = await GIA.generateDisplayHash(queryData);
+          pack.responseHash = await GIA.generateDisplayHash(responseData);
+          pack.validation = 'VERIFIED';
+          pack.sealed = true;
+          pack.sealedAt = new Date().toISOString();
+
+          // Persist to localStorage in demo mode
+          if (GIA.isDemoMode) {
+            try {
+              const stored = JSON.parse(localStorage.getItem('gia_evidence') || '[]');
+              stored.push(pack);
+              localStorage.setItem('gia_evidence', JSON.stringify(stored.slice(-50))); // Keep last 50
+            } catch (e) {
+              console.warn('[GIA] Evidence storage failed:', e);
+            }
+          }
+
+          return pack;
+        }
+      },
+
+      // Capsule storage - institutional memory
+      capsules: {
+        cache: new Map(),
+
+        async store(capsuleId, data) {
+          const capsule = {
+            id: capsuleId,
+            ...data,
+            inputHash: await GIA.generateDisplayHash(data),
+            storedAt: new Date().toISOString(),
+            version: data.version || 'v1.0.0',
+            ttl: data.ttl || '30d',
+            lastValidated: new Date().toISOString()
+          };
+          this.cache.set(capsuleId, capsule);
+
+          // Persist to localStorage
+          if (GIA.isDemoMode) {
+            try {
+              const stored = JSON.parse(localStorage.getItem('gia_capsules') || '{}');
+              stored[capsuleId] = capsule;
+              localStorage.setItem('gia_capsules', JSON.stringify(stored));
+            } catch (e) {
+              console.warn('[GIA] Capsule storage failed:', e);
+            }
+          }
+
+          return capsule;
+        },
+
+        get(capsuleId) {
+          // Check memory first
+          if (this.cache.has(capsuleId)) {
+            return this.cache.get(capsuleId);
+          }
+
+          // Check localStorage
+          try {
+            const stored = JSON.parse(localStorage.getItem('gia_capsules') || '{}');
+            if (stored[capsuleId]) {
+              this.cache.set(capsuleId, stored[capsuleId]);
+              return stored[capsuleId];
+            }
+          } catch (e) {
+            console.warn('[GIA] Capsule retrieval failed:', e);
+          }
+
+          return null;
+        },
+
+        invalidate(capsuleId, reason = 'POLICY_DRIFT') {
+          const capsule = this.get(capsuleId);
+          if (capsule) {
+            capsule.invalidated = true;
+            capsule.invalidatedAt = new Date().toISOString();
+            capsule.invalidationReason = reason;
+            this.cache.set(capsuleId, capsule);
+          }
+          return capsule;
+        }
       }
     });
 
@@ -1395,6 +1526,10 @@
     const confidenceLevel = document.getElementById('confidenceLevel');
     const driftStatus = document.getElementById('driftStatus');
     let capsuleHits = 0;
+
+    // Generate real workflow ID on load
+    const currentWorkflowId = GIA.generateWorkflowId('WF');
+    document.getElementById('workflowTag').textContent = currentWorkflowId;
 
     // Show demo banner if in demo mode
     if (IS_DEMO_MODE) {
@@ -1541,16 +1676,17 @@
       scrollToBottom();
     }
 
-    function addCapsule(capsuleId, data) {
+    async function addCapsule(capsuleId, data) {
       const block = document.createElement('div');
       block.className = 'capsule-block';
       block.style.position = 'relative';
 
-      // Generate provenance data
-      const packVersion = data.version || 'v1.0.0';
-      const inputHash = data.inputHash || 'sha256:' + Math.random().toString(36).substr(2, 8) + '...';
-      const ttlCountdown = data.ttl || '30d';
-      const lastValidated = new Date().toISOString().replace('T', ' ').substr(0, 19);
+      // Store capsule and get provenance data
+      const storedCapsule = await GIA.capsules.store(capsuleId, data);
+      const packVersion = storedCapsule.version;
+      const inputHash = storedCapsule.inputHash;
+      const ttlCountdown = storedCapsule.ttl;
+      const lastValidated = storedCapsule.lastValidated.replace('T', ' ').substr(0, 19);
 
       block.innerHTML = `
         <div class="capsule-header">
@@ -1939,15 +2075,27 @@ min-value:  $100,000`);
       // Step 5
       updateInstructionStep(pack, 4, 'active');
 
-      // Evidence Pack
+      // Evidence Pack - using real hash generation
       await sleep(400);
-      addEvidencePack('FED-SEARCH-2026-0204-001', {
-        source: 'SAM.gov API',
-        endpoint: '/opportunities/v2/search',
-        queryHash: '9f3a7c2d...e8b1',
-        timestamp: new Date().toISOString(),
-        validation: 'PASSED',
-        negativeAssurance: 'No set-aside filter applied'
+      const evidencePack = GIA.evidence.create(
+        document.getElementById('workflowTag').textContent,
+        'SAM.gov API',
+        '/opportunities/v2/search'
+      );
+
+      // Seal with actual query/response data (synthetic in demo)
+      const queryData = { keywords: ['AI/ML', 'cybersecurity'], naics: [541512, 541511] };
+      const responseData = { totalResults: 47, timestamp: Date.now() };
+      await GIA.evidence.seal(evidencePack.id, queryData, responseData);
+      evidencePack.negativeAssurance = 'No set-aside filter applied';
+
+      addEvidencePack(evidencePack.id, {
+        source: evidencePack.source,
+        endpoint: evidencePack.endpoint,
+        queryHash: evidencePack.queryHash,
+        timestamp: evidencePack.timestamp,
+        validation: evidencePack.validation,
+        negativeAssurance: evidencePack.negativeAssurance
       });
       updateInstructionStep(pack, 4, 'done');
 
@@ -2058,8 +2206,13 @@ POC:           sarah.chen@us.af.mil`);
           await typeText('step', '→', 'exporting artifacts...');
           await sleep(400);
 
-          // Sandboxed artifact paths - no real filesystem exposure
-          const artifactHash = Math.random().toString(36).substr(2, 8);
+          // Sandboxed artifact paths with crypto-secure hash
+          const artifactData = {
+            workflowId: document.getElementById('workflowTag').textContent,
+            timestamp: Date.now(),
+            operator: GIA.redact.operator
+          };
+          const artifactHash = (await GIA.generateHash(artifactData)).slice(0, 12);
           addBlock('exported files', `📄 demo/artifacts/${artifactHash}-capture.pdf     12 pages
 📊 demo/artifacts/${artifactHash}-matrix.xlsx      3 competitors
 📋 demo/artifacts/${artifactHash}-tracker.csv      14 tasks
