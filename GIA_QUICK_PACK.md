@@ -48,11 +48,12 @@ TASK COMPLETE MEANS:
 ✓ Committed
 ✓ TOOL_LEDGER included
 
-TOOL_LEDGER (end of every response):
-- Only invoke tools when necessary
-- Document: TOOL_LEDGER: [tool]: [why] → [artifact]
-- If no tools: TOOL_LEDGER: none
-- This creates client-verifiable audit trail
+TOOL_LEDGER (MAI-conditional):
+- MANDATORY tasks: Full ledger + ledger_id + verification status
+- ADVISORY tasks: Compact ledger or "available on request"
+- INFORMATIONAL: No ledger unless asked
+- Default verification: ADVISORY (client-side, not server-sealed)
+- Include commit hash after git ops for verifiability
 
 CAPSULES = Institutional memory, not cache
 - Reuse saves cost + time WITHOUT losing audit trail

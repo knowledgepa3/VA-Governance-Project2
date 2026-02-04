@@ -465,33 +465,64 @@ Before saying "done", verify:
 ## Tool/Skill Discipline (TOOL_LEDGER)
 
 ### The Principle
-Every tool invocation has a cost (tokens, time, side effects). Only invoke tools when necessary, and always document what was done. This creates an audit trail clients can verify.
+Every tool invocation has a cost (tokens, time, side effects). Only invoke tools when necessary, and document what was done based on the task's MAI classification.
 
-### TOOL_LEDGER Format
+### TOOL_LEDGER is MAI-Conditional
 
-At the end of EVERY response that involves work, include:
+| Classification | Ledger Requirement |
+|----------------|-------------------|
+| **MANDATORY** | Full ledger with all tool calls, file paths, line numbers, hashes |
+| **ADVISORY** | Compact ledger (tool + outcome) or "ledger available on request" |
+| **INFORMATIONAL** | No ledger unless user explicitly asks |
+
+**Default:** Code changes, commits, and builds are MANDATORY. Questions and explanations are INFORMATIONAL.
+
+### Full TOOL_LEDGER Format (for MANDATORY tasks)
 
 ```
-TOOL_LEDGER:
-- [TOOL_NAME]: [WHY] → [ARTIFACTS/OUTCOME]
+---
+TOOL_LEDGER [MANDATORY]
+ledger_id: LEDGER-YYYYMMDD-HHMMSS-<entropy>
+
+- Read: [file:lines] → [why]
+- Edit: [file:lines] → [what changed]
+- Bash: [command] → [outcome]
+
+artifacts:
+- [file] (modified)
+- [commit hash]
+
+verification: ADVISORY (client-side execution, not server-sealed)
+---
 ```
 
-### Examples
+### Compact TOOL_LEDGER Format (for ADVISORY tasks)
 
-**When tools ARE used:**
 ```
-TOOL_LEDGER:
-- Read: Needed console.html context for GIA runtime → Read 1500 lines
-- Edit: Add hash chain to evidence API → Modified console.html:1408-1490
-- Bash: Build verification → npm run build (SUCCESS)
-- Bash: Security check → grep sk-ant dist/ (CLEAN)
-- Bash: Commit → git commit (hash: abc123)
+TOOL_LEDGER [ADVISORY]: Read(2) → Edit(1) → Bash(build+commit) | hash: abc123
 ```
 
-**When NO tools are used:**
+### When NO tools are used
+
 ```
-TOOL_LEDGER: none (answered from context/knowledge)
+TOOL_LEDGER: none (answered from context)
 ```
+
+### Critical: Verification Status
+
+TOOL_LEDGER is **ADVISORY** by default because:
+- Tool calls are executed in Claude Code runtime
+- No server-side timestamp sealing
+- No cryptographic proof of execution
+- Client can verify via git log, file diffs, build artifacts
+
+To upgrade to **VERIFIED**:
+- Commit hash exists in repo ✓
+- File paths/lines are real ✓
+- Build output is reproducible ✓
+- Security scan is reproducible ✓
+
+**GIA framing:** TOOL_LEDGER proves *intent and claimed execution*. System logs prove *actual execution*.
 
 ### What Counts as a Tool
 - **Read/Glob/Grep**: File system access
@@ -500,26 +531,21 @@ TOOL_LEDGER: none (answered from context/knowledge)
 - **WebFetch/WebSearch**: External network calls
 - **Task**: Agent spawning
 
-### Why This Matters
-1. **Client transparency**: They see exactly what operations ran
-2. **Cost awareness**: Each tool call has token cost
-3. **Audit trail**: Matches GIA's evidence-first philosophy
-4. **Drift detection**: If tools drift from task, it's visible
-
 ### Anti-Patterns
 ```
-❌ Running grep "just to check" without documenting
-❌ Reading files already in context
-❌ Multiple small edits instead of one batched edit
-❌ Forgetting to log tool usage
+❌ Full ledger for simple questions (noisy)
+❌ Claiming tool runs that didn't happen (hallucination)
+❌ Vague file references without paths/lines
+❌ Missing commit hashes after git operations
+❌ Ledger without verification status
 ```
 
 ### Integration with GIA
 The TOOL_LEDGER is the developer-side equivalent of GIA's evidence pack:
-- GIA evidence → proves AI workflow execution
-- TOOL_LEDGER → proves developer tool execution
+- GIA evidence → proves AI workflow execution (can be server-sealed)
+- TOOL_LEDGER → proves developer tool execution (client-side, advisory)
 
-Both create accountability.
+Both create accountability, but at different trust levels.
 
 ### Example: Full-Arc Execution
 
