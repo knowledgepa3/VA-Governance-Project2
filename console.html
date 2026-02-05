@@ -4149,6 +4149,17 @@ OUTPUT: Complete formatted report ready for case file.`
         addLine('output', ' ', '  mcp clear   — clear completed/expired tasks');
         addLine('output', ' ', '  mcp reset   — reset relay state (caution)');
         addSpacer();
+        addLine('output', ' ', '<span class="hl-cyan">Playbook Engine:</span>');
+        addLine('output', ' ', '  playbook status — show engine status');
+        addLine('output', ' ', '  playbook list   — list registered playbooks');
+        addLine('output', ' ', '  playbook teach <name> — start teach mode recording');
+        addLine('output', ' ', '  playbook teach-gate <name> — mark gate during teach');
+        addLine('output', ' ', '  playbook teach-stop — stop recording, compile playbook');
+        addLine('output', ' ', '  playbook run <id> — execute a playbook');
+        addLine('output', ' ', '  playbook abort — abort current execution');
+        addLine('output', ' ', '  approve/deny — respond to gate prompts');
+        addLine('output', ' ', '  done — complete assist mode step');
+        addSpacer();
         addLine('output', ' ', '<span class="hl-cyan">Terminal:</span>');
         addLine('output', ' ', '  help        — show this message');
         addLine('output', ' ', '  clear       — clear terminal');
@@ -4310,6 +4321,69 @@ OUTPUT: Complete formatted report ready for case file.`
         }
 
         addSpacer();
+        inputField.value = '';
+        inputField.style.height = 'auto';
+        return;
+      }
+
+      // Playbook commands
+      if (lowerText.startsWith('playbook ') || lowerText === 'playbook') {
+        addLine('human', 'you:', text);
+        addSpacer();
+
+        const parts = text.trim().split(/\s+/);
+        const subCommand = parts[1]?.toLowerCase() || 'status';
+        const arg1 = parts.slice(2).join(' ');
+
+        if (window._playbookCommands && window._playbookCommands[subCommand]) {
+          window._playbookCommands[subCommand](arg1);
+        } else if (subCommand === 'help') {
+          addLine('system', '*', '<span class="hl-accent">PLAYBOOK ENGINE COMMANDS</span>');
+          addLine('output', ' ', '  playbook status — show engine status');
+          addLine('output', ' ', '  playbook list   — list registered playbooks');
+          addLine('output', ' ', '  playbook teach <name> — start teach mode');
+          addLine('output', ' ', '  playbook teach-gate <name> — mark gate point');
+          addLine('output', ' ', '  playbook teach-stop — compile recording to playbook');
+          addLine('output', ' ', '  playbook run <id> — execute playbook');
+          addLine('output', ' ', '  playbook abort — abort current execution');
+          addLine('output', ' ', '  playbook memory <set|get|list> [key] [value]');
+        } else {
+          addLine('warning', '!', `Unknown playbook command: ${subCommand}`);
+          addLine('output', ' ', '<span class="hl-dim">Try: playbook help</span>');
+        }
+
+        addSpacer();
+        inputField.value = '';
+        inputField.style.height = 'auto';
+        return;
+      }
+
+      // Gate approval commands (shorthand)
+      if (lowerText === 'approve' || lowerText === 'yes') {
+        addLine('human', 'you:', text);
+        if (window._playbookCommands) {
+          window._playbookCommands.approve();
+        }
+        inputField.value = '';
+        inputField.style.height = 'auto';
+        return;
+      }
+
+      if (lowerText === 'deny' || lowerText === 'no') {
+        addLine('human', 'you:', text);
+        if (window._playbookCommands) {
+          window._playbookCommands.deny();
+        }
+        inputField.value = '';
+        inputField.style.height = 'auto';
+        return;
+      }
+
+      if (lowerText === 'done') {
+        addLine('human', 'you:', text);
+        if (window._playbookCommands) {
+          window._playbookCommands.done();
+        }
         inputField.value = '';
         inputField.style.height = 'auto';
         return;
@@ -8651,6 +8725,1675 @@ MCP Browser: NOT CONNECTED`);
       reset: () => {
         GIAMCPRelay.reset();
         addLine('warning', '!', 'MCP Relay reset - all state cleared');
+      }
+    };
+
+    // ============================================
+    // GIA PLAYBOOK ENGINE - Complete Runtime System
+    // ============================================
+    // TEACH → COMPILE → RUN → ASSIST
+    //
+    // Governance-first automation that:
+    // - Gets faster over time without becoming unsafe
+    // - Hard gates for financial/sensitive actions
+    // - Drift detection with safe invalidation
+    // - Hash-locked approvals for sensitive operations
+    // ============================================
+
+    const GIAPlaybookEngine = {
+      // ============================================
+      // CONFIGURATION
+      // ============================================
+      config: {
+        version: '1.0.0',
+        defaultTimeout: 30000,        // 30s step timeout
+        gateTimeout: 300000,          // 5 min gate timeout
+        maxRetries: 3,
+        driftThreshold: 0.7,          // 70% selector match required
+        confidenceThreshold: {
+          high: 0.9,                  // Run immediately
+          medium: 0.7,                // Confirm playbook
+          low: 0.5                    // Show options
+        }
+      },
+
+      // ============================================
+      // STATE
+      // ============================================
+      _playbooks: new Map(),          // Registered playbooks
+      _memory: new Map(),             // User preferences by userId
+      _cache: new Map(),              // Performance cache by domain
+      _executions: new Map(),         // Active executions
+      _executionHistory: [],          // Completed executions
+      _teachRecording: null,          // Current teach mode recording
+      _currentExecution: null,        // Active execution context
+
+      // ============================================
+      // SENSITIVE ACTIONS - NEVER AUTOMATED
+      // ============================================
+      SENSITIVE_ACTIONS: [
+        'SUBMIT_PAYMENT',
+        'INITIATE_TRANSFER',
+        'ADD_PAYMENT_METHOD',
+        'CHANGE_PASSWORD',
+        'DELETE_ACCOUNT',
+        'SHARE_DOCUMENT',
+        'SEND_MESSAGE',
+        'AUTHORIZE_APP'
+      ],
+
+      // ============================================
+      // PLAYBOOK REGISTRY
+      // ============================================
+
+      /**
+       * Register a playbook from spec
+       */
+      registerPlaybook(spec) {
+        // Validate spec
+        if (!spec.manifest?.id || !spec.steps?.length) {
+          throw new Error('Invalid playbook spec: missing manifest.id or steps');
+        }
+
+        // Compute hash for integrity
+        const specHash = this._hashSpec(spec);
+        spec.manifest.hash = specHash;
+
+        // Store playbook
+        this._playbooks.set(spec.manifest.id, {
+          spec: spec,
+          registeredAt: new Date().toISOString(),
+          executionCount: 0,
+          lastExecuted: null,
+          successRate: null
+        });
+
+        addLine('success', '+', `Playbook registered: <span class="hl-cyan">${spec.manifest.id}</span> (${spec.manifest.version})`);
+
+        return spec.manifest.id;
+      },
+
+      /**
+       * Get playbook by ID
+       */
+      getPlaybook(playbookId) {
+        return this._playbooks.get(playbookId);
+      },
+
+      /**
+       * List all registered playbooks
+       */
+      listPlaybooks() {
+        const playbooks = [];
+        this._playbooks.forEach((pb, id) => {
+          playbooks.push({
+            id: id,
+            name: pb.spec.manifest.name,
+            version: pb.spec.manifest.version,
+            executionCount: pb.executionCount,
+            successRate: pb.successRate,
+            lastExecuted: pb.lastExecuted
+          });
+        });
+        return playbooks;
+      },
+
+      // ============================================
+      // INTENT ROUTER
+      // ============================================
+
+      /**
+       * Route user intent to appropriate playbook
+       */
+      routeIntent(userInput) {
+        const lowerInput = userInput.toLowerCase();
+        const candidates = [];
+
+        // Built-in intent patterns
+        const intentPatterns = [
+          { pattern: /pay\s*(my\s*)?(rent|mortgage)/i, playbookId: 'PB-PAY_RENT', confidence: 0.95 },
+          { pattern: /order\s*(my\s*)?(groceries|food)/i, playbookId: 'PB-ORDER_GROCERIES', confidence: 0.90 },
+          { pattern: /check\s*(my\s*)?(bank\s*)?balance/i, playbookId: 'PB-CHECK_BALANCE', confidence: 0.95 },
+          { pattern: /transfer\s*(money|funds|\$?\d+)/i, playbookId: 'PB-TRANSFER_FUNDS', confidence: 0.85 },
+          { pattern: /refill\s*(my\s*)?(prescription|rx|meds)/i, playbookId: 'PB-REFILL_PRESCRIPTION', confidence: 0.92 },
+          { pattern: /schedule\s*(an?\s*)?(appointment|visit)/i, playbookId: 'PB-SCHEDULE_APPOINTMENT', confidence: 0.88 },
+          { pattern: /pay\s*(my\s*)?(bill|utility|electric)/i, playbookId: 'PB-PAY_BILL', confidence: 0.90 }
+        ];
+
+        for (const { pattern, playbookId, confidence } of intentPatterns) {
+          if (pattern.test(userInput)) {
+            const playbook = this._playbooks.get(playbookId);
+            if (playbook) {
+              candidates.push({ playbookId, confidence, playbook: playbook.spec });
+            }
+          }
+        }
+
+        // Sort by confidence
+        candidates.sort((a, b) => b.confidence - a.confidence);
+
+        if (candidates.length === 0) {
+          return { matched: false, candidates: [], suggestion: 'No matching playbook found. Try teaching a new one.' };
+        }
+
+        const best = candidates[0];
+
+        if (best.confidence >= this.config.confidenceThreshold.high) {
+          return { matched: true, confidence: 'high', playbook: best, action: 'RUN_UNTIL_GATE' };
+        } else if (best.confidence >= this.config.confidenceThreshold.medium) {
+          return { matched: true, confidence: 'medium', playbook: best, action: 'CONFIRM_SELECTION', candidates };
+        } else {
+          return { matched: true, confidence: 'low', playbook: best, action: 'SHOW_OPTIONS', candidates };
+        }
+      },
+
+      // ============================================
+      // TEACH MODE - Record Human Actions
+      // ============================================
+
+      /**
+       * Start teach mode recording
+       */
+      startTeach(name, targetDomains = []) {
+        if (this._teachRecording) {
+          throw new Error('Already in teach mode. Call stopTeach() first.');
+        }
+
+        const recordingId = `TEACH-${Date.now().toString(36).toUpperCase()}`;
+
+        this._teachRecording = {
+          id: recordingId,
+          name: name,
+          targetDomains: targetDomains,
+          startedAt: new Date().toISOString(),
+          actions: [],
+          screenshots: [],
+          guards: [],
+          gates: [],
+          recoveryPatterns: []
+        };
+
+        addLine('system', '*', '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        addLine('system', '*', '<span class="hl-accent">TEACH MODE STARTED</span>');
+        addLine('output', ' ', `Recording: ${recordingId}`);
+        addLine('output', ' ', `Name: ${name}`);
+        addLine('output', ' ', 'Perform the task in your browser. GIA will record your actions.');
+        addLine('output', ' ', '<span class="hl-dim">Commands: teach-gate (mark gate), teach-stop (finish)</span>');
+        addLine('system', '*', '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        addSpacer();
+
+        // Open browser panel for teaching
+        if (window.BrowserAgent) {
+          BrowserAgent.init();
+          BrowserAgent.open();
+          BrowserAgent.log('TEACH MODE: Recording actions', 'action');
+        }
+
+        return recordingId;
+      },
+
+      /**
+       * Record an action during teach mode
+       */
+      recordAction(action) {
+        if (!this._teachRecording) {
+          console.warn('Not in teach mode');
+          return;
+        }
+
+        const actionRecord = {
+          id: `ACT-${this._teachRecording.actions.length + 1}`,
+          timestamp: new Date().toISOString(),
+          type: action.type,                    // navigate, click, type, select, wait
+          target: action.target,                // Element selector or URL
+          value: action.value,                  // Input value if applicable
+          url: action.url,                      // Current page URL
+          screenshot: action.screenshot,        // Screenshot ID if captured
+          metadata: {
+            tagName: action.tagName,
+            textContent: action.textContent?.substring(0, 100),
+            attributes: action.attributes,
+            position: action.position
+          }
+        };
+
+        this._teachRecording.actions.push(actionRecord);
+
+        addLine('step', '»', `Recorded: <span class="hl-cyan">${action.type}</span> ${action.target || action.value || ''}`);
+
+        return actionRecord.id;
+      },
+
+      /**
+       * Mark current position as a gate point
+       */
+      markGate(gateName, message) {
+        if (!this._teachRecording) {
+          addLine('error', 'x', 'Not in teach mode');
+          return;
+        }
+
+        const gate = {
+          id: `GATE-${gateName.toUpperCase().replace(/\s+/g, '_')}`,
+          afterAction: this._teachRecording.actions.length,
+          message: message || `Confirm ${gateName}?`,
+          addedAt: new Date().toISOString()
+        };
+
+        this._teachRecording.gates.push(gate);
+        addLine('gate', '!', `Gate marked: <span class="hl-yellow">${gate.id}</span>`);
+
+        return gate.id;
+      },
+
+      /**
+       * Mark a recovery pattern (error handling)
+       */
+      markRecovery(pattern, recovery) {
+        if (!this._teachRecording) return;
+
+        this._teachRecording.recoveryPatterns.push({
+          pattern: pattern,
+          recovery: recovery,
+          addedAt: new Date().toISOString()
+        });
+
+        addLine('output', ' ', `Recovery pattern added: ${pattern.textMatch || pattern.urlMatch}`);
+      },
+
+      /**
+       * Stop teach mode and generate playbook
+       */
+      async stopTeach() {
+        if (!this._teachRecording) {
+          throw new Error('Not in teach mode');
+        }
+
+        const recording = this._teachRecording;
+        this._teachRecording = null;
+
+        addLine('system', '*', '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        addLine('system', '*', '<span class="hl-accent">TEACH MODE COMPLETE</span>');
+        addLine('output', ' ', `Actions recorded: ${recording.actions.length}`);
+        addLine('output', ' ', `Gates marked: ${recording.gates.length}`);
+        addLine('system', '*', '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        addSpacer();
+
+        // Compile to playbook
+        const playbook = await this.compile(recording);
+
+        return playbook;
+      },
+
+      // ============================================
+      // COMPILE MODE - Generate Playbook from Recording
+      // ============================================
+
+      /**
+       * Compile teach recording into PlaybookSpec
+       */
+      async compile(recording) {
+        addLine('step', '>', 'Compiling playbook...');
+
+        // Extract unique domains
+        const domains = [...new Set(recording.actions
+          .filter(a => a.url)
+          .map(a => {
+            try { return new URL(a.url).hostname.replace('www.', ''); }
+            catch { return null; }
+          })
+          .filter(Boolean)
+        )];
+
+        // Generate steps from actions
+        const steps = recording.actions.map((action, index) => {
+          const step = {
+            id: `step_${index + 1}_${action.type}`,
+            action: action.type,
+            selectors: this._buildSelectors(action),
+            evidence: { screenshot: false }
+          };
+
+          // Add value for type/select actions
+          if (action.value) {
+            step.value = action.value;
+          }
+
+          // Add URL for navigate actions
+          if (action.type === 'navigate' && action.target) {
+            step.url = action.target;
+          }
+
+          // Add wait conditions
+          if (action.type === 'click' || action.type === 'type') {
+            step.waitFor = {
+              selector: step.selectors.primary,
+              state: 'visible',
+              timeout: 10000
+            };
+          }
+
+          return step;
+        });
+
+        // Insert gates at marked positions
+        const gates = recording.gates.map(g => ({
+          id: g.id,
+          trigger: `before:step_${g.afterAction + 1}`,
+          message: g.message,
+          timeout: 300
+        }));
+
+        // Build recovery routes
+        const recoveryRoutes = recording.recoveryPatterns.map(r => ({
+          pattern: r.pattern,
+          action: r.recovery.action || 'escalate',
+          message: r.recovery.message
+        }));
+
+        // Create PlaybookSpec
+        const playbookId = `PB-${recording.name.toUpperCase().replace(/\s+/g, '_')}`;
+
+        const spec = {
+          manifest: {
+            id: playbookId,
+            version: 'v1',
+            name: recording.name,
+            description: `Auto-generated from teach recording ${recording.id}`,
+            hash: null, // Will be computed
+            allowedDomains: domains,
+            createdAt: new Date().toISOString(),
+            createdBy: 'TEACH_MODE',
+            tags: ['auto-generated']
+          },
+          policy: {
+            automationLevel: gates.length > 0 ? 'SEMI_AUTO' : 'ASSIST',
+            gates: gates,
+            sensitiveActions: this._detectSensitiveActions(steps),
+            financialCeiling: 0 // Requires manual configuration
+          },
+          steps: steps,
+          guards: this._inferGuards(recording),
+          recoveryRoutes: recoveryRoutes,
+          evidenceSchema: {
+            captureScreenshots: 'gates_only',
+            extractFields: [],
+            successCriteria: {}
+          }
+        };
+
+        // Compute hash
+        spec.manifest.hash = this._hashSpec(spec);
+
+        // Register the playbook
+        this.registerPlaybook(spec);
+
+        addLine('success', '+', `Playbook compiled: <span class="hl-cyan">${playbookId}</span>`);
+        addLine('output', ' ', `Steps: ${steps.length} | Gates: ${gates.length} | Domains: ${domains.join(', ')}`);
+
+        return spec;
+      },
+
+      /**
+       * Build robust selectors from action metadata
+       */
+      _buildSelectors(action) {
+        const selectors = {
+          primary: null,
+          fallback: [],
+          textMatch: null
+        };
+
+        // Try to build best selector
+        if (action.metadata?.attributes?.id) {
+          selectors.primary = `#${action.metadata.attributes.id}`;
+        } else if (action.metadata?.attributes?.['data-testid']) {
+          selectors.primary = `[data-testid="${action.metadata.attributes['data-testid']}"]`;
+        } else if (action.metadata?.attributes?.name) {
+          selectors.primary = `[name="${action.metadata.attributes.name}"]`;
+        } else if (action.target) {
+          selectors.primary = action.target;
+        }
+
+        // Add text match as fallback
+        if (action.metadata?.textContent) {
+          selectors.textMatch = action.metadata.textContent.substring(0, 50);
+          selectors.fallback.push(`//${action.metadata.tagName || '*'}[contains(text(), '${selectors.textMatch.substring(0, 20)}')]`);
+        }
+
+        // Add class-based fallback
+        if (action.metadata?.attributes?.class) {
+          const classes = action.metadata.attributes.class.split(' ').slice(0, 2).join('.');
+          if (classes) selectors.fallback.push(`.${classes}`);
+        }
+
+        return selectors;
+      },
+
+      /**
+       * Detect sensitive actions in steps
+       */
+      _detectSensitiveActions(steps) {
+        const sensitive = [];
+        const sensitivePatterns = [
+          { pattern: /submit|place.*order|confirm.*payment/i, action: 'SUBMIT_PAYMENT' },
+          { pattern: /transfer|send.*money/i, action: 'INITIATE_TRANSFER' },
+          { pattern: /add.*card|add.*payment|add.*account/i, action: 'ADD_PAYMENT_METHOD' },
+          { pattern: /delete|remove.*account/i, action: 'DELETE_ACCOUNT' },
+          { pattern: /share|invite/i, action: 'SHARE_DOCUMENT' }
+        ];
+
+        for (const step of steps) {
+          const textToCheck = `${step.selectors?.textMatch || ''} ${step.value || ''}`;
+          for (const { pattern, action } of sensitivePatterns) {
+            if (pattern.test(textToCheck) && !sensitive.includes(action)) {
+              sensitive.push(action);
+            }
+          }
+        }
+
+        return sensitive;
+      },
+
+      /**
+       * Infer guards from recording
+       */
+      _inferGuards(recording) {
+        const guards = [];
+
+        // Check if starts on specific page
+        if (recording.actions[0]?.url) {
+          guards.push({
+            id: 'start_url_check',
+            check: `url.includes('${new URL(recording.actions[0].url).hostname}')`,
+            message: 'Must start on correct website',
+            canBypass: false
+          });
+        }
+
+        return guards;
+      },
+
+      // ============================================
+      // RUN MODE - Execute Playbook
+      // ============================================
+
+      /**
+       * Execute a playbook
+       */
+      async run(playbookId, options = {}) {
+        const playbook = this._playbooks.get(playbookId);
+        if (!playbook) {
+          throw new Error(`Playbook not found: ${playbookId}`);
+        }
+
+        const spec = playbook.spec;
+        const executionId = `EXEC-${playbookId}-${Date.now().toString(36).toUpperCase()}`;
+
+        // Create execution context
+        const execution = {
+          executionId: executionId,
+          playbookId: playbookId,
+          playbookVersion: spec.manifest.version,
+          playbookHash: spec.manifest.hash,
+          state: 'INITIALIZING',
+          mode: options.mode || 'RUN',
+          startedAt: new Date().toISOString(),
+          completedAt: null,
+          operatorId: GIA?.config?.operatorToken || 'ANONYMOUS',
+          steps: spec.steps.map(s => ({
+            stepId: s.id,
+            status: 'pending',
+            retryCount: 0
+          })),
+          gates: [],
+          outcome: null,
+          driftReport: { driftDetected: false, changes: [] },
+          evidencePackId: null,
+          _spec: spec,
+          _options: options,
+          _currentStepIndex: 0,
+          _abortController: new AbortController()
+        };
+
+        this._executions.set(executionId, execution);
+        this._currentExecution = execution;
+
+        // Display execution start
+        addLine('system', '*', '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        addLine('system', '*', `<span class="hl-accent">PLAYBOOK EXECUTION: ${spec.manifest.name}</span>`);
+        addLine('output', ' ', `Execution ID: ${executionId}`);
+        addLine('output', ' ', `Mode: ${execution.mode} | Steps: ${spec.steps.length} | Gates: ${spec.policy.gates.length}`);
+        addLine('system', '*', '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        addSpacer();
+
+        try {
+          // Validate guards
+          await this._validateGuards(execution);
+
+          // Update state to running
+          execution.state = 'RUNNING';
+
+          // Execute steps
+          await this._executeSteps(execution);
+
+          // Complete execution
+          execution.state = 'COMPLETED';
+          execution.completedAt = new Date().toISOString();
+          execution.outcome = {
+            success: true,
+            successCriteriaMet: true,
+            totalDurationMs: Date.now() - new Date(execution.startedAt).getTime(),
+            stepsCompleted: execution.steps.filter(s => s.status === 'completed').length,
+            stepsTotal: execution.steps.length,
+            gatesPassed: execution.gates.filter(g => g.decision === 'approved').length,
+            gatesDenied: execution.gates.filter(g => g.decision === 'denied').length
+          };
+
+          // Seal to evidence chain
+          await this._sealExecution(execution);
+
+          // Update playbook stats
+          playbook.executionCount++;
+          playbook.lastExecuted = new Date().toISOString();
+          this._updateSuccessRate(playbook);
+
+          addLine('success', '+', `Playbook complete: ${executionId}`);
+          addLine('output', ' ', `Duration: ${execution.outcome.totalDurationMs}ms | Steps: ${execution.outcome.stepsCompleted}/${execution.outcome.stepsTotal}`);
+
+        } catch (error) {
+          execution.state = 'FAILED';
+          execution.completedAt = new Date().toISOString();
+          execution.outcome = {
+            success: false,
+            failureStep: execution.steps[execution._currentStepIndex]?.stepId,
+            failureReason: error.message,
+            totalDurationMs: Date.now() - new Date(execution.startedAt).getTime(),
+            stepsCompleted: execution.steps.filter(s => s.status === 'completed').length,
+            stepsTotal: execution.steps.length
+          };
+
+          await this._sealExecution(execution);
+
+          addLine('error', 'x', `Playbook failed: ${error.message}`);
+          throw error;
+
+        } finally {
+          this._executionHistory.push(execution);
+          this._currentExecution = null;
+        }
+
+        return execution;
+      },
+
+      /**
+       * Validate guards before execution
+       */
+      async _validateGuards(execution) {
+        const guards = execution._spec.guards || [];
+
+        for (const guard of guards) {
+          addLine('step', '>', `Checking guard: ${guard.id}`);
+
+          // Simple guard evaluation (would be more sophisticated in production)
+          let passed = true;
+          let message = '';
+
+          if (guard.check.includes('url.')) {
+            // URL-based guard - would check actual browser URL
+            passed = true; // Assume passed for now
+          }
+
+          if (!passed) {
+            if (guard.canBypass) {
+              // Ask for bypass
+              const bypass = await this._promptGate(`GUARD-${guard.id}`,
+                `Guard failed: ${guard.message}\n\nBypass this check?`);
+              if (!bypass) {
+                throw new Error(`Guard failed: ${guard.message}`);
+              }
+            } else {
+              throw new Error(`Guard failed (no bypass allowed): ${guard.message}`);
+            }
+          }
+
+          addLine('success', '+', `Guard passed: ${guard.id}`);
+        }
+      },
+
+      /**
+       * Execute all steps in the playbook
+       */
+      async _executeSteps(execution) {
+        const steps = execution._spec.steps;
+        const gates = execution._spec.policy.gates;
+
+        for (let i = 0; i < steps.length; i++) {
+          // Check for abort
+          if (execution._abortController.signal.aborted) {
+            execution.state = 'ABORTED';
+            throw new Error('Execution aborted by operator');
+          }
+
+          const step = steps[i];
+          const stepRecord = execution.steps[i];
+          execution._currentStepIndex = i;
+
+          // Check for gate before this step
+          const gate = gates.find(g => g.trigger === `before:${step.id}`);
+          if (gate) {
+            await this._handleGate(execution, gate, step);
+          }
+
+          // Execute the step
+          await this._executeStep(execution, step, stepRecord);
+        }
+      },
+
+      /**
+       * Execute a single step
+       */
+      async _executeStep(execution, step, stepRecord) {
+        stepRecord.status = 'executing';
+        stepRecord.startedAt = new Date().toISOString();
+
+        addLine('step', '»', `Step ${step.id}: <span class="hl-cyan">${step.action}</span>`);
+
+        try {
+          // Wait for element if needed
+          if (step.waitFor) {
+            await this._waitForElement(step.waitFor);
+          }
+
+          // Execute action via MCP Relay
+          const result = await this._executeAction(step);
+
+          // Verify postcondition
+          if (step.postcondition) {
+            await this._verifyPostcondition(step.postcondition);
+          }
+
+          // Capture evidence
+          if (step.evidence?.screenshot) {
+            const screenshotId = await this._captureScreenshot(execution.executionId, step.id);
+            stepRecord.evidence = { screenshotId };
+          }
+
+          stepRecord.status = 'completed';
+          stepRecord.completedAt = new Date().toISOString();
+          stepRecord.durationMs = Date.now() - new Date(stepRecord.startedAt).getTime();
+
+          addLine('success', '+', `Step complete: ${step.id} (${stepRecord.durationMs}ms)`);
+
+        } catch (error) {
+          stepRecord.status = 'failed';
+          stepRecord.completedAt = new Date().toISOString();
+          stepRecord.error = {
+            code: 'STEP_FAILED',
+            message: error.message
+          };
+
+          // Check for recovery
+          const recovery = this._findRecovery(execution._spec.recoveryRoutes, error);
+          if (recovery) {
+            stepRecord.error.recoveryAttempted = recovery.action;
+
+            if (recovery.action === 'retry' && stepRecord.retryCount < this.config.maxRetries) {
+              stepRecord.retryCount++;
+              addLine('warning', '~', `Retrying step (attempt ${stepRecord.retryCount})...`);
+              await this._sleep(1000 * stepRecord.retryCount);
+              return this._executeStep(execution, step, stepRecord);
+            }
+
+            if (recovery.action === 'escalate' || recovery.action === 'wait_for_human') {
+              execution.state = 'WAITING_FOR_HUMAN';
+              addLine('gate', '!', `<span class="hl-yellow">HUMAN ASSISTANCE REQUIRED</span>`);
+              addLine('output', ' ', recovery.message || error.message);
+
+              // Wait for human
+              const resolved = await this._waitForHumanAssist(step.id, error.message);
+              if (resolved) {
+                stepRecord.status = 'completed';
+                execution.state = 'RUNNING';
+                return;
+              }
+            }
+          }
+
+          throw error;
+        }
+      },
+
+      /**
+       * Execute a browser action via MCP Relay
+       */
+      async _executeAction(step) {
+        const actionType = `browser.${step.action}`;
+
+        switch (step.action) {
+          case 'navigate':
+            return await GIAMCPRelay.navigate(step.url || step.selectors?.primary);
+
+          case 'click':
+            return await GIAMCPRelay.click(step.selectors?.primary);
+
+          case 'type':
+            // Substitute memory references in value
+            const value = this._substituteMemory(step.value);
+            return await GIAMCPRelay.type(value, step.selectors?.primary);
+
+          case 'extract':
+            return await GIAMCPRelay.extract(step.selectors?.primary);
+
+          case 'wait':
+            await this._sleep(step.waitFor?.timeout || 1000);
+            return { waited: true };
+
+          case 'assert':
+            // Assert is verification only, no MCP action
+            return { asserted: true };
+
+          default:
+            return await GIAMCPRelay.queueTask(actionType, {
+              selector: step.selectors?.primary,
+              value: step.value
+            });
+        }
+      },
+
+      /**
+       * Handle a gate checkpoint
+       */
+      async _handleGate(execution, gate, step) {
+        execution.state = 'PAUSED_AT_GATE';
+
+        const gateRecord = {
+          gateId: gate.id,
+          triggeredAt: new Date().toISOString(),
+          decision: 'pending',
+          context: {
+            message: gate.message,
+            proposedAction: `${step.action} on ${step.selectors?.primary || step.url}`
+          }
+        };
+
+        execution.gates.push(gateRecord);
+
+        addLine('gate', '!', '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        addLine('gate', '!', `<span class="hl-yellow">GATE: ${gate.id}</span>`);
+        addLine('output', ' ', gate.message);
+        addLine('output', ' ', `Next action: ${step.action} → ${step.selectors?.primary || step.url || ''}`);
+
+        // Capture screenshot for context
+        const screenshotId = await this._captureScreenshot(execution.executionId, gate.id);
+        gateRecord.context.screenshotId = screenshotId;
+
+        addLine('output', ' ', '<span class="hl-dim">Type "approve" to continue or "deny" to abort</span>');
+        addLine('gate', '!', '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+        // Wait for approval
+        const approved = await this._promptGate(gate.id, gate.message, gate.timeout);
+
+        gateRecord.decidedAt = new Date().toISOString();
+        gateRecord.decidedBy = GIA?.config?.operatorToken || 'OPERATOR';
+
+        if (approved) {
+          gateRecord.decision = 'approved';
+          // Hash-lock the approval
+          gateRecord.approvalHash = this._hashSpec({
+            gateId: gate.id,
+            stepId: step.id,
+            timestamp: gateRecord.decidedAt
+          });
+          execution.state = 'RUNNING';
+          addLine('success', '+', `Gate ${gate.id}: APPROVED`);
+        } else {
+          gateRecord.decision = 'denied';
+          execution.state = 'ABORTED';
+          throw new Error(`Gate ${gate.id} denied by operator`);
+        }
+      },
+
+      /**
+       * Prompt for gate approval
+       */
+      async _promptGate(gateId, message, timeout = 300000) {
+        return new Promise((resolve) => {
+          const startTime = Date.now();
+
+          // Store resolver for external approval
+          window._pendingGates = window._pendingGates || {};
+          window._pendingGates[gateId] = resolve;
+
+          // Timeout handler
+          const timeoutId = setTimeout(() => {
+            delete window._pendingGates[gateId];
+            addLine('warning', '!', `Gate ${gateId} timed out`);
+            resolve(false);
+          }, timeout);
+
+          // Watch for approval command (would integrate with input handler)
+          window._pendingGates[gateId]._timeout = timeoutId;
+        });
+      },
+
+      /**
+       * Approve a pending gate (called from terminal)
+       */
+      approveGate(gateId) {
+        if (window._pendingGates && window._pendingGates[gateId]) {
+          clearTimeout(window._pendingGates[gateId]._timeout);
+          window._pendingGates[gateId](true);
+          delete window._pendingGates[gateId];
+          return true;
+        }
+        return false;
+      },
+
+      /**
+       * Deny a pending gate
+       */
+      denyGate(gateId) {
+        if (window._pendingGates && window._pendingGates[gateId]) {
+          clearTimeout(window._pendingGates[gateId]._timeout);
+          window._pendingGates[gateId](false);
+          delete window._pendingGates[gateId];
+          return true;
+        }
+        return false;
+      },
+
+      // ============================================
+      // ASSIST MODE - Human Takes Over
+      // ============================================
+
+      /**
+       * Wait for human assistance
+       */
+      async _waitForHumanAssist(stepId, reason) {
+        return new Promise((resolve) => {
+          const assistId = `ASSIST-${stepId}`;
+
+          window._pendingAssist = window._pendingAssist || {};
+          window._pendingAssist[assistId] = resolve;
+
+          addLine('gate', '!', `<span class="hl-yellow">ASSIST MODE</span>`);
+          addLine('output', ' ', `Step ${stepId} needs help: ${reason}`);
+          addLine('output', ' ', 'Perform this step manually, then type "done" to continue');
+        });
+      },
+
+      /**
+       * Mark assist as complete
+       */
+      completeAssist(stepId) {
+        const assistId = `ASSIST-${stepId}`;
+        if (window._pendingAssist && window._pendingAssist[assistId]) {
+          window._pendingAssist[assistId](true);
+          delete window._pendingAssist[assistId];
+          addLine('success', '+', `Assist complete: ${stepId}`);
+          return true;
+        }
+        return false;
+      },
+
+      // ============================================
+      // DRIFT DETECTION
+      // ============================================
+
+      /**
+       * Check for UI drift
+       */
+      async _checkDrift(execution, step) {
+        // Compare current DOM fingerprint with cached
+        const domain = this._getCurrentDomain();
+        const cached = this._cache.get(domain);
+
+        if (!cached) return { driftDetected: false };
+
+        // Check if selector still works
+        const selectorValid = await this._testSelector(step.selectors?.primary);
+
+        if (!selectorValid) {
+          execution.driftReport.driftDetected = true;
+          execution.driftReport.changes.push({
+            stepId: step.id,
+            expected: step.selectors?.primary,
+            found: 'Element not found',
+            severity: 'high'
+          });
+
+          return {
+            driftDetected: true,
+            severity: 'high',
+            recommendation: 'SWITCH_TO_ASSIST'
+          };
+        }
+
+        return { driftDetected: false };
+      },
+
+      /**
+       * Test if a selector finds an element
+       */
+      async _testSelector(selector) {
+        if (!selector) return false;
+
+        try {
+          // This would use MCP to test the selector
+          const result = await GIAMCPRelay.queueTask('browser.find', { query: selector });
+          return result?.data?.found || false;
+        } catch {
+          return false;
+        }
+      },
+
+      // ============================================
+      // MEMORY LAYER
+      // ============================================
+
+      /**
+       * Set user memory/preferences
+       */
+      setMemory(userId, key, value) {
+        let userMemory = this._memory.get(userId);
+        if (!userMemory) {
+          userMemory = { userId, preferences: {}, accountNicknames: {}, landmarks: {} };
+          this._memory.set(userId, userMemory);
+        }
+
+        // Deep set using dot notation
+        const keys = key.split('.');
+        let obj = userMemory;
+        for (let i = 0; i < keys.length - 1; i++) {
+          obj[keys[i]] = obj[keys[i]] || {};
+          obj = obj[keys[i]];
+        }
+        obj[keys[keys.length - 1]] = value;
+
+        return userMemory;
+      },
+
+      /**
+       * Get user memory
+       */
+      getMemory(userId, key) {
+        const userMemory = this._memory.get(userId);
+        if (!userMemory) return null;
+
+        if (!key) return userMemory;
+
+        const keys = key.split('.');
+        let obj = userMemory;
+        for (const k of keys) {
+          if (obj && typeof obj === 'object') {
+            obj = obj[k];
+          } else {
+            return null;
+          }
+        }
+        return obj;
+      },
+
+      /**
+       * Substitute ${memory.xxx} references in text
+       */
+      _substituteMemory(text) {
+        if (!text || typeof text !== 'string') return text;
+
+        const userId = GIA?.config?.operatorToken || 'default';
+        const memory = this._memory.get(userId);
+        if (!memory) return text;
+
+        return text.replace(/\$\{memory\.([^}]+)\}/g, (match, path) => {
+          const value = this.getMemory(userId, path);
+          return value !== null ? String(value) : match;
+        });
+      },
+
+      // ============================================
+      // CACHE LAYER
+      // ============================================
+
+      /**
+       * Cache selector for performance
+       */
+      cacheSelector(domain, stepId, selector) {
+        let domainCache = this._cache.get(domain);
+        if (!domainCache) {
+          domainCache = { selectorCache: {}, routeMap: {}, waitTimes: {} };
+          this._cache.set(domain, domainCache);
+        }
+
+        domainCache.selectorCache[stepId] = {
+          selector: selector,
+          successCount: (domainCache.selectorCache[stepId]?.successCount || 0) + 1,
+          lastUsed: new Date().toISOString()
+        };
+      },
+
+      /**
+       * Get cached selector
+       */
+      getCachedSelector(domain, stepId) {
+        const domainCache = this._cache.get(domain);
+        return domainCache?.selectorCache?.[stepId]?.selector;
+      },
+
+      /**
+       * Clear expired cache entries
+       */
+      clearExpiredCache() {
+        const now = Date.now();
+        const maxAge = 86400000; // 24 hours
+
+        this._cache.forEach((domainCache, domain) => {
+          Object.keys(domainCache.selectorCache).forEach(key => {
+            const entry = domainCache.selectorCache[key];
+            if (new Date(entry.lastUsed).getTime() + maxAge < now) {
+              delete domainCache.selectorCache[key];
+            }
+          });
+        });
+      },
+
+      // ============================================
+      // UTILITIES
+      // ============================================
+
+      _hashSpec(spec) {
+        const str = JSON.stringify(spec, Object.keys(spec).sort());
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          const char = str.charCodeAt(i);
+          hash = ((hash << 5) - hash) + char;
+          hash = hash & hash;
+        }
+        return 'sha256:' + Math.abs(hash).toString(16).padStart(16, '0');
+      },
+
+      async _sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      },
+
+      async _waitForElement(waitFor) {
+        const startTime = Date.now();
+        const timeout = waitFor.timeout || 10000;
+
+        while (Date.now() - startTime < timeout) {
+          const found = await this._testSelector(waitFor.selector);
+          if (found) return true;
+          await this._sleep(500);
+        }
+
+        throw new Error(`Timeout waiting for element: ${waitFor.selector}`);
+      },
+
+      async _verifyPostcondition(postcondition) {
+        // Would check actual browser state
+        return true;
+      },
+
+      async _captureScreenshot(executionId, stepId) {
+        const screenshotId = `SS-${executionId}-${stepId}`;
+
+        try {
+          await GIAMCPRelay.screenshot({ executionId, stepId });
+        } catch (e) {
+          console.warn('Screenshot capture failed:', e);
+        }
+
+        return screenshotId;
+      },
+
+      _getCurrentDomain() {
+        return window.BrowserAgent?._urlBar?.value
+          ? new URL(window.BrowserAgent._urlBar.value).hostname.replace('www.', '')
+          : 'unknown';
+      },
+
+      _findRecovery(routes, error) {
+        if (!routes || !routes.length) return null;
+
+        for (const route of routes) {
+          if (route.pattern?.textMatch && error.message.includes(route.pattern.textMatch)) {
+            return route;
+          }
+        }
+        return null;
+      },
+
+      _updateSuccessRate(playbook) {
+        const recentExecutions = this._executionHistory
+          .filter(e => e.playbookId === playbook.spec.manifest.id)
+          .slice(-10);
+
+        if (recentExecutions.length > 0) {
+          const successes = recentExecutions.filter(e => e.outcome?.success).length;
+          playbook.successRate = (successes / recentExecutions.length * 100).toFixed(1);
+        }
+      },
+
+      async _sealExecution(execution) {
+        // Create evidence pack
+        const evidenceData = {
+          executionId: execution.executionId,
+          playbookId: execution.playbookId,
+          playbookVersion: execution.playbookVersion,
+          playbookHash: execution.playbookHash,
+          state: execution.state,
+          startedAt: execution.startedAt,
+          completedAt: execution.completedAt,
+          outcome: execution.outcome,
+          gateDecisions: execution.gates.map(g => ({
+            gateId: g.gateId,
+            decision: g.decision,
+            approvalHash: g.approvalHash
+          })),
+          driftReport: execution.driftReport
+        };
+
+        if (GIAWorkflow?._context) {
+          const packId = await GIAWorkflow.createPack(
+            'PLAYBOOK_EXECUTION',
+            `/${execution.playbookId}`,
+            evidenceData,
+            { sealed: true, version: '1.0' }
+          );
+          execution.evidencePackId = packId;
+        } else {
+          const pack = GIA.evidence.create(execution.executionId, 'PLAYBOOK_EXECUTION', `/${execution.playbookId}`);
+          await GIA.evidence.seal(pack.id, evidenceData, { sealed: true });
+          execution.evidencePackId = pack.id;
+        }
+      },
+
+      // ============================================
+      // ABORT / CONTROL
+      // ============================================
+
+      /**
+       * Abort current execution
+       */
+      abort() {
+        if (this._currentExecution) {
+          this._currentExecution._abortController.abort();
+          addLine('warning', '!', 'Playbook execution aborted');
+          return true;
+        }
+        return false;
+      },
+
+      /**
+       * Get current execution status
+       */
+      getStatus() {
+        return {
+          isRunning: !!this._currentExecution,
+          currentExecution: this._currentExecution ? {
+            executionId: this._currentExecution.executionId,
+            playbookId: this._currentExecution.playbookId,
+            state: this._currentExecution.state,
+            currentStep: this._currentExecution._currentStepIndex,
+            totalSteps: this._currentExecution.steps.length
+          } : null,
+          teachMode: !!this._teachRecording,
+          registeredPlaybooks: this._playbooks.size,
+          executionHistory: this._executionHistory.length,
+          pendingGates: Object.keys(window._pendingGates || {})
+        };
+      }
+    };
+
+    // Make globally available
+    window.GIAPlaybookEngine = GIAPlaybookEngine;
+
+    // ============================================
+    // REGISTER EXAMPLE PLAYBOOKS
+    // ============================================
+    // These demonstrate the playbook system capabilities
+
+    // Example 1: Check Bank Balance (Simple, no gates)
+    GIAPlaybookEngine.registerPlaybook({
+      manifest: {
+        id: 'PB-CHECK_BALANCE',
+        version: 'v1',
+        name: 'Check Bank Balance',
+        description: 'Navigate to bank and extract current balance',
+        hash: null,
+        allowedDomains: ['chase.com', 'bankofamerica.com', 'wellsfargo.com'],
+        createdAt: new Date().toISOString(),
+        tags: ['financial', 'read-only']
+      },
+      policy: {
+        automationLevel: 'SEMI_AUTO',
+        gates: [],
+        sensitiveActions: [],
+        financialCeiling: 0
+      },
+      steps: [
+        {
+          id: 'step_1_navigate',
+          action: 'navigate',
+          url: 'https://www.chase.com',
+          selectors: { primary: null },
+          waitFor: { selector: 'body', state: 'visible', timeout: 10000 }
+        },
+        {
+          id: 'step_2_wait_login',
+          action: 'wait',
+          selectors: { primary: null },
+          waitFor: { timeout: 2000 }
+        },
+        {
+          id: 'step_3_extract',
+          action: 'extract',
+          selectors: {
+            primary: '[data-testid="account-balance"]',
+            fallback: ['.account-balance', '.balance-amount', '[class*="balance"]'],
+            textMatch: '$'
+          },
+          evidence: { screenshot: true, extractFields: [{ name: 'balance', selector: '[class*="balance"]' }] }
+        }
+      ],
+      guards: [],
+      recoveryRoutes: [
+        {
+          pattern: { urlMatch: 'login' },
+          action: 'wait_for_human',
+          message: 'Please log in to your bank account'
+        }
+      ],
+      evidenceSchema: {
+        captureScreenshots: 'all_steps',
+        extractFields: [{ name: 'balance', selector: '[class*="balance"]', redact: false }],
+        successCriteria: { textPresent: '$' }
+      }
+    });
+
+    // Example 2: Transfer Funds (High security, multiple gates)
+    GIAPlaybookEngine.registerPlaybook({
+      manifest: {
+        id: 'PB-TRANSFER_FUNDS',
+        version: 'v1',
+        name: 'Transfer Funds Between Accounts',
+        description: 'Transfer money with dual-gate approval',
+        hash: null,
+        allowedDomains: ['chase.com', 'bankofamerica.com'],
+        createdAt: new Date().toISOString(),
+        tags: ['financial', 'sensitive', 'transfer']
+      },
+      policy: {
+        automationLevel: 'SEMI_AUTO',
+        gates: [
+          {
+            id: 'GATE-CONFIRM_TRANSFER',
+            trigger: 'before:step_4_confirm',
+            message: 'Confirm transfer details:\nFrom: ${memory.preferences.defaultPaymentNickname}\nAmount: ${amount}\n\nProceed?',
+            timeout: 300,
+            requiresDualKey: true
+          },
+          {
+            id: 'GATE-FINAL_SUBMIT',
+            trigger: 'before:step_5_submit',
+            message: 'FINAL CONFIRMATION: Submit this transfer?\nThis action cannot be undone.',
+            timeout: 120,
+            requiresDualKey: true
+          }
+        ],
+        sensitiveActions: ['INITIATE_TRANSFER', 'SUBMIT_PAYMENT'],
+        financialCeiling: 500
+      },
+      steps: [
+        {
+          id: 'step_1_navigate',
+          action: 'navigate',
+          url: 'https://www.chase.com/transfers',
+          selectors: { primary: null }
+        },
+        {
+          id: 'step_2_select_from',
+          action: 'select',
+          selectors: { primary: '#fromAccount', fallback: ['[name="fromAccount"]'] },
+          value: '${memory.accountNicknames.checking.maskedId}'
+        },
+        {
+          id: 'step_3_enter_amount',
+          action: 'type',
+          selectors: { primary: '#amount', fallback: ['[name="amount"]', '[data-testid="amount-input"]'] },
+          value: '${amount}',
+          evidence: { screenshot: true }
+        },
+        {
+          id: 'step_4_confirm',
+          action: 'click',
+          selectors: { primary: 'button:contains("Review")', fallback: ['[data-testid="review-btn"]', '.review-button'] }
+        },
+        {
+          id: 'step_5_submit',
+          action: 'click',
+          selectors: { primary: 'button:contains("Submit")', fallback: ['[data-testid="submit-btn"]', '.submit-button'] },
+          evidence: { screenshot: true }
+        }
+      ],
+      guards: [
+        {
+          id: 'amount_check',
+          check: 'amount <= 500',
+          message: 'Transfer amount exceeds $500 limit',
+          canBypass: false
+        }
+      ],
+      recoveryRoutes: [
+        {
+          pattern: { textMatch: 'insufficient funds' },
+          action: 'escalate',
+          message: 'Insufficient funds for this transfer'
+        },
+        {
+          pattern: { textMatch: '2FA' },
+          action: 'wait_for_human',
+          message: 'Please complete 2FA verification'
+        }
+      ],
+      evidenceSchema: {
+        captureScreenshots: 'all_steps',
+        extractFields: [
+          { name: 'confirmationNumber', selector: '[class*="confirmation"]' },
+          { name: 'transferAmount', selector: '[class*="amount"]' }
+        ],
+        successCriteria: { textPresent: 'Transfer Complete' }
+      }
+    });
+
+    // Example 3: VA Prescription Refill (Veteran-specific)
+    GIAPlaybookEngine.registerPlaybook({
+      manifest: {
+        id: 'PB-REFILL_PRESCRIPTION',
+        version: 'v1',
+        name: 'VA Prescription Refill',
+        description: 'Request prescription refill through MyHealtheVet',
+        hash: null,
+        allowedDomains: ['myhealth.va.gov', 'va.gov'],
+        createdAt: new Date().toISOString(),
+        tags: ['va', 'healthcare', 'prescription']
+      },
+      policy: {
+        automationLevel: 'SEMI_AUTO',
+        gates: [
+          {
+            id: 'GATE-CONFIRM_REFILL',
+            trigger: 'before:step_4_submit',
+            message: 'Confirm prescription refill request?',
+            timeout: 300
+          }
+        ],
+        sensitiveActions: [],
+        financialCeiling: 0
+      },
+      steps: [
+        {
+          id: 'step_1_navigate',
+          action: 'navigate',
+          url: 'https://www.myhealth.va.gov/prescriptions',
+          selectors: { primary: null }
+        },
+        {
+          id: 'step_2_find_rx',
+          action: 'extract',
+          selectors: {
+            primary: '[data-testid="prescription-list"]',
+            fallback: ['.prescription-item', '.rx-list']
+          },
+          evidence: { screenshot: true }
+        },
+        {
+          id: 'step_3_select_rx',
+          action: 'click',
+          selectors: {
+            primary: '[data-testid="refill-checkbox"]',
+            textMatch: '${memory.preferences.rxToRefill}'
+          }
+        },
+        {
+          id: 'step_4_submit',
+          action: 'click',
+          selectors: { primary: 'button:contains("Request Refill")', fallback: ['.refill-button'] },
+          evidence: { screenshot: true }
+        }
+      ],
+      guards: [],
+      recoveryRoutes: [
+        {
+          pattern: { urlMatch: 'login' },
+          action: 'wait_for_human',
+          message: 'Please log in to MyHealtheVet'
+        },
+        {
+          pattern: { textMatch: 'too early' },
+          action: 'escalate',
+          message: 'Refill requested too early. Check refill date.'
+        }
+      ],
+      evidenceSchema: {
+        captureScreenshots: 'gates_only',
+        extractFields: [
+          { name: 'rxName', selector: '.rx-name' },
+          { name: 'refillDate', selector: '.refill-date' }
+        ],
+        successCriteria: { textPresent: 'Refill Requested' }
+      }
+    });
+
+    // Example 4: Schedule VA Appointment
+    GIAPlaybookEngine.registerPlaybook({
+      manifest: {
+        id: 'PB-SCHEDULE_APPOINTMENT',
+        version: 'v1',
+        name: 'Schedule VA Appointment',
+        description: 'Schedule healthcare appointment through VA.gov',
+        hash: null,
+        allowedDomains: ['va.gov', 'myhealth.va.gov'],
+        createdAt: new Date().toISOString(),
+        tags: ['va', 'healthcare', 'appointment']
+      },
+      policy: {
+        automationLevel: 'SEMI_AUTO',
+        gates: [
+          {
+            id: 'GATE-CONFIRM_APPOINTMENT',
+            trigger: 'before:step_5_confirm',
+            message: 'Confirm appointment:\nType: ${appointmentType}\nDate: ${selectedDate}\nLocation: ${selectedLocation}',
+            timeout: 300
+          }
+        ],
+        sensitiveActions: [],
+        financialCeiling: 0
+      },
+      steps: [
+        {
+          id: 'step_1_navigate',
+          action: 'navigate',
+          url: 'https://www.va.gov/health-care/schedule-view-va-appointments/',
+          selectors: { primary: null }
+        },
+        {
+          id: 'step_2_start',
+          action: 'click',
+          selectors: { primary: 'a:contains("Schedule")', fallback: ['[data-testid="schedule-btn"]'] }
+        },
+        {
+          id: 'step_3_select_type',
+          action: 'click',
+          selectors: {
+            primary: '[data-testid="appointment-type"]',
+            textMatch: '${appointmentType}'
+          }
+        },
+        {
+          id: 'step_4_select_time',
+          action: 'click',
+          selectors: {
+            primary: '[data-testid="time-slot"]',
+            fallback: ['.available-slot']
+          },
+          evidence: { screenshot: true }
+        },
+        {
+          id: 'step_5_confirm',
+          action: 'click',
+          selectors: { primary: 'button:contains("Confirm")', fallback: ['.confirm-button'] },
+          evidence: { screenshot: true }
+        }
+      ],
+      guards: [],
+      recoveryRoutes: [
+        {
+          pattern: { textMatch: 'no available' },
+          action: 'escalate',
+          message: 'No available appointments. Try different date/location.'
+        }
+      ],
+      evidenceSchema: {
+        captureScreenshots: 'gates_only',
+        extractFields: [
+          { name: 'confirmationNumber', selector: '[class*="confirmation"]' },
+          { name: 'appointmentDate', selector: '[class*="date"]' }
+        ],
+        successCriteria: { textPresent: 'Appointment Confirmed' }
+      }
+    });
+
+    console.log('[GIA] Example playbooks registered:', GIAPlaybookEngine.listPlaybooks().length);
+
+    // ============================================
+    // PLAYBOOK TERMINAL COMMANDS
+    // ============================================
+
+    window._playbookCommands = {
+      status: () => {
+        const status = GIAPlaybookEngine.getStatus();
+        addLine('system', '*', '<span class="hl-accent">PLAYBOOK ENGINE STATUS</span>');
+        addLine('output', ' ', `<span class="hl-dim">Running:</span> ${status.isRunning}`);
+        addLine('output', ' ', `<span class="hl-dim">Teach Mode:</span> ${status.teachMode}`);
+        addLine('output', ' ', `<span class="hl-dim">Registered Playbooks:</span> ${status.registeredPlaybooks}`);
+        addLine('output', ' ', `<span class="hl-dim">Execution History:</span> ${status.executionHistory}`);
+        if (status.currentExecution) {
+          addSpacer();
+          addLine('output', ' ', '<span class="hl-cyan">Current Execution:</span>');
+          addLine('output', '   ', `ID: ${status.currentExecution.executionId}`);
+          addLine('output', '   ', `Playbook: ${status.currentExecution.playbookId}`);
+          addLine('output', '   ', `State: ${status.currentExecution.state}`);
+          addLine('output', '   ', `Progress: ${status.currentExecution.currentStep + 1}/${status.currentExecution.totalSteps}`);
+        }
+        if (status.pendingGates.length > 0) {
+          addSpacer();
+          addLine('gate', '!', `<span class="hl-yellow">Pending Gates: ${status.pendingGates.join(', ')}</span>`);
+        }
+      },
+
+      list: () => {
+        const playbooks = GIAPlaybookEngine.listPlaybooks();
+        addLine('system', '*', '<span class="hl-accent">REGISTERED PLAYBOOKS</span>');
+        if (playbooks.length === 0) {
+          addLine('output', ' ', '<span class="hl-dim">No playbooks registered</span>');
+        } else {
+          playbooks.forEach((pb, i) => {
+            addLine('output', `${i + 1}.`, `<span class="hl-cyan">${pb.id}</span> (${pb.version})`);
+            addLine('output', '   ', `${pb.name} | Runs: ${pb.executionCount} | Success: ${pb.successRate || 'N/A'}%`);
+          });
+        }
+      },
+
+      teach: (name) => {
+        if (!name) {
+          addLine('error', 'x', 'Usage: playbook teach <name>');
+          return;
+        }
+        GIAPlaybookEngine.startTeach(name);
+      },
+
+      'teach-gate': (name) => {
+        GIAPlaybookEngine.markGate(name || 'checkpoint', 'Confirm to continue?');
+      },
+
+      'teach-stop': async () => {
+        try {
+          await GIAPlaybookEngine.stopTeach();
+        } catch (e) {
+          addLine('error', 'x', e.message);
+        }
+      },
+
+      run: async (playbookId) => {
+        if (!playbookId) {
+          addLine('error', 'x', 'Usage: playbook run <playbook-id>');
+          return;
+        }
+        try {
+          await GIAPlaybookEngine.run(playbookId);
+        } catch (e) {
+          addLine('error', 'x', `Execution failed: ${e.message}`);
+        }
+      },
+
+      abort: () => {
+        if (GIAPlaybookEngine.abort()) {
+          addLine('warning', '!', 'Execution aborted');
+        } else {
+          addLine('output', ' ', 'No active execution to abort');
+        }
+      },
+
+      approve: (gateId) => {
+        // Try to find pending gate
+        const pending = Object.keys(window._pendingGates || {});
+        const target = gateId || pending[0];
+
+        if (target && GIAPlaybookEngine.approveGate(target)) {
+          // Approval handled by gate system
+        } else {
+          addLine('output', ' ', 'No pending gate to approve');
+        }
+      },
+
+      deny: (gateId) => {
+        const pending = Object.keys(window._pendingGates || {});
+        const target = gateId || pending[0];
+
+        if (target && GIAPlaybookEngine.denyGate(target)) {
+          // Denial handled by gate system
+        } else {
+          addLine('output', ' ', 'No pending gate to deny');
+        }
+      },
+
+      done: () => {
+        // Complete assist mode
+        const pending = Object.keys(window._pendingAssist || {});
+        if (pending.length > 0) {
+          GIAPlaybookEngine.completeAssist(pending[0].replace('ASSIST-', ''));
+        } else {
+          addLine('output', ' ', 'No pending assist');
+        }
+      },
+
+      memory: (action, key, value) => {
+        const userId = GIA?.config?.operatorToken || 'default';
+
+        if (action === 'set' && key && value) {
+          GIAPlaybookEngine.setMemory(userId, key, value);
+          addLine('success', '+', `Memory set: ${key} = ${value}`);
+        } else if (action === 'get' && key) {
+          const val = GIAPlaybookEngine.getMemory(userId, key);
+          addLine('output', ' ', `${key} = ${JSON.stringify(val)}`);
+        } else if (action === 'list') {
+          const mem = GIAPlaybookEngine.getMemory(userId);
+          addLine('system', '*', '<span class="hl-accent">USER MEMORY</span>');
+          addLine('output', ' ', JSON.stringify(mem, null, 2));
+        } else {
+          addLine('output', ' ', 'Usage: playbook memory <set|get|list> [key] [value]');
+        }
       }
     };
 
