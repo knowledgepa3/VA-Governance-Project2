@@ -8207,18 +8207,51 @@ Evidence:      Sealed and verified`);
         return;
       }
 
+      // Build veteran identification section if PII was provided
+      let veteranSection = '';
+      if (lastAnalysisResult.veteranPII) {
+        veteranSection = `
+VETERAN IDENTIFICATION
+======================
+Name:      ${lastAnalysisResult.veteranPII.name}
+SSN:       ***-**-${lastAnalysisResult.veteranPII.ssn4}
+
+⚠️  CONTAINS PII - HANDLE THIS DOCUMENT SECURELY
+    Do not share publicly or store in unsecured locations.
+`;
+      }
+
+      // Build agent outputs section for pipeline results
+      let agentOutputsSection = '';
+      if (lastAnalysisResult.pipeline && lastAnalysisResult.outputs) {
+        agentOutputsSection = `
+MULTI-AGENT PIPELINE RESULTS
+============================
+Agents Run: ${lastAnalysisResult.agents?.join(' → ') || 'N/A'}
+Gates Passed: ${lastAnalysisResult.gatesPassed || 0}
+
+`;
+        for (const [agent, output] of Object.entries(lastAnalysisResult.outputs)) {
+          agentOutputsSection += `--- ${agent} OUTPUT ---
+${output}
+
+`;
+        }
+      }
+
       const content = `GIA VA CLAIM ANALYSIS REPORT
 ============================
 Generated: ${new Date().toISOString()}
-Analysis Type: ${lastAnalysisResult.analysisType}
+Run ID: ${lastAnalysisResult.runId || 'N/A'}
 Mode: ${lastAnalysisResult.mode}
-Documents Analyzed: ${lastAnalysisResult.documents.length}
+${veteranSection}
+Documents Analyzed: ${lastAnalysisResult.documents?.length || 0}
 
 DOCUMENTS:
-${lastAnalysisResult.documents.map(d => `- ${d.filename} (${d.wordCount} words)`).join('\n')}
+${lastAnalysisResult.documents?.map(d => `- ${d.filename} (${d.wordCount} words)`).join('\n') || 'N/A'}
 
-ANALYSIS:
-${lastAnalysisResult.analysis}
+${agentOutputsSection || `ANALYSIS:
+${lastAnalysisResult.analysis || 'N/A'}`}
 
 ---
 Evidence Pack ID: ${lastAnalysisResult.evidencePackId || 'N/A'}
@@ -9241,9 +9274,164 @@ Consult accredited VSO or attorney for final decisions.`
           timestamp: new Date().toISOString()
         };
 
+        // ============================================
+        // OPTIONAL PII GATE: Personalize Report
+        // SECURITY: Memory-only, never persisted, hashed in audit
+        // ============================================
+        let veteranPII = null; // Memory-only storage
+
+        addLine('system', '*', '<span class="hl-accent">REPORT PERSONALIZATION</span>');
+        addLine('output', ' ', '<span class="hl-dim">Optional: Add Veteran name and last 4 SSN to report header</span>');
+        addSpacer();
+
+        // Ask if user wants to personalize
+        const personalizeChoice = await new Promise((resolve) => {
+          const choiceId = `pii-choice-${Date.now()}`;
+          const choiceDiv = document.createElement('div');
+          choiceDiv.className = 'gate-prompt';
+          choiceDiv.id = choiceId;
+          choiceDiv.innerHTML = `
+            <div class="gate-header">
+              <span class="gate-icon">🔐</span>
+              <span class="gate-title">PERSONALIZE REPORT?</span>
+            </div>
+            <div class="gate-content">
+              <p>Add Veteran identification to report header?</p>
+              <p class="hl-dim" style="font-size: 0.85em;">
+                ⚠️ <strong>Security Notice:</strong><br>
+                • Name and last 4 SSN only (never full SSN)<br>
+                • Stored in memory only - NOT saved to disk<br>
+                • Cleared when browser closes<br>
+                • Hashed (not plaintext) in audit trail
+              </p>
+            </div>
+            <div class="gate-actions">
+              <button class="gate-btn gate-btn-approve" onclick="window._piiResolve('yes')">
+                Yes, Add PII
+              </button>
+              <button class="gate-btn gate-btn-abort" onclick="window._piiResolve('no')">
+                No, Skip
+              </button>
+            </div>
+          `;
+          terminal.appendChild(choiceDiv);
+          scrollToBottom();
+
+          window._piiResolve = (choice) => {
+            document.getElementById(choiceId)?.remove();
+            resolve(choice);
+          };
+        });
+
+        if (personalizeChoice === 'yes') {
+          // Collect PII through secure input gate
+          addLine('step', '>', 'collecting Veteran identification...');
+
+          veteranPII = await new Promise((resolve) => {
+            const inputId = `pii-input-${Date.now()}`;
+            const inputDiv = document.createElement('div');
+            inputDiv.className = 'gate-prompt';
+            inputDiv.id = inputId;
+            inputDiv.innerHTML = `
+              <div class="gate-header">
+                <span class="gate-icon">🔐</span>
+                <span class="gate-title">SECURE PII ENTRY</span>
+              </div>
+              <div class="gate-content">
+                <div style="margin-bottom: 12px;">
+                  <label style="display: block; margin-bottom: 4px; color: var(--text-dim);">Veteran Full Name:</label>
+                  <input type="text" id="pii-name" placeholder="e.g., John Smith"
+                    style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text); border-radius: 4px;">
+                </div>
+                <div style="margin-bottom: 12px;">
+                  <label style="display: block; margin-bottom: 4px; color: var(--text-dim);">Last 4 of SSN:</label>
+                  <input type="text" id="pii-ssn4" placeholder="e.g., 1234" maxlength="4" pattern="[0-9]{4}"
+                    style="width: 80px; padding: 8px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text); border-radius: 4px; text-align: center; letter-spacing: 4px;">
+                </div>
+                <p class="hl-dim" style="font-size: 0.8em; margin-top: 8px;">
+                  🔒 This data is memory-only and will be cleared on page close.
+                </p>
+              </div>
+              <div class="gate-actions">
+                <button class="gate-btn gate-btn-approve" onclick="window._piiSubmit()">
+                  Confirm & Add to Report
+                </button>
+                <button class="gate-btn gate-btn-abort" onclick="window._piiCancel()">
+                  Cancel
+                </button>
+              </div>
+            `;
+            terminal.appendChild(inputDiv);
+            scrollToBottom();
+
+            // Focus on name input
+            setTimeout(() => document.getElementById('pii-name')?.focus(), 100);
+
+            window._piiSubmit = () => {
+              const name = document.getElementById('pii-name')?.value?.trim();
+              const ssn4 = document.getElementById('pii-ssn4')?.value?.trim();
+
+              // Validate last 4 SSN format
+              if (ssn4 && !/^\d{4}$/.test(ssn4)) {
+                alert('Last 4 SSN must be exactly 4 digits');
+                return;
+              }
+
+              document.getElementById(inputId)?.remove();
+              resolve(name || ssn4 ? { name: name || 'Not Provided', ssn4: ssn4 || 'XXXX' } : null);
+            };
+
+            window._piiCancel = () => {
+              document.getElementById(inputId)?.remove();
+              resolve(null);
+            };
+          });
+
+          if (veteranPII) {
+            addLine('success', '+', `PII collected: ${veteranPII.name} (***-**-${veteranPII.ssn4})`);
+            addLine('system', '*', '<span class="hl-dim">PII stored in memory only - NOT persisted</span>');
+
+            // Log PII collection to audit trail (HASHED, not plaintext)
+            const piiHash = await GIA.generateHash(veteranPII.name + veteranPII.ssn4);
+            await GIAWorkflow.createPack(
+              'VA-REPORT',
+              '/pii/collected',
+              { type: 'PII_GATE', hasName: !!veteranPII.name, hasSSN4: !!veteranPII.ssn4 },
+              { piiHash: piiHash, timestamp: new Date().toISOString(), storage: 'MEMORY_ONLY' }
+            );
+          } else {
+            addLine('output', ' ', 'PII entry cancelled - report will be anonymous');
+          }
+        } else {
+          addLine('output', ' ', 'Skipping personalization - report will be anonymous');
+        }
+
+        // Add veteranPII to export results (if provided)
+        if (veteranPII) {
+          lastAnalysisResult.veteranPII = {
+            name: veteranPII.name,
+            ssn4: veteranPII.ssn4,
+            // Include warning in export
+            _securityNote: 'CONTAINS PII - Handle securely. Memory-only during session.'
+          };
+        }
+        addSpacer();
+
         // Show final report
         addLine('system', '*', '<span class="hl-accent">FINAL REPORT</span>');
         addSpacer();
+
+        // Add personalized header if PII was provided
+        if (veteranPII) {
+          addBlock('VETERAN IDENTIFICATION', `Name:     ${veteranPII.name}
+SSN:      ***-**-${veteranPII.ssn4}
+Report:   ${ctx.runId}
+Generated: ${new Date().toLocaleString()}
+
+⚠️ CONTAINS PII - HANDLE SECURELY
+This identification is for report matching purposes only.`);
+          addSpacer();
+        }
 
         // Display REPORT agent output nicely
         if (agentOutputs.REPORT) {
