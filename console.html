@@ -4640,13 +4640,28 @@ OUTPUT: Complete formatted report ready for case file.`
 
       GIASounds.dataReceived();
       addLine('system', '*', `<span class="hl-accent">VETERAN LIFE OPS: ${action.toUpperCase()}</span>`);
+
+      // EXPLICIT DEMO BANNER - Required for all synthetic data displays
+      addLine('warning', '!', '<span class="hl-yellow">━━━ DEMO MODE: SYNTHETIC DATA ━━━</span>');
+      addLine('output', ' ', '<span class="hl-dim">Data Source: SIMULATED | No real VA systems accessed | No submissions performed</span>');
       addSpacer();
+
+      // Create audit record for this demo action
+      const demoAuditRecord = {
+        action: action,
+        timestamp: new Date().toISOString(),
+        dataSource: 'DEMO_SIMULATED',
+        confidence: 'N/A (demo)',
+        realDataAccessed: false,
+        submissionsPerformed: false,
+        userInput: input
+      };
 
       switch (action) {
         case 'appointments':
-          await typeText('step', '>', 'connecting to VA scheduling system...');
+          await typeText('step', '>', 'simulating VA scheduling lookup...');
           await sleep(600);
-          addLine('success', '+', 'connected to myhealth.va.gov (DEMO)');
+          addLine('success', '+', '<span class="hl-yellow">[DEMO]</span> myhealth.va.gov simulation');
           addSpacer();
           addLine('output', ' ', '<span class="hl-cyan">📅 YOUR APPOINTMENTS</span>');
           addLine('output', ' ', '');
@@ -4667,9 +4682,9 @@ OUTPUT: Complete formatted report ready for case file.`
           break;
 
         case 'prescriptions':
-          await typeText('step', '>', 'checking prescription status...');
+          await typeText('step', '>', 'simulating prescription lookup...');
           await sleep(500);
-          addLine('success', '+', 'retrieved from VA pharmacy system (DEMO)');
+          addLine('success', '+', '<span class="hl-yellow">[DEMO]</span> VA pharmacy simulation');
           addSpacer();
           addLine('output', ' ', '<span class="hl-cyan">💊 PRESCRIPTIONS</span>');
           addLine('output', ' ', '');
@@ -4693,9 +4708,9 @@ OUTPUT: Complete formatted report ready for case file.`
           break;
 
         case 'forms':
-          await typeText('step', '>', 'checking form submission status...');
+          await typeText('step', '>', 'simulating form status lookup...');
           await sleep(400);
-          addLine('success', '+', 'retrieved from eBenefits (DEMO)');
+          addLine('success', '+', '<span class="hl-yellow">[DEMO]</span> eBenefits simulation');
           addSpacer();
           addLine('output', ' ', '<span class="hl-cyan">📄 FORMS & DOCUMENTS</span>');
           addLine('output', ' ', '');
@@ -4715,13 +4730,15 @@ OUTPUT: Complete formatted report ready for case file.`
           break;
 
         case 'benefits':
-          await typeText('step', '>', 'retrieving benefits information...');
+          await typeText('step', '>', 'simulating benefits lookup...');
           await sleep(500);
-          addLine('success', '+', 'retrieved from VA.gov (DEMO)');
+          addLine('success', '+', '<span class="hl-yellow">[DEMO]</span> VA.gov simulation');
           addSpacer();
           addLine('output', ' ', '<span class="hl-cyan">🏛️ BENEFITS OVERVIEW</span>');
           addSpacer();
-          addBlock('DISABILITY COMPENSATION', `Current Rating:     70% (combined)
+          addBlock('DISABILITY COMPENSATION [DEMO - SYNTHETIC DATA]', `⚠️  THIS IS SIMULATED DATA - NOT REAL VA RECORDS
+
+Current Rating:     70% (combined)
 Individual Ratings:
   • PTSD                40%   Service-connected
   • Knee, right         20%   Service-connected
@@ -4730,7 +4747,13 @@ Individual Ratings:
 
 Monthly Payment:    $1,716.28
 Payment Date:       1st of each month
-Direct Deposit:     ****4521 (Chase)`);
+Direct Deposit:     ****4521 (Example Bank)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Data Source: DEMO_SIMULATED
+Confidence: N/A (synthetic demonstration)
+Real VA Data: NOT ACCESSED
+Submissions: NONE PERFORMED`);
           addSpacer();
           addLine('output', ' ', '<span class="hl-yellow">PENDING CLAIMS:</span>');
           addLine('output', '  ', '• Increase Request — Knee condition');
@@ -4743,9 +4766,9 @@ Direct Deposit:     ****4521 (Chase)`);
           break;
 
         case 'supplies':
-          await typeText('step', '>', 'checking medical supplies...');
+          await typeText('step', '>', 'simulating supplies lookup...');
           await sleep(400);
-          addLine('success', '+', 'retrieved from VA prosthetics (DEMO)');
+          addLine('success', '+', '<span class="hl-yellow">[DEMO]</span> VA prosthetics simulation');
           addSpacer();
           addLine('output', ' ', '<span class="hl-cyan">📦 MEDICAL SUPPLIES</span>');
           addSpacer();
@@ -4764,9 +4787,9 @@ Direct Deposit:     ****4521 (Chase)`);
           break;
 
         case 'payments':
-          await typeText('step', '>', 'loading payment options...');
+          await typeText('step', '>', 'simulating payment system...');
           await sleep(400);
-          addLine('success', '+', 'connected to VA payment system (DEMO)');
+          addLine('success', '+', '<span class="hl-yellow">[DEMO]</span> VA payment simulation');
           addSpacer();
           addLine('output', ' ', '<span class="hl-cyan">💳 PAYMENTS & COPAYS</span>');
           addSpacer();
@@ -4783,6 +4806,28 @@ Direct Deposit:     ****4521 (Chase)`);
           addLine('system', '*', '<span class="hl-dim">All financial transactions are gated and logged</span>');
           break;
       }
+
+      // Seal evidence pack with complete audit trail for demo action
+      addSpacer();
+      demoAuditRecord.completedAt = new Date().toISOString();
+      await GIAWorkflow.createPack(
+        'VETERAN-OPS-DEMO',
+        `/demo/${action}`,
+        {
+          dataSource: 'DEMO_SIMULATED',
+          realDataAccessed: false,
+          submissionsPerformed: false,
+          mode: 'DEMO'
+        },
+        {
+          action: action,
+          userInput: input,
+          confidence: 'N/A (demo)',
+          auditRecord: demoAuditRecord
+        }
+      );
+      addLine('success', '+', '<span class="hl-dim">Demo evidence pack sealed (audit trail captured)</span>');
+      addLine('system', '*', '<span class="hl-dim">Type "audit" to export full Intent→Decision→Execution trail</span>');
       addSpacer();
     }
 
@@ -4815,6 +4860,12 @@ Direct Deposit:     ****4521 (Chase)`);
 
       GIASounds.dataReceived();
       addLine('system', '*', '<span class="hl-accent">GOVERNED BROWSER TASK</span>');
+
+      // EXPLICIT DEMO BANNER
+      addLine('warning', '!', '<span class="hl-yellow">━━━ DEMO MODE: SIMULATED BROWSER ━━━</span>');
+      addLine('output', ' ', '<span class="hl-dim">No real navigation | Results are synthetic | MCP not connected</span>');
+      addSpacer();
+
       addLine('output', ' ', `<span class="hl-dim">Task: ${input}</span>`);
       addSpacer();
 
@@ -4823,17 +4874,17 @@ Direct Deposit:     ****4521 (Chase)`);
       await sleep(400);
 
       if (task === 'sam-search') {
-        addLine('success', '+', 'task parsed: Federal opportunity search');
-        addLine('output', ' ', `<span class="hl-dim">Target: ${url}</span>`);
+        addLine('success', '+', '<span class="hl-yellow">[DEMO]</span> task parsed: Federal opportunity search');
+        addLine('output', ' ', `<span class="hl-dim">Target: ${url} (NOT ACTUALLY ACCESSED)</span>`);
         addSpacer();
 
         // Show gate requirement
         addLine('warning', '!', '<span class="hl-yellow">GATE REQUIRED: Browser Navigation</span>');
-        addLine('output', ' ', 'This action will navigate to an external site.');
+        addLine('output', ' ', 'In LIVE mode, this would navigate to an external site.');
         addSpacer();
 
         // Simulate the search
-        await typeText('step', '>', 'queuing task for MCP execution...');
+        await typeText('step', '>', 'simulating task execution...');
         await sleep(300);
 
         // Create evidence pack
@@ -4845,13 +4896,15 @@ Direct Deposit:     ****4521 (Chase)`);
         addLine('success', '+', 'task queued for execution');
         addSpacer();
 
-        // Show simulated results
+        // Show simulated results with EXPLICIT demo labeling
         addLine('system', '*', '<span class="hl-accent">DEMO: Simulated Search Results</span>');
         addSpacer();
-        addBlock('SAM.gov Search Results', `Query: "${input}"
-Found: 47 opportunities matching criteria
+        addBlock('SAM.gov Search Results [SYNTHETIC DATA]', `⚠️  THIS IS SIMULATED DATA - NOT REAL SAM.gov RESULTS
 
-TOP MATCHES:
+Query: "${input}"
+Found: 47 opportunities (SYNTHETIC)
+
+TOP MATCHES (DEMO DATA - NOT REAL):
 1. FA8750-26-R-0042 — AI/ML Platform Services
    Agency: Air Force | $4.2M | Due: Mar 15
    Match Score: 95%
@@ -4864,24 +4917,29 @@ TOP MATCHES:
    Agency: Navy | $1.9M | Due: Apr 01
    Match Score: 88%
 
-[DEMO MODE - Real search requires MCP connection]`);
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Data Source: DEMO_SIMULATED
+Real SAM.gov: NOT ACCESSED
+MCP Browser: NOT CONNECTED`);
         BrowserAgent.log('Task completed (demo)', 'success');
         BrowserAgent.setStatus('READY');
 
       } else if (task === 'spending-search') {
-        addLine('success', '+', 'task parsed: Federal spending research');
-        addLine('output', ' ', `<span class="hl-dim">Target: ${url}</span>`);
+        addLine('success', '+', '<span class="hl-yellow">[DEMO]</span> task parsed: Federal spending research');
+        addLine('output', ' ', `<span class="hl-dim">Target: ${url} (NOT ACTUALLY ACCESSED)</span>`);
         addSpacer();
 
-        await typeText('step', '>', 'preparing spending data query...');
+        await typeText('step', '>', 'simulating spending data query...');
         await sleep(400);
 
         addLine('system', '*', '<span class="hl-accent">DEMO: Simulated Spending Data</span>');
         addSpacer();
-        addBlock('USASpending.gov Results', `Fiscal Year: 2025-2026
+        addBlock('USASpending.gov Results [SYNTHETIC DATA]', `⚠️  THIS IS SIMULATED DATA - NOT REAL USASpending.gov
+
+Fiscal Year: 2025-2026
 Category: Information Technology
 
-AGENCY SPENDING SUMMARY:
+AGENCY SPENDING SUMMARY (DEMO DATA - NOT REAL):
 • Department of Defense     $45.2B
 • Department of Homeland    $12.8B
 • Health & Human Services   $9.4B
@@ -4889,9 +4947,12 @@ AGENCY SPENDING SUMMARY:
 
 AI/ML SPECIFIC CONTRACTS:
 Total Obligations: $3.2B (YTD)
-Top Contractors: [DEMO DATA]
+Top Contractors: [SYNTHETIC DATA]
 
-[DEMO MODE - Real search requires MCP connection]`);
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Data Source: DEMO_SIMULATED
+Real USASpending.gov: NOT ACCESSED
+MCP Browser: NOT CONNECTED`);
         BrowserAgent.log('Spending query completed (demo)', 'success');
 
       } else {
