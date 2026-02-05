@@ -7091,81 +7091,40 @@ ${hasApiKey ? 'Real adversarial probes executed via Claude API.' : 'Enable API k
         return;
       }
 
-      // Execute browser task
-      BrowserAgent.setStatus('WORKING', true);
-      addLine('step', '>', 'executing browser task...');
-
-      // Simulate browser actions
-      const browserActions = [
-        { action: 'navigate', target: 'https://sam.gov/search', delay: 800 },
-        { action: 'wait', target: 'page load', delay: 1200 },
-        { action: 'type', target: 'search input', value: 'AI/ML services', delay: 600 },
-        { action: 'click', target: 'search button', delay: 400 },
-        { action: 'wait', target: 'results', delay: 1500 },
-        { action: 'extract', target: 'opportunity cards', delay: 800 }
-      ];
-
-      for (const action of browserActions) {
-        if (!GIAWorkflow.shouldContinue()) break;
-
-        BrowserAgent.log(`${action.action}: ${action.target}${action.value ? ' = ' + action.value : ''}`, 'action');
-        addLine('step', '>', `browser: ${action.action} → ${action.target}`);
-
-        if (action.action === 'navigate') {
-          BrowserAgent.setUrl(action.target);
-        }
-
-        await GIAWorkflow.sleep(action.delay);
-        BrowserAgent.log(`✓ ${action.action} complete`, 'success');
-        updateApiCalls();
-      }
-
-      addLine('success', '+', 'browser automation complete');
-      BrowserAgent.setStatus('COMPLETE');
+      // ============================================
+      // BROWSER PANEL READY FOR MCP EXECUTION
+      // ============================================
+      BrowserAgent.setStatus('READY', true);
+      addLine('success', '+', 'browser panel ready for tasks');
       addSpacer();
 
-      // Show results
-      const mockResults = [
-        { title: 'AI/ML Platform Services', id: 'FA8750-26-R-0042', value: '$4.2M', due: 'Mar 15' },
-        { title: 'Cyber Defense Analytics', id: 'W911NF-26-R-0089', value: '$2.8M', due: 'Mar 22' },
-        { title: 'Cloud Migration AI', id: 'N00024-26-R-0156', value: '$1.9M', due: 'Apr 01' }
-      ];
-
-      addLine('system', '*', '<span class="hl-accent">EXTRACTED RESULTS</span>');
-      mockResults.forEach((r, i) => {
-        addLine('output', ' ', `${i + 1}. <span class="hl-bright">${r.title}</span>`);
-        addLine('output', '   ', `<span class="hl-dim">ID: ${r.id} | Value: ${r.value} | Due: ${r.due}</span>`);
-      });
+      addLine('system', '*', '<span class="hl-accent">HOW TO USE GOVERNED BROWSER</span>');
+      addLine('output', ' ', '1. Enter a task in the browser panel input box');
+      addLine('output', ' ', '2. Click REQUEST to queue for approval');
+      addLine('output', ' ', '3. Approve the gate prompt that appears');
+      addLine('output', ' ', '4. Claude will execute via MCP browser control');
+      addLine('output', ' ', '5. Screenshots will appear in the panel');
       addSpacer();
 
-      // ============================================
-      // GATE: DATA EXTRACTION (GOVERNED)
-      // ============================================
-      try {
-        await GIAWorkflow.gate('extraction',
-          `Extracted ${mockResults.length} opportunities. Approve data capture to evidence chain?`
-        );
-        addSpacer();
-      } catch (err) {
-        BrowserAgent.close();
-        await GIAWorkflow.complete('aborted');
-        return;
-      }
+      addLine('output', ' ', '<span class="hl-cyan">Or tell Claude directly:</span>');
+      addLine('output', ' ', '"Navigate to sam.gov and search for AI contracts"');
+      addLine('output', ' ', '"Go to usaspending.gov and find spending data"');
+      addSpacer();
 
-      // Evidence - governed
+      // Evidence - governed session start
       await GIAWorkflow.createPack(
         'BROWSER-AGENT',
-        '/sam.gov/search',
-        { url: 'sam.gov', query: 'AI/ML services', mode: hasApiKey ? 'LIVE' : 'DEMO' },
-        { records: mockResults.length, results: mockResults, timestamp: new Date().toISOString() }
+        '/session/start',
+        { mode: hasApiKey ? 'LIVE' : 'DEMO', governance: 'ENABLED' },
+        { sessionStart: new Date().toISOString(), panelOpen: true }
       );
 
-      addLine('success', '+', `evidence pack sealed with ${mockResults.length} records`);
+      addLine('success', '+', 'browser session evidence pack created');
       addSpacer();
 
-      // Keep browser panel open for further interaction
-      addLine('system', '*', '<span class="hl-dim">Browser panel remains open for additional tasks</span>');
-      addLine('system', '*', '<span class="hl-dim">Type "close browser" to close the panel</span>');
+      // Keep browser panel open for interaction
+      addLine('system', '*', '<span class="hl-dim">Browser panel open · Enter tasks or use chat</span>');
+      addLine('system', '*', '<span class="hl-dim">Click 🌐 in header to toggle panel</span>');
 
       // ============================================
       // COMPLETION (GOVERNED)
