@@ -4546,6 +4546,33 @@ OUTPUT: Complete formatted report ready for case file.`
         return;
       }
 
+      // ============================================
+      // INTERACTIVE DEMO RESPONSES
+      // Handle numbered actions and natural language commands
+      // ============================================
+
+      // Veteran Life Ops actions (1-6)
+      if (/^[1-6]$/.test(lowerText) || lowerText.includes('refill') || lowerText.includes('appointment') ||
+          lowerText.includes('prescription') || lowerText.includes('benefits') || lowerText.includes('schedule')) {
+        addLine('human', 'you:', text);
+        addSpacer();
+        handleVeteranOpsAction(text);
+        inputField.value = '';
+        inputField.style.height = 'auto';
+        return;
+      }
+
+      // Browser task execution
+      if (lowerText.includes('search sam') || lowerText.includes('sam.gov') ||
+          lowerText.includes('usaspending') || lowerText.includes('navigate to')) {
+        addLine('human', 'you:', text);
+        addSpacer();
+        handleBrowserTask(text);
+        inputField.value = '';
+        inputField.style.height = 'auto';
+        return;
+      }
+
       // Check for workflow control commands (resume, abort, restart, etc.)
       addLine('human', 'you:', text);
       addSpacer();
@@ -4582,6 +4609,299 @@ OUTPUT: Complete formatted report ready for case file.`
       const spacer = document.createElement('div');
       spacer.className = 'spacer';
       terminal.appendChild(spacer);
+    }
+
+    // ============================================
+    // VETERAN LIFE OPS INTERACTIVE HANDLERS
+    // ============================================
+    async function handleVeteranOpsAction(input) {
+      const lowerInput = input.toLowerCase();
+      let action = null;
+
+      // Detect action from number or keywords
+      if (input === '1' || lowerInput.includes('schedule') || lowerInput.includes('appointment')) {
+        action = 'appointments';
+      } else if (input === '2' || lowerInput.includes('refill') || lowerInput.includes('prescription')) {
+        action = 'prescriptions';
+      } else if (input === '3' || lowerInput.includes('form') || lowerInput.includes('track')) {
+        action = 'forms';
+      } else if (input === '4' || lowerInput.includes('benefit') || lowerInput.includes('status')) {
+        action = 'benefits';
+      } else if (input === '5' || lowerInput.includes('supplies') || lowerInput.includes('order')) {
+        action = 'supplies';
+      } else if (input === '6' || lowerInput.includes('pay') || lowerInput.includes('bill')) {
+        action = 'payments';
+      }
+
+      if (!action) {
+        addLine('warning', '!', 'Unknown action. Enter 1-6 or describe what you need.');
+        return;
+      }
+
+      GIASounds.dataReceived();
+      addLine('system', '*', `<span class="hl-accent">VETERAN LIFE OPS: ${action.toUpperCase()}</span>`);
+      addSpacer();
+
+      switch (action) {
+        case 'appointments':
+          await typeText('step', '>', 'connecting to VA scheduling system...');
+          await sleep(600);
+          addLine('success', '+', 'connected to myhealth.va.gov (DEMO)');
+          addSpacer();
+          addLine('output', ' ', '<span class="hl-cyan">📅 YOUR APPOINTMENTS</span>');
+          addLine('output', ' ', '');
+          addLine('output', ' ', '<span class="hl-green">UPCOMING:</span>');
+          addLine('output', '  ', '• Feb 12, 10:30 AM — Primary Care');
+          addLine('output', '   ', '  <span class="hl-dim">Dr. Johnson | VA Medical Center, Bldg 5</span>');
+          addLine('output', '  ', '• Feb 18, 2:00 PM — C&P Exam Follow-up');
+          addLine('output', '   ', '  <span class="hl-dim">Rating Review | VA Regional Office</span>');
+          addLine('output', '  ', '• Mar 05, 11:00 AM — Mental Health Check-in');
+          addLine('output', '   ', '  <span class="hl-dim">Video Visit Available</span>');
+          addSpacer();
+          addLine('output', ' ', '<span class="hl-cyan">ACTIONS:</span>');
+          addLine('output', '  ', '• "cancel feb 12" — Cancel Primary Care');
+          addLine('output', '  ', '• "reschedule feb 18" — Move C&P Follow-up');
+          addLine('output', '  ', '• "new appointment" — Schedule new visit');
+          addSpacer();
+          addLine('system', '*', '<span class="hl-dim">All scheduling actions require gate approval</span>');
+          break;
+
+        case 'prescriptions':
+          await typeText('step', '>', 'checking prescription status...');
+          await sleep(500);
+          addLine('success', '+', 'retrieved from VA pharmacy system (DEMO)');
+          addSpacer();
+          addLine('output', ' ', '<span class="hl-cyan">💊 PRESCRIPTIONS</span>');
+          addLine('output', ' ', '');
+          addLine('success', '  ', '✓ Lisinopril 10mg — Active');
+          addLine('output', '   ', '  <span class="hl-dim">Last filled: Jan 15 | Refills remaining: 3</span>');
+          addLine('warning', '  ', '⚠ Metformin 500mg — <span class="hl-yellow">REFILL NEEDED</span>');
+          addLine('output', '   ', '  <span class="hl-dim">Due: Feb 10 | Refills remaining: 2</span>');
+          addLine('success', '  ', '✓ Vitamin D 1000IU — Active');
+          addLine('output', '   ', '  <span class="hl-dim">Last filled: Jan 20 | Refills remaining: 5</span>');
+          addSpacer();
+          // Create evidence pack for this action
+          await GIAWorkflow.createPack('VETERAN-OPS', '/rx/status', { mode: 'DEMO' }, { medications: 3, refillsNeeded: 1 });
+          addLine('success', '+', 'evidence pack sealed');
+          addSpacer();
+          addLine('output', ' ', '<span class="hl-cyan">QUICK ACTION:</span>');
+          addLine('output', '  ', 'Type "refill metformin" to request refill');
+          addSpacer();
+
+          // Show refill gate option
+          addLine('system', '*', '<span class="hl-dim">Refill requests require approval before submission</span>');
+          break;
+
+        case 'forms':
+          await typeText('step', '>', 'checking form submission status...');
+          await sleep(400);
+          addLine('success', '+', 'retrieved from eBenefits (DEMO)');
+          addSpacer();
+          addLine('output', ' ', '<span class="hl-cyan">📄 FORMS & DOCUMENTS</span>');
+          addLine('output', ' ', '');
+          addLine('warning', ' ', '<span class="hl-yellow">DUE SOON:</span>');
+          addLine('output', '  ', '• <span class="hl-yellow">Feb 15</span> — PACT Act Screening Confirmation');
+          addLine('output', '   ', '  <span class="hl-dim">Required for toxic exposure benefits</span>');
+          addLine('output', '  ', '• <span class="hl-dim">Mar 01</span> — Travel Reimbursement (VA Form 10-3542)');
+          addLine('output', '   ', '  <span class="hl-dim">3 trips pending | Est. $127.50</span>');
+          addSpacer();
+          addLine('output', ' ', '<span class="hl-green">RECENTLY SUBMITTED:</span>');
+          addLine('output', '  ', '• Jan 28 — Intent to File (VA Form 21-0966)');
+          addLine('output', '   ', '  <span class="hl-green">Received</span> | Confirmation #ITF-2026-XXXX');
+          addSpacer();
+          addLine('output', ' ', '<span class="hl-cyan">ACTIONS:</span>');
+          addLine('output', '  ', '• "start pact screening" — Begin PACT form');
+          addLine('output', '  ', '• "submit travel" — Submit reimbursement');
+          break;
+
+        case 'benefits':
+          await typeText('step', '>', 'retrieving benefits information...');
+          await sleep(500);
+          addLine('success', '+', 'retrieved from VA.gov (DEMO)');
+          addSpacer();
+          addLine('output', ' ', '<span class="hl-cyan">🏛️ BENEFITS OVERVIEW</span>');
+          addSpacer();
+          addBlock('DISABILITY COMPENSATION', `Current Rating:     70% (combined)
+Individual Ratings:
+  • PTSD                40%   Service-connected
+  • Knee, right         20%   Service-connected
+  • Tinnitus            10%   Service-connected
+  • Hearing loss        10%   Service-connected
+
+Monthly Payment:    $1,716.28
+Payment Date:       1st of each month
+Direct Deposit:     ****4521 (Chase)`);
+          addSpacer();
+          addLine('output', ' ', '<span class="hl-yellow">PENDING CLAIMS:</span>');
+          addLine('output', '  ', '• Increase Request — Knee condition');
+          addLine('output', '   ', '  <span class="hl-dim">Filed: Jan 10 | Status: Evidence gathering</span>');
+          addSpacer();
+          addLine('output', ' ', '<span class="hl-cyan">OTHER BENEFITS:</span>');
+          addLine('output', '  ', '• Healthcare — <span class="hl-green">Enrolled</span> Priority Group 3');
+          addLine('output', '  ', '• Education — <span class="hl-green">Active</span> 24 months remaining');
+          addLine('output', '  ', '• Home Loan — <span class="hl-green">Eligible</span> COE available');
+          break;
+
+        case 'supplies':
+          await typeText('step', '>', 'checking medical supplies...');
+          await sleep(400);
+          addLine('success', '+', 'retrieved from VA prosthetics (DEMO)');
+          addSpacer();
+          addLine('output', ' ', '<span class="hl-cyan">📦 MEDICAL SUPPLIES</span>');
+          addSpacer();
+          addLine('output', ' ', '<span class="hl-green">RECENT ORDER:</span>');
+          addLine('output', '  ', '• CPAP Supplies (filters, mask cushions)');
+          addLine('output', '   ', '  Status: <span class="hl-green">Shipped</span> | Tracking: 1Z999AA1...');
+          addLine('output', '   ', '  <span class="hl-dim">Expected delivery: Feb 8</span>');
+          addSpacer();
+          addLine('output', ' ', '<span class="hl-yellow">REORDER AVAILABLE:</span>');
+          addLine('output', '  ', '• Hearing aid batteries (Size 312)');
+          addLine('output', '   ', '  <span class="hl-dim">Last ordered: Dec 15 | Eligible now</span>');
+          addSpacer();
+          addLine('output', ' ', '<span class="hl-cyan">ACTIONS:</span>');
+          addLine('output', '  ', '• "order batteries" — Reorder hearing aid batteries');
+          addLine('output', '  ', '• "track order" — Get shipping updates');
+          break;
+
+        case 'payments':
+          await typeText('step', '>', 'loading payment options...');
+          await sleep(400);
+          addLine('success', '+', 'connected to VA payment system (DEMO)');
+          addSpacer();
+          addLine('output', ' ', '<span class="hl-cyan">💳 PAYMENTS & COPAYS</span>');
+          addSpacer();
+          addLine('output', ' ', '<span class="hl-yellow">OUTSTANDING BALANCE:</span>');
+          addLine('output', '  ', '• Pharmacy copay — $24.00');
+          addLine('output', '   ', '  <span class="hl-dim">Due: Feb 28 | From Jan prescriptions</span>');
+          addSpacer();
+          addLine('output', ' ', '<span class="hl-green">PAYMENT HISTORY:</span>');
+          addLine('output', '  ', '• Jan 15 — $16.00 (pharmacy copay) — Paid');
+          addLine('output', '  ', '• Dec 20 — $8.00 (pharmacy copay) — Paid');
+          addSpacer();
+          addLine('warning', '!', '<span class="hl-yellow">PAYMENT REQUIRES GATE APPROVAL</span>');
+          addLine('output', ' ', 'Type "pay $24" to initiate payment');
+          addLine('system', '*', '<span class="hl-dim">All financial transactions are gated and logged</span>');
+          break;
+      }
+      addSpacer();
+    }
+
+    // ============================================
+    // BROWSER AGENT INTERACTIVE HANDLERS
+    // ============================================
+    async function handleBrowserTask(input) {
+      const lowerInput = input.toLowerCase();
+      let task = null;
+      let url = null;
+
+      // Detect browser task
+      if (lowerInput.includes('sam.gov') || lowerInput.includes('search sam')) {
+        task = 'sam-search';
+        url = 'https://sam.gov';
+      } else if (lowerInput.includes('usaspending')) {
+        task = 'spending-search';
+        url = 'https://usaspending.gov';
+      } else if (lowerInput.includes('navigate to')) {
+        task = 'navigate';
+        const urlMatch = input.match(/navigate to\s+(\S+)/i);
+        url = urlMatch ? urlMatch[1] : 'unknown';
+      }
+
+      // Open browser panel if not open
+      BrowserAgent.init();
+      if (!BrowserAgent._isOpen) {
+        BrowserAgent.open();
+      }
+
+      GIASounds.dataReceived();
+      addLine('system', '*', '<span class="hl-accent">GOVERNED BROWSER TASK</span>');
+      addLine('output', ' ', `<span class="hl-dim">Task: ${input}</span>`);
+      addSpacer();
+
+      // Simulate task execution in demo mode
+      await typeText('step', '>', 'analyzing task requirements...');
+      await sleep(400);
+
+      if (task === 'sam-search') {
+        addLine('success', '+', 'task parsed: Federal opportunity search');
+        addLine('output', ' ', `<span class="hl-dim">Target: ${url}</span>`);
+        addSpacer();
+
+        // Show gate requirement
+        addLine('warning', '!', '<span class="hl-yellow">GATE REQUIRED: Browser Navigation</span>');
+        addLine('output', ' ', 'This action will navigate to an external site.');
+        addSpacer();
+
+        // Simulate the search
+        await typeText('step', '>', 'queuing task for MCP execution...');
+        await sleep(300);
+
+        // Create evidence pack
+        await GIAWorkflow.createPack('BROWSER-AGENT', '/task/queue',
+          { task: 'sam-search', url: url },
+          { queued: true, timestamp: new Date().toISOString() }
+        );
+
+        addLine('success', '+', 'task queued for execution');
+        addSpacer();
+
+        // Show simulated results
+        addLine('system', '*', '<span class="hl-accent">DEMO: Simulated Search Results</span>');
+        addSpacer();
+        addBlock('SAM.gov Search Results', `Query: "${input}"
+Found: 47 opportunities matching criteria
+
+TOP MATCHES:
+1. FA8750-26-R-0042 — AI/ML Platform Services
+   Agency: Air Force | $4.2M | Due: Mar 15
+   Match Score: 95%
+
+2. W911NF-26-R-0089 — Cyber Defense Analytics
+   Agency: Army | $2.8M | Due: Mar 22
+   Match Score: 91%
+
+3. N00024-26-R-0156 — Cloud Migration Services
+   Agency: Navy | $1.9M | Due: Apr 01
+   Match Score: 88%
+
+[DEMO MODE - Real search requires MCP connection]`);
+        BrowserAgent.log('Task completed (demo)', 'success');
+        BrowserAgent.setStatus('READY');
+
+      } else if (task === 'spending-search') {
+        addLine('success', '+', 'task parsed: Federal spending research');
+        addLine('output', ' ', `<span class="hl-dim">Target: ${url}</span>`);
+        addSpacer();
+
+        await typeText('step', '>', 'preparing spending data query...');
+        await sleep(400);
+
+        addLine('system', '*', '<span class="hl-accent">DEMO: Simulated Spending Data</span>');
+        addSpacer();
+        addBlock('USASpending.gov Results', `Fiscal Year: 2025-2026
+Category: Information Technology
+
+AGENCY SPENDING SUMMARY:
+• Department of Defense     $45.2B
+• Department of Homeland    $12.8B
+• Health & Human Services   $9.4B
+• Veterans Affairs          $8.1B
+
+AI/ML SPECIFIC CONTRACTS:
+Total Obligations: $3.2B (YTD)
+Top Contractors: [DEMO DATA]
+
+[DEMO MODE - Real search requires MCP connection]`);
+        BrowserAgent.log('Spending query completed (demo)', 'success');
+
+      } else {
+        addLine('output', ' ', `<span class="hl-dim">Target URL: ${url}</span>`);
+        addLine('warning', '!', 'Navigation requires MCP browser connection');
+        addLine('system', '*', '<span class="hl-dim">In LIVE mode, Claude would navigate to this URL</span>');
+      }
+
+      addSpacer();
+      addLine('system', '*', '<span class="hl-dim">Use browser panel for interactive tasks</span>');
     }
 
     function addBlock(title, content) {
