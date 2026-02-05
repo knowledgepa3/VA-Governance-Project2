@@ -7246,6 +7246,8 @@ OUTPUT: Complete formatted report ready for case file.`
       await sleep(150);
       addLine('output', ' ', '<span class="hl-dim">├─ evidence chain........ </span><span class="hl-green">READY</span>');
       await sleep(150);
+      addLine('output', ' ', '<span class="hl-dim">├─ module system......... </span><span class="hl-green">LOADED</span>');
+      await sleep(150);
       addLine('output', ' ', '<span class="hl-dim">└─ operator interface.... </span><span class="hl-green">CONNECTED</span>');
       await sleep(300);
 
@@ -7255,27 +7257,135 @@ OUTPUT: Complete formatted report ready for case file.`
       const hour = new Date().getHours();
       const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-      addLine('ai', 'gia:', `<span class="hl-accent">${greeting}.</span> GIA v1.0 online.`);
+      addLine('ai', 'gia:', `<span class="hl-accent">${greeting}.</span> GIA Command Center online.`);
       await sleep(200);
-      addLine('ai', 'gia:', `Governed Intelligence Architecture ready for tasking.`);
+
       addSpacer();
 
-      await sleep(300);
+      // ============================================
+      // COMMAND CENTER HOME SCREEN
+      // ============================================
 
-      // Quick status
-      addLine('system', '*', '<span class="hl-cyan">STATUS</span>');
-      addLine('output', ' ', `mode: <span class="hl-yellow">DEMO</span> · storage: LOCAL · integrity: HASH_CHAIN`);
-      addLine('output', ' ', `api: ${ClaudeAPI.hasApiKey() ? '<span class="hl-green">CONFIGURED</span>' : '<span class="hl-dim">not set</span>'} · sounds: ${GIASounds.isEnabled() ? '<span class="hl-green">ON</span>' : '<span class="hl-dim">off</span>'}`);
+      // Product tagline
+      addLine('system', '*', '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      addLine('system', '*', '<span class="hl-accent">VETERAN COMMAND CENTER</span>');
+      addLine('output', ' ', '<span class="hl-dim">Governed AI support for claims, evidence, appointments & life admin</span>');
+      addLine('system', '*', '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       addSpacer();
 
-      // Instructions
-      addLine('system', '*', '<span class="hl-cyan">QUICK START</span>');
-      addLine('output', ' ', 'Click <span class="hl-accent">+ AGENT</span> to launch a workflow');
-      addLine('output', ' ', 'Type <span class="hl-accent">help</span> for commands');
+      await sleep(200);
+
+      // ============================================
+      // ACTIVE VA CASES
+      // ============================================
+      addLine('system', '*', '<span class="hl-cyan">📋 ACTIVE VA CASES</span>');
+
+      // Get real data from evidence chain if available
+      const evidencePacks = GIA.evidence.packs || [];
+      const vaCases = evidencePacks.filter(p => p.source?.includes('VA') || p.source?.includes('CLAIM'));
+
+      if (vaCases.length > 0) {
+        addLine('output', ' ', `<span class="hl-green">${vaCases.length}</span> case(s) with evidence on file`);
+        // Show last 3
+        vaCases.slice(-3).forEach(c => {
+          addLine('output', '  ', `• ${c.id} — ${c.source} <span class="hl-dim">${c.timestamp?.split('T')[0] || ''}</span>`);
+        });
+      } else {
+        addLine('output', ' ', '<span class="hl-dim">No active cases</span>');
+        addLine('output', ' ', '<span class="hl-dim">Click + AGENT → VA Claims to start analysis</span>');
+      }
+      addSpacer();
+
+      await sleep(150);
+
+      // ============================================
+      // PENDING GATES
+      // ============================================
+      addLine('system', '*', '<span class="hl-cyan">🚦 PENDING GATES</span>');
+
+      const pendingCalls = GIAToolRouter.getPendingCalls();
+      const gateStats = GIAToolRouter.getStats();
+
+      if (pendingCalls.length > 0) {
+        addLine('output', ' ', `<span class="hl-yellow">${pendingCalls.length}</span> action(s) awaiting approval`);
+        pendingCalls.slice(0, 3).forEach(c => {
+          addLine('output', '  ', `• ${c.action} <span class="hl-dim">→ requires gate</span>`);
+        });
+      } else {
+        addLine('output', ' ', '<span class="hl-green">✓</span> No pending approvals');
+      }
+
+      // Gate history
+      if (gateStats.decisions.approved > 0 || gateStats.decisions.rejected > 0) {
+        addLine('output', ' ', `<span class="hl-dim">History: ${gateStats.decisions.approved} approved, ${gateStats.decisions.rejected} rejected</span>`);
+      }
+      addSpacer();
+
+      await sleep(150);
+
+      // ============================================
+      // UPCOMING (LIFE OPS)
+      // ============================================
+      addLine('system', '*', '<span class="hl-cyan">📅 UPCOMING</span>');
+      addLine('output', ' ', '• <span class="hl-yellow">Feb 12</span> — Primary Care (VA Medical Center)');
+      addLine('output', ' ', '• <span class="hl-dim">Feb 15</span> — PACT Act Screening form due');
+      addLine('output', ' ', '• <span class="hl-dim">Feb 18</span> — C&P Exam Follow-up');
+      addSpacer();
+
+      await sleep(150);
+
+      // ============================================
+      // LAST EVIDENCE PACK
+      // ============================================
+      addLine('system', '*', '<span class="hl-cyan">🔐 EVIDENCE CHAIN</span>');
+
+      if (evidencePacks.length > 0) {
+        const lastPack = evidencePacks[evidencePacks.length - 1];
+        addLine('output', ' ', `Packs: <span class="hl-green">${evidencePacks.length}</span> sealed`);
+        addLine('output', ' ', `Last: <span class="hl-dim">${lastPack.id}</span>`);
+        addLine('output', ' ', `Hash: <span class="hl-accent">${lastPack.queryHash?.substring(0, 24) || 'N/A'}...</span>`);
+
+        // Verify chain
+        const chainStatus = await GIA.evidence.verifyChain();
+        if (chainStatus.valid) {
+          addLine('output', ' ', `Chain: <span class="hl-green">VERIFIED</span> (${chainStatus.chainLength} links)`);
+        } else {
+          addLine('output', ' ', `Chain: <span class="hl-red">BROKEN</span> at ${chainStatus.brokenAt}`);
+        }
+      } else {
+        addLine('output', ' ', '<span class="hl-dim">No evidence packs yet</span>');
+        addLine('output', ' ', '<span class="hl-dim">Evidence is created when you run workflows</span>');
+      }
+      addSpacer();
+
+      await sleep(150);
+
+      // ============================================
+      // SYSTEM STATUS
+      // ============================================
+      addLine('system', '*', '<span class="hl-cyan">⚙️ SYSTEM</span>');
+
+      const modules = GIAModuleSystem.listModules();
+      const instances = GIAModuleSystem.listInstances();
+      const hasApiKey = ClaudeAPI.hasApiKey();
+
+      addLine('output', ' ', `Mode: ${hasApiKey ? '<span class="hl-green">LIVE</span>' : '<span class="hl-yellow">DEMO</span>'} · Storage: LOCAL · Integrity: HASH_CHAIN`);
+      addLine('output', ' ', `Modules: <span class="hl-green">${modules.length}</span> registered · Instances: ${instances.filter(i => i.status === 'READY' || i.status === 'RUNNING').length} active`);
+      addLine('output', ' ', `Tokens: ${gateStats.tokenUsage?.input + gateStats.tokenUsage?.output || 0} / ${gateStats.tokenCeiling || 100000}`);
+      addSpacer();
+
+      // ============================================
+      // QUICK ACTIONS
+      // ============================================
+      addLine('system', '*', '<span class="hl-cyan">⚡ QUICK START</span>');
+      addLine('output', ' ', '<span class="hl-accent">+ AGENT</span> → Launch a workflow (VA Claims, Browser, Life Ops)');
+      addLine('output', ' ', '<span class="hl-accent">help</span> → Show all commands');
+      addLine('output', ' ', '<span class="hl-accent">modules</span> → List registered modules');
+      addLine('output', ' ', '<span class="hl-accent">pending</span> → Show pending approvals');
       addSpacer();
 
       // Ready state
-      addLine('ai', 'gia:', '<span class="hl-dim">Standing by for instructions.</span>');
+      addLine('ai', 'gia:', '<span class="hl-dim">Command Center ready. What would you like to do?</span>');
       addSpacer();
     }
 
