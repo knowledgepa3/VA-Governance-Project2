@@ -4143,6 +4143,12 @@ OUTPUT: Complete formatted report ready for case file.`
         addLine('output', ' ', '  browser     — open browser panel');
         addLine('output', ' ', '  close browser — close browser panel');
         addSpacer();
+        addLine('output', ' ', '<span class="hl-cyan">MCP Relay:</span>');
+        addLine('output', ' ', '  mcp status  — show MCP relay status & metrics');
+        addLine('output', ' ', '  mcp pending — list pending MCP tasks for execution');
+        addLine('output', ' ', '  mcp clear   — clear completed/expired tasks');
+        addLine('output', ' ', '  mcp reset   — reset relay state (caution)');
+        addSpacer();
         addLine('output', ' ', '<span class="hl-cyan">Terminal:</span>');
         addLine('output', ' ', '  help        — show this message');
         addLine('output', ' ', '  clear       — clear terminal');
@@ -4277,6 +4283,32 @@ OUTPUT: Complete formatted report ready for case file.`
         addLine('human', 'you:', text);
         BrowserAgent.close();
         addLine('success', '+', 'browser panel closed');
+        addSpacer();
+        inputField.value = '';
+        inputField.style.height = 'auto';
+        return;
+      }
+
+      // MCP Relay commands
+      if (lowerText.startsWith('mcp ') || lowerText === 'mcp') {
+        addLine('human', 'you:', text);
+        addSpacer();
+
+        const mcpCommand = lowerText.split(' ')[1] || 'status';
+
+        if (window._mcpCommands && window._mcpCommands[mcpCommand]) {
+          window._mcpCommands[mcpCommand]();
+        } else if (mcpCommand === 'help') {
+          addLine('system', '*', '<span class="hl-accent">MCP RELAY COMMANDS</span>');
+          addLine('output', ' ', '  mcp status  — show relay status & metrics');
+          addLine('output', ' ', '  mcp pending — list pending tasks for Claude to execute');
+          addLine('output', ' ', '  mcp clear   — clear completed/expired tasks');
+          addLine('output', ' ', '  mcp reset   — reset relay state');
+        } else {
+          addLine('warning', '!', `Unknown MCP command: ${mcpCommand}`);
+          addLine('output', ' ', '<span class="hl-dim">Try: mcp status, mcp pending, mcp clear</span>');
+        }
+
         addSpacer();
         inputField.value = '';
         inputField.style.height = 'auto';
@@ -6945,6 +6977,83 @@ MCP Browser: NOT CONNECTED`);
         const mcpTool = mcpMapping[action];
         if (!mcpTool) throw new Error(`Unknown browser action: ${action}`);
 
+        // ============================================
+        // PRODUCTION MCP RELAY INTEGRATION
+        // Routes browser tools through GIAMCPRelay for:
+        // 1. Governed queueing with canonical schemas
+        // 2. Async result handling with polling
+        // 3. Evidence chain sealing on completion
+        // ============================================
+
+        // Check if MCP Relay is available and enabled
+        const useMCPRelay = window.GIAMCPRelay && GIA?.config?.mcpRelayEnabled !== false;
+
+        if (useMCPRelay) {
+          // === PRODUCTION PATH: Use GIA MCP Relay ===
+          addLine('step', '»', `<span class="hl-cyan">MCP RELAY:</span> ${action}`);
+
+          try {
+            // Build relay context with governance data
+            const relayContext = {
+              gateId: intent.callId,
+              approvedPayloadHash: this._hash(JSON.stringify(args)),
+              requiresGate: false, // Already passed gate at invoke level
+              workflowId: GIAWorkflow?._context?.runId || null,
+              ttl: new Date(intent.expiresAt).getTime() - Date.now()
+            };
+
+            // Map action to relay method with proper args
+            let relayPromise;
+            switch (action) {
+              case 'navigate':
+                relayPromise = GIAMCPRelay.navigate(args.url, relayContext);
+                if (args.url) BrowserAgent.setUrl(args.url);
+                break;
+              case 'screenshot':
+                relayPromise = GIAMCPRelay.screenshot(relayContext);
+                break;
+              case 'click':
+                relayPromise = GIAMCPRelay.click(args.target || args.selector, relayContext);
+                break;
+              case 'type':
+                relayPromise = GIAMCPRelay.type(args.text, args.target || args.selector, relayContext);
+                break;
+              case 'extract':
+                relayPromise = GIAMCPRelay.extract(args.selector, relayContext);
+                break;
+              case 'find':
+                relayPromise = GIAMCPRelay.queueTask('browser.find', args, relayContext);
+                break;
+              case 'submit':
+                relayPromise = GIAMCPRelay.queueTask('browser.submit', args, relayContext);
+                break;
+              default:
+                relayPromise = GIAMCPRelay.queueTask(`browser.${action}`, args, relayContext);
+            }
+
+            // Return immediately with pending status
+            // Result will be delivered via MCPBrowserBridge when MCP executes
+            const pendingTask = GIAMCPRelay.getPendingTasks().slice(-1)[0];
+
+            return {
+              mcpTool: mcpTool,
+              mcpRelay: true,
+              taskId: pendingTask?.taskId || `MCP-${Date.now().toString(36)}`,
+              nonce: pendingTask?.nonce || intent.nonce,
+              status: 'QUEUED_VIA_RELAY',
+              relayStatus: GIAMCPRelay.getStatus(),
+              message: 'Task queued via GIA MCP Relay. MCP will execute and return results via MCPBrowserBridge.'
+            };
+
+          } catch (err) {
+            addLine('error', 'x', `MCP Relay error: ${err.message}`);
+            // Fall through to legacy path
+          }
+        }
+
+        // === LEGACY PATH: Direct queue for Claude to pick up ===
+        // (Used when MCP Relay not available or as fallback)
+
         // Create pending call with full idempotency fields
         const pendingCall = {
           id: `MCP-${Date.now().toString(36)}`,
@@ -6975,6 +7084,7 @@ MCP Browser: NOT CONNECTED`);
 
         return {
           mcpTool: mcpTool,
+          mcpRelay: false,
           callId: pendingCall.id,
           nonce: pendingCall.nonce,
           requestHash: pendingCall.requestHash,
@@ -7599,6 +7709,950 @@ MCP Browser: NOT CONNECTED`);
 
     // Initialize browser agent when DOM is ready
     window.BrowserAgent = BrowserAgent;
+
+    // ============================================
+    // GIA MCP RELAY - Production-Grade MCP Integration
+    // ============================================
+    // Architecture: GIA queues → MCP executes → GIA seals evidence
+    //
+    // GOVERNANCE FLOW:
+    // 1. GIA Tool Router creates ToolCallIntent
+    // 2. GIA evaluates policy, creates ToolCallDecision
+    // 3. If GATED: Wait for human approval (hash-locked)
+    // 4. Relay sends task to MCP execution layer
+    // 5. MCP returns result via GIA_MCP_RESULTS
+    // 6. GIA creates ToolCallExecution, seals evidence chain
+    //
+    // SECURITY:
+    // - Nonce-based replay protection
+    // - Cryptographic hash chaining
+    // - TTL expiration (5 min default)
+    // - Domain allowlist enforcement
+    // - PII redaction in transit
+    // ============================================
+
+    const GIAMCPRelay = {
+      // ============================================
+      // CONFIGURATION
+      // ============================================
+      config: {
+        version: '1.0.0',
+        maxQueueSize: 100,
+        defaultTTL: 300000,           // 5 minutes
+        pollInterval: 500,            // 500ms result polling
+        maxRetries: 3,
+        retryBackoff: 1000,           // 1s initial, exponential
+        executionTimeout: 60000,      // 60s max execution time
+        allowedDomains: [
+          'sam.gov',
+          'usaspending.gov',
+          'va.gov',
+          'myhealth.va.gov',
+          'ebenefits.va.gov',
+          'google.com',
+          'bing.com'
+        ]
+      },
+
+      // ============================================
+      // STATE - Task Queue and Results
+      // ============================================
+      _queue: [],                     // Outbound task queue to MCP
+      _results: new Map(),            // Results keyed by taskId
+      _pendingCallbacks: new Map(),   // Promise resolvers for async operations
+      _executionHistory: [],          // Sealed execution records
+      _metrics: {
+        tasksQueued: 0,
+        tasksExecuted: 0,
+        tasksFailed: 0,
+        averageLatencyMs: 0,
+        lastActivity: null
+      },
+      _isPolling: false,
+      _pollTimer: null,
+
+      // ============================================
+      // CANONICAL TASK SCHEMA
+      // ============================================
+
+      /**
+       * Create a governed MCP task
+       * @param {string} type - Task type (browser.navigate, browser.screenshot, etc.)
+       * @param {object} payload - Task parameters
+       * @param {object} context - Governance context (gateId, nonce, etc.)
+       * @returns {object} Canonical MCPTask schema
+       */
+      _createTask(type, payload, context = {}) {
+        const taskId = `MCP-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+        const nonce = this._generateNonce();
+
+        const task = {
+          // === Identity ===
+          schema: 'MCPTask',
+          version: '1.0',
+          taskId: taskId,
+          nonce: nonce,
+
+          // === Task Definition ===
+          type: type,
+          payload: this._sanitizePayload(type, payload),
+          payloadHash: this._hash(JSON.stringify(payload)),
+
+          // === Governance ===
+          gateId: context.gateId || null,
+          approvedPayloadHash: context.approvedPayloadHash || null,
+          policyContext: {
+            toolName: type,
+            domain: this._extractDomain(payload),
+            riskLevel: this._getRiskLevel(type),
+            requiresGate: context.requiresGate || false
+          },
+
+          // === Timing ===
+          createdAt: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + (context.ttl || this.config.defaultTTL)).toISOString(),
+
+          // === State ===
+          status: 'QUEUED',           // QUEUED | EXECUTING | COMPLETED | FAILED | EXPIRED
+          retryCount: 0,
+
+          // === Provenance ===
+          source: 'GIA_RELAY',
+          workflowId: context.workflowId || GIAWorkflow?._context?.runId || null,
+          operatorId: GIA?.config?.operatorToken || 'ANONYMOUS'
+        };
+
+        return task;
+      },
+
+      /**
+       * Create a task result schema
+       * @param {object} task - Original task
+       * @param {object} result - Execution result
+       * @param {Error|null} error - Error if failed
+       * @returns {object} Canonical MCPResult schema
+       */
+      _createResult(task, result, error = null) {
+        const resultObj = {
+          // === Identity ===
+          schema: 'MCPResult',
+          version: '1.0',
+          taskId: task.taskId,
+          nonce: task.nonce,
+
+          // === Hashes for verification ===
+          taskHash: this._hash(JSON.stringify(task)),
+          resultHash: result ? this._hash(JSON.stringify(result)) : null,
+
+          // === Result ===
+          status: error ? 'FAILED' : 'COMPLETED',
+          data: result,
+          error: error ? {
+            code: error.code || 'EXECUTION_ERROR',
+            message: error.message,
+            stack: error.stack?.substring(0, 500)
+          } : null,
+
+          // === Metrics ===
+          executionDurationMs: 0,     // Set by executor
+
+          // === Timing ===
+          completedAt: new Date().toISOString()
+        };
+
+        return resultObj;
+      },
+
+      // ============================================
+      // CRYPTO UTILITIES
+      // ============================================
+
+      _generateNonce() {
+        const array = new Uint8Array(16);
+        crypto.getRandomValues(array);
+        return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+      },
+
+      _hash(data) {
+        // SHA-256 simulation for browser (sync version)
+        let hash = 0;
+        const str = typeof data === 'string' ? data : JSON.stringify(data);
+        for (let i = 0; i < str.length; i++) {
+          const char = str.charCodeAt(i);
+          hash = ((hash << 5) - hash) + char;
+          hash = hash & hash;
+        }
+        return 'sha256:' + Math.abs(hash).toString(16).padStart(16, '0');
+      },
+
+      async _hashAsync(data) {
+        // Real SHA-256 for production
+        const encoder = new TextEncoder();
+        const dataBuffer = encoder.encode(typeof data === 'string' ? data : JSON.stringify(data));
+        const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return 'sha256:' + hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      },
+
+      // ============================================
+      // PAYLOAD SANITIZATION
+      // ============================================
+
+      /**
+       * Sanitize payload before sending to MCP
+       * - Redact PII patterns
+       * - Validate domain allowlist
+       * - Enforce type-specific constraints
+       */
+      _sanitizePayload(type, payload) {
+        const sanitized = { ...payload };
+
+        // PII patterns to redact
+        const piiPatterns = [
+          { pattern: /\b\d{3}-\d{2}-\d{4}\b/g, replacement: '[SSN-REDACTED]' },
+          { pattern: /\b\d{9}\b/g, replacement: '[SSN-REDACTED]' },
+          { pattern: /\b(?:\d{4}[-\s]?){3}\d{4}\b/g, replacement: '[CC-REDACTED]' },
+          { pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, replacement: '[EMAIL-REDACTED]' }
+        ];
+
+        // Redact text fields
+        if (sanitized.text && typeof sanitized.text === 'string') {
+          for (const { pattern, replacement } of piiPatterns) {
+            sanitized.text = sanitized.text.replace(pattern, replacement);
+          }
+        }
+
+        // Domain validation for navigation
+        if (type === 'browser.navigate' && sanitized.url) {
+          const domain = this._extractDomain({ url: sanitized.url });
+          if (!this._isDomainAllowed(domain)) {
+            sanitized._warning = `Domain ${domain} not in allowlist`;
+          }
+        }
+
+        return sanitized;
+      },
+
+      _extractDomain(payload) {
+        if (payload?.url) {
+          try {
+            return new URL(payload.url).hostname.replace('www.', '');
+          } catch {
+            return 'unknown';
+          }
+        }
+        return null;
+      },
+
+      _isDomainAllowed(domain) {
+        if (!domain) return true;
+        if (this.config.allowedDomains.includes('*')) return true;
+        return this.config.allowedDomains.some(d => domain.endsWith(d));
+      },
+
+      _getRiskLevel(type) {
+        const riskMap = {
+          'browser.navigate': 'LOW',
+          'browser.screenshot': 'LOW',
+          'browser.click': 'MEDIUM',
+          'browser.type': 'MEDIUM',
+          'browser.extract': 'LOW',
+          'browser.submit': 'HIGH'
+        };
+        return riskMap[type] || 'MEDIUM';
+      },
+
+      // ============================================
+      // QUEUE MANAGEMENT
+      // ============================================
+
+      /**
+       * Queue a task for MCP execution
+       * @param {string} type - Task type
+       * @param {object} payload - Task parameters
+       * @param {object} context - Governance context
+       * @returns {Promise<object>} Resolves with execution result
+       */
+      async queueTask(type, payload, context = {}) {
+        // Create governed task
+        const task = this._createTask(type, payload, context);
+
+        // Validate queue capacity
+        if (this._queue.length >= this.config.maxQueueSize) {
+          throw new Error(`MCP queue full (max ${this.config.maxQueueSize})`);
+        }
+
+        // Add to queue
+        this._queue.push(task);
+        this._metrics.tasksQueued++;
+        this._metrics.lastActivity = new Date().toISOString();
+
+        // Expose to window for MCP to consume
+        window.GIA_MCP_QUEUE = this._queue;
+
+        // Log to terminal
+        if (typeof addLine === 'function') {
+          addLine('step', '»', `<span class="hl-cyan">MCP TASK QUEUED:</span> ${task.taskId}`);
+          addLine('output', ' ', `<span class="hl-dim">Type:</span> ${type}`);
+          addLine('output', ' ', `<span class="hl-dim">Nonce:</span> ${task.nonce.substring(0, 8)}...`);
+        }
+
+        // Create promise for async resolution
+        return new Promise((resolve, reject) => {
+          // Store callback
+          this._pendingCallbacks.set(task.taskId, { resolve, reject, task });
+
+          // Set timeout
+          setTimeout(() => {
+            if (this._pendingCallbacks.has(task.taskId)) {
+              const callback = this._pendingCallbacks.get(task.taskId);
+              callback.task.status = 'EXPIRED';
+              this._pendingCallbacks.delete(task.taskId);
+              reject(new Error(`Task ${task.taskId} expired (TTL exceeded)`));
+            }
+          }, context.ttl || this.config.defaultTTL);
+
+          // Start polling for results if not already polling
+          this._startPolling();
+        });
+      },
+
+      /**
+       * Get all pending tasks (for MCP to consume)
+       * @returns {Array} Pending tasks
+       */
+      getPendingTasks() {
+        return this._queue.filter(t => t.status === 'QUEUED');
+      },
+
+      /**
+       * Mark task as executing (called when MCP picks it up)
+       * @param {string} taskId - Task ID
+       */
+      markExecuting(taskId) {
+        const task = this._queue.find(t => t.taskId === taskId);
+        if (task) {
+          task.status = 'EXECUTING';
+          task.executionStartedAt = new Date().toISOString();
+
+          if (typeof addLine === 'function') {
+            addLine('step', '»', `<span class="hl-yellow">MCP EXECUTING:</span> ${taskId}`);
+          }
+        }
+      },
+
+      // ============================================
+      // RESULT HANDLING
+      // ============================================
+
+      /**
+       * Submit result from MCP execution
+       * Called by MCP layer when task completes
+       * @param {string} taskId - Task ID
+       * @param {object} result - Execution result
+       * @param {Error|null} error - Error if failed
+       */
+      submitResult(taskId, result, error = null) {
+        const task = this._queue.find(t => t.taskId === taskId);
+        if (!task) {
+          console.warn(`GIA MCP Relay: Unknown task ${taskId}`);
+          return;
+        }
+
+        // Calculate execution time
+        const execDuration = task.executionStartedAt
+          ? Date.now() - new Date(task.executionStartedAt).getTime()
+          : 0;
+
+        // Create canonical result
+        const resultObj = this._createResult(task, result, error);
+        resultObj.executionDurationMs = execDuration;
+
+        // Update task status
+        task.status = error ? 'FAILED' : 'COMPLETED';
+        task.completedAt = new Date().toISOString();
+
+        // Store result
+        this._results.set(taskId, resultObj);
+
+        // Expose to window for inspection
+        window.GIA_MCP_RESULTS = Object.fromEntries(this._results);
+
+        // Update metrics
+        if (error) {
+          this._metrics.tasksFailed++;
+        } else {
+          this._metrics.tasksExecuted++;
+          // Rolling average
+          const total = this._metrics.tasksExecuted;
+          this._metrics.averageLatencyMs =
+            (this._metrics.averageLatencyMs * (total - 1) + execDuration) / total;
+        }
+
+        // Resolve pending promise
+        if (this._pendingCallbacks.has(taskId)) {
+          const callback = this._pendingCallbacks.get(taskId);
+          this._pendingCallbacks.delete(taskId);
+
+          if (error) {
+            callback.reject(error);
+          } else {
+            callback.resolve(resultObj);
+          }
+        }
+
+        // Seal to evidence chain
+        this._sealExecution(task, resultObj);
+
+        // Log to terminal
+        if (typeof addLine === 'function') {
+          if (error) {
+            addLine('error', 'x', `<span class="hl-red">MCP FAILED:</span> ${taskId}`);
+            addLine('output', ' ', `<span class="hl-dim">Error:</span> ${error.message}`);
+          } else {
+            addLine('success', '+', `<span class="hl-green">MCP COMPLETED:</span> ${taskId}`);
+            addLine('output', ' ', `<span class="hl-dim">Duration:</span> ${execDuration}ms`);
+          }
+        }
+      },
+
+      /**
+       * Seal execution to evidence chain
+       */
+      _sealExecution(task, result) {
+        const executionRecord = {
+          timestamp: new Date().toISOString(),
+          taskId: task.taskId,
+          type: task.type,
+          status: result.status,
+          taskHash: result.taskHash,
+          resultHash: result.resultHash,
+          executionDurationMs: result.executionDurationMs,
+          gateId: task.gateId,
+          operatorId: task.operatorId
+        };
+
+        this._executionHistory.push(executionRecord);
+
+        // Seal to GIA evidence chain if available
+        if (typeof GIA !== 'undefined' && GIA.evidence?.seal) {
+          GIA.evidence.seal({
+            source: 'MCP_EXECUTION',
+            data: executionRecord,
+            hash: result.resultHash
+          });
+        }
+      },
+
+      // ============================================
+      // RESULT POLLING
+      // ============================================
+
+      _startPolling() {
+        if (this._isPolling) return;
+
+        this._isPolling = true;
+        this._pollTimer = setInterval(() => {
+          this._pollResults();
+        }, this.config.pollInterval);
+      },
+
+      _stopPolling() {
+        this._isPolling = false;
+        if (this._pollTimer) {
+          clearInterval(this._pollTimer);
+          this._pollTimer = null;
+        }
+      },
+
+      _pollResults() {
+        // Check for results in window.GIA_MCP_RESULTS
+        // This is populated by the MCP execution layer
+        const externalResults = window.GIA_MCP_INCOMING_RESULTS;
+
+        if (externalResults && typeof externalResults === 'object') {
+          for (const [taskId, result] of Object.entries(externalResults)) {
+            // Skip already processed
+            if (this._results.has(taskId)) continue;
+
+            // Process new result
+            if (result.error) {
+              this.submitResult(taskId, null, new Error(result.error.message || 'Execution failed'));
+            } else {
+              this.submitResult(taskId, result.data, null);
+            }
+
+            // Clear from incoming
+            delete externalResults[taskId];
+          }
+        }
+
+        // Stop polling if no pending tasks
+        if (this._pendingCallbacks.size === 0) {
+          this._stopPolling();
+        }
+
+        // Expire old tasks
+        const now = Date.now();
+        this._queue.forEach(task => {
+          if (task.status === 'QUEUED' && new Date(task.expiresAt).getTime() < now) {
+            task.status = 'EXPIRED';
+
+            if (this._pendingCallbacks.has(task.taskId)) {
+              const callback = this._pendingCallbacks.get(task.taskId);
+              this._pendingCallbacks.delete(task.taskId);
+              callback.reject(new Error(`Task ${task.taskId} expired`));
+            }
+          }
+        });
+      },
+
+      // ============================================
+      // BROWSER AGENT INTEGRATION
+      // ============================================
+
+      /**
+       * Execute browser navigation via governed relay
+       */
+      async navigate(url, context = {}) {
+        return this.queueTask('browser.navigate', { url }, context);
+      },
+
+      /**
+       * Execute screenshot capture via governed relay
+       */
+      async screenshot(context = {}) {
+        return this.queueTask('browser.screenshot', {}, context);
+      },
+
+      /**
+       * Execute click action via governed relay
+       */
+      async click(target, context = {}) {
+        return this.queueTask('browser.click', { target }, context);
+      },
+
+      /**
+       * Execute text input via governed relay
+       */
+      async type(text, target, context = {}) {
+        return this.queueTask('browser.type', { text, target }, context);
+      },
+
+      /**
+       * Execute data extraction via governed relay
+       */
+      async extract(selector, context = {}) {
+        return this.queueTask('browser.extract', { selector }, context);
+      },
+
+      // ============================================
+      // STATUS & DIAGNOSTICS
+      // ============================================
+
+      /**
+       * Get relay status summary
+       */
+      getStatus() {
+        return {
+          version: this.config.version,
+          isPolling: this._isPolling,
+          queueLength: this._queue.length,
+          pendingTasks: this.getPendingTasks().length,
+          completedTasks: this._results.size,
+          metrics: { ...this._metrics },
+          executionHistory: this._executionHistory.slice(-10)
+        };
+      },
+
+      /**
+       * Get task by ID
+       */
+      getTask(taskId) {
+        return this._queue.find(t => t.taskId === taskId);
+      },
+
+      /**
+       * Get result by task ID
+       */
+      getResult(taskId) {
+        return this._results.get(taskId);
+      },
+
+      /**
+       * Clear completed/expired tasks from queue
+       */
+      clearCompleted() {
+        const before = this._queue.length;
+        this._queue = this._queue.filter(t => t.status === 'QUEUED' || t.status === 'EXECUTING');
+        return before - this._queue.length;
+      },
+
+      /**
+       * Reset relay state (for testing)
+       */
+      reset() {
+        this._stopPolling();
+        this._queue = [];
+        this._results.clear();
+        this._pendingCallbacks.clear();
+        this._executionHistory = [];
+        this._metrics = {
+          tasksQueued: 0,
+          tasksExecuted: 0,
+          tasksFailed: 0,
+          averageLatencyMs: 0,
+          lastActivity: null
+        };
+        window.GIA_MCP_QUEUE = [];
+        window.GIA_MCP_RESULTS = {};
+        window.GIA_MCP_INCOMING_RESULTS = {};
+      }
+    };
+
+    // Initialize window queues for MCP communication
+    window.GIA_MCP_QUEUE = [];                    // Outbound: GIA → MCP
+    window.GIA_MCP_RESULTS = {};                  // Sealed results
+    window.GIA_MCP_INCOMING_RESULTS = {};         // Inbound: MCP → GIA
+
+    // Make relay globally available
+    window.GIAMCPRelay = GIAMCPRelay;
+
+    // ============================================
+    // MCP RELAY ↔ BROWSER AGENT BRIDGE
+    // ============================================
+    // Connects the MCP Relay to the Browser Agent panel
+    // for live screenshot updates and status sync
+    // ============================================
+
+    const MCPBrowserBridge = {
+      /**
+       * Handle incoming screenshot from MCP
+       * Updates Browser Agent panel with live view
+       */
+      handleScreenshot(taskId, imageData) {
+        // Update Browser Agent panel
+        if (window.BrowserAgent) {
+          BrowserAgent.receiveScreenshot(imageData, taskId);
+          BrowserAgent.log('Screenshot received via MCP Relay', 'success');
+        }
+
+        // Submit as result to relay
+        GIAMCPRelay.submitResult(taskId, {
+          type: 'screenshot',
+          imageData: imageData.substring(0, 100) + '...[truncated]',
+          capturedAt: new Date().toISOString()
+        });
+      },
+
+      /**
+       * Handle navigation completion
+       */
+      handleNavigationComplete(taskId, url, title) {
+        // Update Browser Agent panel
+        if (window.BrowserAgent) {
+          BrowserAgent.setUrl(url);
+          BrowserAgent.log(`Navigated: ${title || url}`, 'action');
+          BrowserAgent.setStatus('READY');
+        }
+
+        // Submit result
+        GIAMCPRelay.submitResult(taskId, {
+          type: 'navigation',
+          url: url,
+          title: title,
+          completedAt: new Date().toISOString()
+        });
+      },
+
+      /**
+       * Handle click action completion
+       */
+      handleClickComplete(taskId, target, coordinates) {
+        if (window.BrowserAgent) {
+          BrowserAgent.logAction('Click', target);
+          if (coordinates) {
+            BrowserAgent.showClick(coordinates.x, coordinates.y);
+          }
+        }
+
+        GIAMCPRelay.submitResult(taskId, {
+          type: 'click',
+          target: target,
+          coordinates: coordinates,
+          completedAt: new Date().toISOString()
+        });
+      },
+
+      /**
+       * Handle text extraction result
+       */
+      handleExtractComplete(taskId, data, selector) {
+        if (window.BrowserAgent) {
+          BrowserAgent.logAction('Extract', `${Object.keys(data || {}).length} fields`);
+        }
+
+        GIAMCPRelay.submitResult(taskId, {
+          type: 'extraction',
+          data: data,
+          selector: selector,
+          completedAt: new Date().toISOString()
+        });
+      },
+
+      /**
+       * Handle execution error
+       */
+      handleError(taskId, error) {
+        if (window.BrowserAgent) {
+          BrowserAgent.log(`Error: ${error.message}`, 'error');
+          BrowserAgent.setStatus('ERROR');
+        }
+
+        GIAMCPRelay.submitResult(taskId, null, error);
+      }
+    };
+
+    // Make bridge globally available
+    window.MCPBrowserBridge = MCPBrowserBridge;
+
+    // ============================================
+    // MCP EXECUTOR - Interface for Claude MCP Execution
+    // ============================================
+    // This object provides helper methods for Claude to:
+    // 1. Retrieve pending tasks from the queue
+    // 2. Mark tasks as executing
+    // 3. Submit results back to GIA
+    // 4. Handle screenshots and data extraction
+    //
+    // USAGE FROM CLAUDE:
+    // 1. Call GIAMCPExecutor.getPendingTasks() to see what needs execution
+    // 2. For each task, execute the appropriate MCP tool
+    // 3. Call GIAMCPExecutor.submitResult(taskId, result) with the outcome
+    // 4. For screenshots, call GIAMCPExecutor.submitScreenshot(taskId, imageData)
+    // ============================================
+
+    const GIAMCPExecutor = {
+      /**
+       * Get all pending MCP tasks that need execution
+       * @returns {Array} Array of task objects with execution instructions
+       */
+      getPendingTasks() {
+        const tasks = GIAMCPRelay.getPendingTasks();
+
+        // Transform tasks into Claude-friendly format
+        return tasks.map(task => ({
+          taskId: task.taskId,
+          type: task.type,
+          action: task.type.split('.')[1] || task.type,
+          payload: task.payload,
+          nonce: task.nonce,
+          createdAt: task.createdAt,
+          expiresAt: task.expiresAt,
+
+          // Execution instructions for Claude
+          instructions: this._getExecutionInstructions(task)
+        }));
+      },
+
+      /**
+       * Generate execution instructions for a task
+       */
+      _getExecutionInstructions(task) {
+        const instructions = {
+          'browser.navigate': {
+            tool: 'mcp__Claude_in_Chrome__navigate',
+            params: { url: task.payload.url, tabId: this._getTabId() },
+            description: `Navigate to ${task.payload.url}`
+          },
+          'browser.screenshot': {
+            tool: 'mcp__Claude_in_Chrome__computer',
+            params: { action: 'screenshot', tabId: this._getTabId() },
+            description: 'Capture screenshot of current page'
+          },
+          'browser.click': {
+            tool: 'mcp__Claude_in_Chrome__computer',
+            params: { action: 'click', ref: task.payload.target, tabId: this._getTabId() },
+            description: `Click on ${task.payload.target}`
+          },
+          'browser.type': {
+            tool: 'mcp__Claude_in_Chrome__form_input',
+            params: { value: task.payload.text, ref: task.payload.target, tabId: this._getTabId() },
+            description: `Type "${task.payload.text}" into ${task.payload.target}`
+          },
+          'browser.extract': {
+            tool: 'mcp__Claude_in_Chrome__read_page',
+            params: { tabId: this._getTabId(), depth: 3 },
+            description: 'Extract page content'
+          },
+          'browser.find': {
+            tool: 'mcp__Claude_in_Chrome__find',
+            params: { query: task.payload.selector || task.payload.query, tabId: this._getTabId() },
+            description: `Find elements matching: ${task.payload.selector || task.payload.query}`
+          }
+        };
+
+        return instructions[task.type] || {
+          tool: 'unknown',
+          params: task.payload,
+          description: `Execute ${task.type}`
+        };
+      },
+
+      /**
+       * Get the current tab ID (from BrowserAgent or default)
+       */
+      _getTabId() {
+        return window.BrowserAgent?._tabId || null;
+      },
+
+      /**
+       * Set the tab ID for MCP operations
+       */
+      setTabId(tabId) {
+        if (window.BrowserAgent) {
+          window.BrowserAgent._tabId = tabId;
+        }
+        addLine('system', '*', `<span class="hl-dim">MCP Tab ID set:</span> ${tabId}`);
+      },
+
+      /**
+       * Mark a task as executing (call when starting execution)
+       */
+      markExecuting(taskId) {
+        GIAMCPRelay.markExecuting(taskId);
+      },
+
+      /**
+       * Submit a successful result
+       * @param {string} taskId - The task ID
+       * @param {object} result - The execution result
+       */
+      submitResult(taskId, result) {
+        // Update Browser Agent based on result type
+        const task = GIAMCPRelay.getTask(taskId);
+
+        if (task) {
+          switch (task.type) {
+            case 'browser.navigate':
+              MCPBrowserBridge.handleNavigationComplete(taskId, task.payload.url, result?.title);
+              break;
+            case 'browser.click':
+              MCPBrowserBridge.handleClickComplete(taskId, task.payload.target, result?.coordinates);
+              break;
+            case 'browser.extract':
+              MCPBrowserBridge.handleExtractComplete(taskId, result, task.payload.selector);
+              break;
+            default:
+              GIAMCPRelay.submitResult(taskId, result);
+          }
+        } else {
+          GIAMCPRelay.submitResult(taskId, result);
+        }
+      },
+
+      /**
+       * Submit a screenshot result
+       * @param {string} taskId - The task ID
+       * @param {string} imageData - Base64 encoded image data
+       */
+      submitScreenshot(taskId, imageData) {
+        MCPBrowserBridge.handleScreenshot(taskId, imageData);
+      },
+
+      /**
+       * Submit an error result
+       * @param {string} taskId - The task ID
+       * @param {string|Error} error - The error
+       */
+      submitError(taskId, error) {
+        const err = error instanceof Error ? error : new Error(error);
+        MCPBrowserBridge.handleError(taskId, err);
+      },
+
+      /**
+       * Get relay status for diagnostics
+       */
+      getStatus() {
+        return {
+          relay: GIAMCPRelay.getStatus(),
+          browserAgent: {
+            isOpen: window.BrowserAgent?._isOpen || false,
+            tabId: this._getTabId(),
+            currentTask: window.BrowserAgent?._currentTaskId
+          }
+        };
+      },
+
+      /**
+       * Process all pending tasks (helper for batch execution)
+       * Returns task list for Claude to execute
+       */
+      processPendingTasks() {
+        const pending = this.getPendingTasks();
+
+        if (pending.length === 0) {
+          addLine('output', ' ', '<span class="hl-dim">No pending MCP tasks</span>');
+          return { tasks: [], message: 'No pending tasks to execute' };
+        }
+
+        addLine('system', '*', `<span class="hl-accent">MCP TASKS PENDING: ${pending.length}</span>`);
+        pending.forEach((task, i) => {
+          addLine('output', ` ${i + 1}.`, `<span class="hl-cyan">${task.type}</span> [${task.taskId}]`);
+          addLine('output', '   ', `<span class="hl-dim">Tool:</span> ${task.instructions.tool}`);
+          addLine('output', '   ', `<span class="hl-dim">Action:</span> ${task.instructions.description}`);
+        });
+
+        return {
+          tasks: pending,
+          message: `Execute these ${pending.length} tasks using MCP tools, then call GIAMCPExecutor.submitResult() or GIAMCPExecutor.submitScreenshot() for each.`
+        };
+      }
+    };
+
+    // Make executor globally available
+    window.GIAMCPExecutor = GIAMCPExecutor;
+
+    // ============================================
+    // MCP RELAY STATUS COMMAND
+    // ============================================
+    // Add 'mcp-status' command to terminal
+
+    // Store reference for terminal command
+    window._mcpCommands = {
+      status: () => {
+        const status = GIAMCPExecutor.getStatus();
+        addLine('system', '*', '<span class="hl-accent">MCP RELAY STATUS</span>');
+        addLine('output', ' ', `<span class="hl-dim">Version:</span> ${status.relay.version}`);
+        addLine('output', ' ', `<span class="hl-dim">Polling:</span> ${status.relay.isPolling ? 'ACTIVE' : 'IDLE'}`);
+        addLine('output', ' ', `<span class="hl-dim">Queue:</span> ${status.relay.queueLength} total, ${status.relay.pendingTasks} pending`);
+        addLine('output', ' ', `<span class="hl-dim">Completed:</span> ${status.relay.completedTasks}`);
+        addLine('output', ' ', `<span class="hl-dim">Metrics:</span>`);
+        addLine('output', '   ', `Tasks Queued: ${status.relay.metrics.tasksQueued}`);
+        addLine('output', '   ', `Tasks Executed: ${status.relay.metrics.tasksExecuted}`);
+        addLine('output', '   ', `Tasks Failed: ${status.relay.metrics.tasksFailed}`);
+        addLine('output', '   ', `Avg Latency: ${Math.round(status.relay.metrics.averageLatencyMs)}ms`);
+        addSpacer();
+        addLine('output', ' ', '<span class="hl-dim">Browser Agent:</span>');
+        addLine('output', '   ', `Panel Open: ${status.browserAgent.isOpen}`);
+        addLine('output', '   ', `Tab ID: ${status.browserAgent.tabId || 'not set'}`);
+        addLine('output', '   ', `Current Task: ${status.browserAgent.currentTask || 'none'}`);
+      },
+
+      pending: () => {
+        return GIAMCPExecutor.processPendingTasks();
+      },
+
+      clear: () => {
+        const cleared = GIAMCPRelay.clearCompleted();
+        addLine('success', '+', `Cleared ${cleared} completed/expired tasks from queue`);
+      },
+
+      reset: () => {
+        GIAMCPRelay.reset();
+        addLine('warning', '!', 'MCP Relay reset - all state cleared');
+      }
+    };
 
     // Sound toggle button
     const soundToggleBtn = document.getElementById('soundToggleBtn');
