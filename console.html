@@ -4128,6 +4128,15 @@ OUTPUT: Complete formatted report ready for case file.`
         addLine('output', ' ', '  apikey clear      — remove API key');
         addLine('output', ' ', '  apikey status     — show current API key status');
         addSpacer();
+        addLine('output', ' ', '<span class="hl-cyan">Tool Router:</span>');
+        addLine('output', ' ', '  tools       — show tool router status & stats');
+        addLine('output', ' ', '  pending     — show pending MCP calls');
+        addLine('output', ' ', '  list tools  — show all registered tools');
+        addSpacer();
+        addLine('output', ' ', '<span class="hl-cyan">Browser:</span>');
+        addLine('output', ' ', '  browser     — open browser panel');
+        addLine('output', ' ', '  close browser — close browser panel');
+        addSpacer();
         addLine('output', ' ', '<span class="hl-cyan">Terminal:</span>');
         addLine('output', ' ', '  help        — show this message');
         addLine('output', ' ', '  clear       — clear terminal');
@@ -4262,6 +4271,81 @@ OUTPUT: Complete formatted report ready for case file.`
         addLine('human', 'you:', text);
         BrowserAgent.close();
         addLine('success', '+', 'browser panel closed');
+        addSpacer();
+        inputField.value = '';
+        inputField.style.height = 'auto';
+        return;
+      }
+
+      // Tool Router commands
+      if (lowerText === 'tools' || lowerText === 'router' || lowerText === 'tool stats') {
+        addLine('human', 'you:', text);
+        addSpacer();
+        const stats = GIAToolRouter.getStats();
+        addLine('system', '*', '<span class="hl-accent">GIA TOOL ROUTER STATUS</span>');
+        addSpacer();
+        addLine('output', ' ', `Total Calls: ${stats.totalCalls}`);
+        addLine('output', ' ', `Completed: <span class="hl-green">${stats.completed}</span>`);
+        addLine('output', ' ', `Blocked: <span class="hl-red">${stats.blocked}</span>`);
+        addLine('output', ' ', `Failed: <span class="hl-yellow">${stats.failed}</span>`);
+        addSpacer();
+        addLine('output', ' ', '<span class="hl-cyan">By Module:</span>');
+        Object.entries(stats.byModule).forEach(([mod, count]) => {
+          addLine('output', '  ', `${mod}: ${count} calls`);
+        });
+        addSpacer();
+        addLine('output', ' ', `Token Usage: ${stats.tokenUsage.input + stats.tokenUsage.output} total`);
+        addLine('output', ' ', `  Input: ${stats.tokenUsage.input} | Output: ${stats.tokenUsage.output}`);
+        addSpacer();
+        inputField.value = '';
+        inputField.style.height = 'auto';
+        return;
+      }
+
+      // Show pending MCP calls
+      if (lowerText === 'pending' || lowerText === 'mcp pending') {
+        addLine('human', 'you:', text);
+        addSpacer();
+        const pending = GIAToolRouter.getPendingCalls();
+        addLine('system', '*', '<span class="hl-accent">PENDING MCP CALLS</span>');
+        addSpacer();
+        if (pending.length === 0) {
+          addLine('output', ' ', '<span class="hl-dim">No pending calls</span>');
+        } else {
+          pending.forEach(call => {
+            addLine('output', ' ', `<span class="hl-cyan">${call.id}</span>: ${call.action}`);
+            addLine('output', '  ', `Tool: ${call.tool}`);
+            addLine('output', '  ', `Args: ${JSON.stringify(call.args)}`);
+          });
+          addSpacer();
+          addLine('system', '*', '<span class="hl-dim">Tell Claude: "Execute the pending browser tasks"</span>');
+        }
+        addSpacer();
+        inputField.value = '';
+        inputField.style.height = 'auto';
+        return;
+      }
+
+      // List registered tools
+      if (lowerText === 'list tools' || lowerText === 'registered tools') {
+        addLine('human', 'you:', text);
+        addSpacer();
+        addLine('system', '*', '<span class="hl-accent">REGISTERED TOOLS</span>');
+        addSpacer();
+        const toolsByModule = {};
+        Object.entries(GIAToolRouter.tools).forEach(([name, config]) => {
+          if (!toolsByModule[config.module]) toolsByModule[config.module] = [];
+          toolsByModule[config.module].push({ name, ...config });
+        });
+        Object.entries(toolsByModule).forEach(([module, tools]) => {
+          addLine('output', ' ', `<span class="hl-cyan">${module.toUpperCase()}</span>`);
+          tools.forEach(t => {
+            const gateIcon = t.requiresGate ? '🔒' : '✓';
+            const riskColor = t.risk === 'CRITICAL' ? 'hl-red' : t.risk === 'HIGH' ? 'hl-yellow' : 'hl-dim';
+            addLine('output', '  ', `${gateIcon} ${t.name} <span class="${riskColor}">[${t.risk}]</span>`);
+            addLine('output', '   ', `<span class="hl-dim">${t.description}</span>`);
+          });
+        });
         addSpacer();
         inputField.value = '';
         inputField.style.height = 'auto';
@@ -4908,6 +4992,595 @@ OUTPUT: Complete formatted report ready for case file.`
     }
 
     // ============================================
+    // GIA TOOL ROUTER - Central Governance Layer
+    // ALL MCP tool calls MUST flow through here
+    // Claude proposes → GIA evaluates → gate if needed → execute → log + hash
+    // ============================================
+
+    const GIAToolRouter = {
+      // Tool registry with policies
+      tools: {
+        // Browser Module
+        'browser.navigate': {
+          module: 'browser',
+          risk: 'LOW',
+          requiresGate: false,
+          allowedDomains: ['sam.gov', 'usaspending.gov', 'google.com', 'bing.com', '*'],
+          description: 'Navigate to URL'
+        },
+        'browser.screenshot': {
+          module: 'browser',
+          risk: 'LOW',
+          requiresGate: false,
+          description: 'Capture screenshot'
+        },
+        'browser.click': {
+          module: 'browser',
+          risk: 'MEDIUM',
+          requiresGate: false,
+          description: 'Click element on page'
+        },
+        'browser.type': {
+          module: 'browser',
+          risk: 'MEDIUM',
+          requiresGate: false,
+          piiCheck: true,
+          description: 'Type text into field'
+        },
+        'browser.extract': {
+          module: 'browser',
+          risk: 'LOW',
+          requiresGate: false,
+          description: 'Extract data from page'
+        },
+        'browser.submit': {
+          module: 'browser',
+          risk: 'HIGH',
+          requiresGate: true,
+          description: 'Submit form (irreversible)'
+        },
+
+        // VA Pipeline Module
+        'va.extract_text': {
+          module: 'va-pipeline',
+          risk: 'LOW',
+          requiresGate: false,
+          description: 'Extract text from documents'
+        },
+        'va.timeline': {
+          module: 'va-pipeline',
+          risk: 'LOW',
+          requiresGate: false,
+          description: 'Generate medical timeline'
+        },
+        'va.cue_scan': {
+          module: 'va-pipeline',
+          risk: 'LOW',
+          requiresGate: false,
+          description: 'Scan for CUE errors'
+        },
+        'va.nexus_analysis': {
+          module: 'va-pipeline',
+          risk: 'MEDIUM',
+          requiresGate: false,
+          description: 'Analyze service connection nexus'
+        },
+        'va.rating_calculation': {
+          module: 'va-pipeline',
+          risk: 'HIGH',
+          requiresGate: true,
+          description: 'Calculate disability rating'
+        },
+        'va.generate_report': {
+          module: 'va-pipeline',
+          risk: 'HIGH',
+          requiresGate: true,
+          description: 'Generate final VA report'
+        },
+
+        // Red Team Module
+        'redteam.scan': {
+          module: 'red-team',
+          risk: 'LOW',
+          requiresGate: false,
+          description: 'Run security scan'
+        },
+        'redteam.exploit_check': {
+          module: 'red-team',
+          risk: 'MEDIUM',
+          requiresGate: true,
+          description: 'Check for exploits'
+        },
+        'redteam.report': {
+          module: 'red-team',
+          risk: 'LOW',
+          requiresGate: false,
+          description: 'Generate security report'
+        },
+
+        // Export Module
+        'export.evidence_bundle': {
+          module: 'export',
+          risk: 'LOW',
+          requiresGate: false,
+          description: 'Export evidence bundle'
+        },
+        'export.audit_log': {
+          module: 'export',
+          risk: 'LOW',
+          requiresGate: false,
+          description: 'Export audit log'
+        },
+
+        // Household Module
+        'household.bill_pay': {
+          module: 'household',
+          risk: 'CRITICAL',
+          requiresGate: true,
+          financialCeiling: 500,
+          description: 'Pay bill (financial transaction)'
+        },
+        'household.order': {
+          module: 'household',
+          risk: 'HIGH',
+          requiresGate: true,
+          financialCeiling: 200,
+          description: 'Place order'
+        }
+      },
+
+      // Execution state
+      _pendingCalls: [],
+      _executionLog: [],
+      _tokenUsage: { input: 0, output: 0 },
+      _tokenCeiling: 100000, // per session
+
+      /**
+       * Register a new tool
+       */
+      registerTool(name, config) {
+        this.tools[name] = {
+          module: config.module || 'custom',
+          risk: config.risk || 'MEDIUM',
+          requiresGate: config.requiresGate || false,
+          description: config.description || name,
+          ...config
+        };
+        console.log(`[GIA ToolRouter] Registered: ${name}`);
+      },
+
+      /**
+       * MAIN ENTRY POINT - All tool calls flow through here
+       * Claude proposes → GIA evaluates → gate if needed → execute → log + hash
+       */
+      async invoke(toolName, args, context = {}) {
+        const callId = `TC-${Date.now().toString(36).toUpperCase()}`;
+        const startTime = Date.now();
+
+        // Log the proposal
+        console.log(`[GIA ToolRouter] Proposal: ${toolName}`, args);
+        this._logCall(callId, 'proposed', toolName, args);
+
+        // Get tool config
+        const toolConfig = this.tools[toolName];
+        if (!toolConfig) {
+          this._logCall(callId, 'rejected', toolName, args, 'Unknown tool');
+          throw new Error(`[GIA] Unknown tool: ${toolName}`);
+        }
+
+        // ============================================
+        // PRE-EXECUTION POLICY CHECKS
+        // ============================================
+
+        // 1. MAI Classification
+        const maiResult = this._classifyIntent(toolName, args, context);
+        if (maiResult.blocked) {
+          this._logCall(callId, 'blocked', toolName, args, maiResult.reason);
+          addLine('error', 'x', `<span class="hl-red">BLOCKED</span> ${toolName}: ${maiResult.reason}`);
+          throw new Error(`[GIA MAI] ${maiResult.reason}`);
+        }
+
+        // 2. Domain whitelist check (for browser tools)
+        if (toolConfig.allowedDomains && args.url) {
+          const allowed = this._checkDomain(args.url, toolConfig.allowedDomains);
+          if (!allowed) {
+            this._logCall(callId, 'blocked', toolName, args, 'Domain not whitelisted');
+            addLine('error', 'x', `<span class="hl-red">BLOCKED</span> Domain not allowed: ${args.url}`);
+            throw new Error(`[GIA Policy] Domain not whitelisted: ${args.url}`);
+          }
+        }
+
+        // 3. PII check (for type/input tools)
+        if (toolConfig.piiCheck && args.text) {
+          const piiFound = this._checkPII(args.text);
+          if (piiFound.length > 0) {
+            addLine('warning', '!', `<span class="hl-yellow">PII DETECTED</span>: ${piiFound.join(', ')}`);
+            // Don't block, but require gate
+            toolConfig.requiresGate = true;
+          }
+        }
+
+        // 4. Financial ceiling check
+        if (toolConfig.financialCeiling && args.amount) {
+          if (args.amount > toolConfig.financialCeiling) {
+            this._logCall(callId, 'blocked', toolName, args, `Exceeds ceiling: $${toolConfig.financialCeiling}`);
+            addLine('error', 'x', `<span class="hl-red">BLOCKED</span> Amount $${args.amount} exceeds ceiling $${toolConfig.financialCeiling}`);
+            throw new Error(`[GIA Policy] Amount exceeds financial ceiling`);
+          }
+        }
+
+        // 5. Token ceiling check
+        if (this._tokenUsage.input + this._tokenUsage.output > this._tokenCeiling) {
+          this._logCall(callId, 'blocked', toolName, args, 'Token ceiling reached');
+          addLine('error', 'x', `<span class="hl-red">BLOCKED</span> Session token ceiling reached`);
+          throw new Error(`[GIA Policy] Session token ceiling exceeded`);
+        }
+
+        // ============================================
+        // GATE CHECK (if required)
+        // ============================================
+        if (toolConfig.requiresGate) {
+          addLine('gate', '!', `<span class="hl-yellow">GATE REQUIRED</span> for ${toolName}`);
+          addLine('output', ' ', `Risk: ${toolConfig.risk} | ${toolConfig.description}`);
+
+          try {
+            // Use GIAWorkflow gate if in a workflow context
+            if (GIAWorkflow._context) {
+              await GIAWorkflow.gate(`tool-${toolName}`,
+                `Approve ${toolConfig.description}?\n\nTool: ${toolName}\nArgs: ${JSON.stringify(args, null, 2)}`
+              );
+            } else {
+              // Standalone gate
+              const approved = await this._standaloneGate(callId, toolName, args, toolConfig);
+              if (!approved) {
+                this._logCall(callId, 'aborted', toolName, args, 'Gate denied');
+                throw new Error(`[GIA Gate] Tool execution denied by operator`);
+              }
+            }
+          } catch (err) {
+            this._logCall(callId, 'aborted', toolName, args, 'Gate aborted');
+            throw err;
+          }
+        }
+
+        // ============================================
+        // EXECUTE TOOL
+        // ============================================
+        addLine('step', '>', `executing: ${toolName}`);
+        BrowserAgent.log(`Tool: ${toolName}`, 'action');
+
+        let result;
+        try {
+          result = await this._executeTool(toolName, args, context);
+          this._logCall(callId, 'completed', toolName, args, null, result);
+        } catch (err) {
+          this._logCall(callId, 'failed', toolName, args, err.message);
+          addLine('error', 'x', `Tool failed: ${err.message}`);
+          throw err;
+        }
+
+        // ============================================
+        // POST-EXECUTION: EVIDENCE + HASH
+        // ============================================
+        const duration = Date.now() - startTime;
+
+        // Create evidence pack for the tool call
+        if (GIAWorkflow._context) {
+          await GIAWorkflow.createPack(
+            `TOOL:${toolConfig.module}`,
+            `/${toolName}`,
+            { tool: toolName, args: args, callId: callId },
+            { result: result, durationMs: duration }
+          );
+        } else {
+          // Standalone evidence
+          const pack = GIA.evidence.create(`STANDALONE-${callId}`, `TOOL:${toolConfig.module}`, `/${toolName}`);
+          await GIA.evidence.seal(pack.id, { tool: toolName, args }, { result, durationMs: duration });
+        }
+
+        addLine('success', '+', `${toolName} complete (${duration}ms)`);
+        BrowserAgent.log(`✓ ${toolName} complete`, 'success');
+
+        return result;
+      },
+
+      /**
+       * MAI Classification - Determine if intent is allowed
+       */
+      _classifyIntent(toolName, args, context) {
+        // Block obviously malicious patterns
+        const maliciousPatterns = [
+          /delete\s+all/i,
+          /rm\s+-rf/i,
+          /drop\s+table/i,
+          /format\s+c:/i,
+          /<script>/i,
+          /eval\(/i
+        ];
+
+        const argsStr = JSON.stringify(args);
+        for (const pattern of maliciousPatterns) {
+          if (pattern.test(argsStr)) {
+            return { blocked: true, reason: 'Malicious pattern detected' };
+          }
+        }
+
+        // Block scope drift (accessing tools outside current workflow)
+        if (GIAWorkflow._context) {
+          const currentModule = GIAWorkflow._context.config?.name?.toLowerCase() || '';
+          const toolModule = this.tools[toolName]?.module || '';
+
+          // Allow browser module from any workflow (it's a utility)
+          if (toolModule !== 'browser' && !currentModule.includes(toolModule.split('-')[0])) {
+            // Soft warning, not blocking
+            addLine('warning', '!', `<span class="hl-yellow">SCOPE DRIFT</span>: ${toolName} outside ${currentModule}`);
+          }
+        }
+
+        return { blocked: false };
+      },
+
+      /**
+       * Check if domain is whitelisted
+       */
+      _checkDomain(url, allowedDomains) {
+        if (allowedDomains.includes('*')) return true;
+
+        try {
+          const hostname = new URL(url).hostname;
+          return allowedDomains.some(d => hostname.endsWith(d));
+        } catch {
+          return false;
+        }
+      },
+
+      /**
+       * Check for PII in text
+       */
+      _checkPII(text) {
+        const found = [];
+        const patterns = {
+          'SSN': /\b\d{3}-\d{2}-\d{4}\b/,
+          'Credit Card': /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/,
+          'Email': /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/,
+          'Phone': /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/
+        };
+
+        for (const [name, pattern] of Object.entries(patterns)) {
+          if (pattern.test(text)) found.push(name);
+        }
+
+        return found;
+      },
+
+      /**
+       * Standalone gate (when not in workflow)
+       */
+      async _standaloneGate(callId, toolName, args, toolConfig) {
+        return new Promise((resolve) => {
+          const gateId = `gate-${callId}`;
+
+          addGatePrompt(gateId, `
+            <div style="margin-bottom: 0.5rem;">
+              <strong>Tool Execution Request</strong>
+            </div>
+            <div style="font-size: 0.65rem; margin-bottom: 0.5rem;">
+              <strong>Tool:</strong> ${toolName}<br>
+              <strong>Risk:</strong> ${toolConfig.risk}<br>
+              <strong>Description:</strong> ${toolConfig.description}
+            </div>
+            <div style="font-size: 0.6rem; color: var(--text-dim); font-family: monospace; background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 4px; max-height: 100px; overflow-y: auto;">
+              ${escapeHtml(JSON.stringify(args, null, 2))}
+            </div>
+          `);
+
+          // Store resolver for gate buttons
+          window._gateResolvers = window._gateResolvers || {};
+          window._gateResolvers[gateId] = resolve;
+        });
+      },
+
+      /**
+       * Execute the actual tool (maps to MCP or internal)
+       */
+      async _executeTool(toolName, args, context) {
+        const [module, action] = toolName.split('.');
+
+        switch (module) {
+          case 'browser':
+            return await this._executeBrowserTool(action, args);
+          case 'va':
+            return await this._executeVATool(action, args);
+          case 'redteam':
+            return await this._executeRedTeamTool(action, args);
+          case 'export':
+            return await this._executeExportTool(action, args);
+          case 'household':
+            return await this._executeHouseholdTool(action, args);
+          default:
+            throw new Error(`Unknown module: ${module}`);
+        }
+      },
+
+      /**
+       * Browser tool execution - interfaces with Claude MCP
+       */
+      async _executeBrowserTool(action, args) {
+        // These map to the actual MCP tools Claude will execute
+        // GIA logs and governs, Claude executes via MCP
+        const mcpMapping = {
+          'navigate': 'mcp__Claude_in_Chrome__navigate',
+          'screenshot': 'mcp__Claude_in_Chrome__computer',
+          'click': 'mcp__Claude_in_Chrome__computer',
+          'type': 'mcp__Claude_in_Chrome__form_input',
+          'extract': 'mcp__Claude_in_Chrome__read_page',
+          'find': 'mcp__Claude_in_Chrome__find',
+          'submit': 'mcp__Claude_in_Chrome__computer'
+        };
+
+        const mcpTool = mcpMapping[action];
+        if (!mcpTool) {
+          throw new Error(`Unknown browser action: ${action}`);
+        }
+
+        // Store the pending MCP call for Claude to execute
+        const pendingCall = {
+          id: `MCP-${Date.now().toString(36)}`,
+          tool: mcpTool,
+          action: action,
+          args: args,
+          status: 'pending',
+          createdAt: new Date().toISOString()
+        };
+
+        this._pendingCalls.push(pendingCall);
+        BrowserAgent.log(`Queued: ${action} → ${mcpTool}`, 'action');
+
+        // Update browser panel
+        if (action === 'navigate' && args.url) {
+          BrowserAgent.setUrl(args.url);
+        }
+
+        // Return the pending call info - Claude will execute and send results back
+        return {
+          mcpTool: mcpTool,
+          callId: pendingCall.id,
+          status: 'queued_for_mcp',
+          message: 'Execute via Claude MCP and call GIAToolRouter.completeMCPCall() with results'
+        };
+      },
+
+      /**
+       * Complete an MCP call (called by Claude after execution)
+       */
+      completeMCPCall(callId, result, screenshot = null) {
+        const call = this._pendingCalls.find(c => c.id === callId);
+        if (call) {
+          call.status = 'completed';
+          call.result = result;
+          call.completedAt = new Date().toISOString();
+
+          if (screenshot) {
+            BrowserAgent.receiveScreenshot(screenshot);
+          }
+
+          addLine('success', '+', `MCP call ${callId} completed`);
+          BrowserAgent.log(`✓ MCP ${call.action} complete`, 'success');
+        }
+        return call;
+      },
+
+      /**
+       * VA Pipeline tool execution
+       */
+      async _executeVATool(action, args) {
+        // These use the existing VA workflow agents
+        // Already integrated with Claude API
+        return {
+          action: action,
+          status: 'delegated_to_va_pipeline',
+          message: 'Handled by VA workflow agents'
+        };
+      },
+
+      /**
+       * Red Team tool execution
+       */
+      async _executeRedTeamTool(action, args) {
+        return {
+          action: action,
+          status: 'delegated_to_redteam',
+          message: 'Handled by Red Team workflow'
+        };
+      },
+
+      /**
+       * Export tool execution
+       */
+      async _executeExportTool(action, args) {
+        if (action === 'evidence_bundle') {
+          const bundle = GIA.evidence.exportBundle();
+          return { bundle: bundle, count: bundle.packs.length };
+        }
+        if (action === 'audit_log') {
+          return { log: this._executionLog };
+        }
+        throw new Error(`Unknown export action: ${action}`);
+      },
+
+      /**
+       * Household tool execution
+       */
+      async _executeHouseholdTool(action, args) {
+        // Financial transactions require special handling
+        return {
+          action: action,
+          status: 'requires_user_execution',
+          message: 'Financial transactions must be confirmed in browser panel'
+        };
+      },
+
+      /**
+       * Log a tool call to execution history
+       */
+      _logCall(callId, status, toolName, args, error = null, result = null) {
+        const entry = {
+          callId,
+          status,
+          toolName,
+          args,
+          error,
+          result: result ? '[result]' : null, // Don't store full result
+          timestamp: new Date().toISOString()
+        };
+
+        this._executionLog.push(entry);
+
+        // Keep last 100 entries
+        if (this._executionLog.length > 100) {
+          this._executionLog.shift();
+        }
+      },
+
+      /**
+       * Get pending MCP calls for Claude to execute
+       */
+      getPendingCalls() {
+        return this._pendingCalls.filter(c => c.status === 'pending');
+      },
+
+      /**
+       * Get execution statistics
+       */
+      getStats() {
+        const log = this._executionLog;
+        return {
+          totalCalls: log.length,
+          completed: log.filter(e => e.status === 'completed').length,
+          blocked: log.filter(e => e.status === 'blocked').length,
+          failed: log.filter(e => e.status === 'failed').length,
+          byModule: log.reduce((acc, e) => {
+            const module = this.tools[e.toolName]?.module || 'unknown';
+            acc[module] = (acc[module] || 0) + 1;
+            return acc;
+          }, {}),
+          tokenUsage: this._tokenUsage
+        };
+      },
+
+      /**
+       * Update token usage (called after API calls)
+       */
+      updateTokens(input, output) {
+        this._tokenUsage.input += input;
+        this._tokenUsage.output += output;
+      }
+    };
+
+    // Make globally available
+    window.GIAToolRouter = GIAToolRouter;
+
+    // ============================================
     // BROWSER AGENT - Real browser automation via Claude Chrome Extension
     // ============================================
     const BrowserAgent = {
@@ -5078,7 +5751,7 @@ OUTPUT: Complete formatted report ready for case file.`
         this._currentTaskId = null;
       },
 
-      // Execute a browser task - queues for Claude MCP
+      // Execute a browser task - routes through GIA Tool Router
       async executeTask() {
         const task = this._taskInput?.value?.trim();
         if (!task) return;
@@ -5091,35 +5764,93 @@ OUTPUT: Complete formatted report ready for case file.`
         // Clear input
         if (this._taskInput) this._taskInput.value = '';
 
-        // Show task in terminal (so user can approve and Claude can execute)
+        // Show task in terminal
         addLine('system', '*', '<span class="hl-accent">BROWSER TASK REQUEST</span>');
         addLine('output', ' ', `Task ID: ${taskId}`);
         addLine('output', ' ', `Request: ${task}`);
         addSpacer();
 
-        // Show gate for approval
-        addGatePrompt(`browser-task-${taskId}`, `
-          <div style="margin-bottom: 0.5rem;">
-            <strong>Browser Task:</strong> ${escapeHtml(task)}
-          </div>
-          <div style="font-size: 0.6rem; color: var(--text-dim);">
-            Approve to execute via Claude MCP browser control.
-            <br>All actions will be logged and screenshotted.
-          </div>
-        `);
+        // Parse task to determine tool calls needed
+        const toolCalls = this._parseTaskToTools(task);
 
-        this.log(`Task ${taskId} awaiting approval...`, 'action');
-        this.log('Approve in terminal to execute', 'info');
+        addLine('output', ' ', `<span class="hl-dim">Parsed ${toolCalls.length} tool call(s):</span>`);
+        toolCalls.forEach(tc => {
+          addLine('output', '  ', `• ${tc.tool}: ${JSON.stringify(tc.args)}`);
+        });
+        addSpacer();
 
-        // Note: Actual execution happens when Claude receives the task via chat
-        // User approves gate → tells Claude to execute → Claude uses MCP tools
-        // → Claude calls BrowserAgent.receiveScreenshot() with results
+        // Route through GIA Tool Router for governance
+        addLine('step', '>', 'routing through GIA Tool Router...');
+
+        try {
+          for (const toolCall of toolCalls) {
+            // All calls go through the governed router
+            const result = await GIAToolRouter.invoke(toolCall.tool, toolCall.args, { taskId });
+            this.log(`Tool ${toolCall.tool}: ${result.status || 'queued'}`, 'action');
+          }
+
+          this.setStatus('EXECUTING', true);
+          addLine('success', '+', 'task queued for MCP execution');
+          addLine('output', ' ', '<span class="hl-cyan">Tell Claude: "Execute the pending browser tasks"</span>');
+        } catch (err) {
+          this.setStatus('ERROR');
+          addLine('error', 'x', `Task failed: ${err.message}`);
+          this.log(`Error: ${err.message}`, 'error');
+        }
       },
 
-      // Take screenshot - placeholder, actual screenshots come from Claude MCP
+      // Parse natural language task to tool calls
+      _parseTaskToTools(task) {
+        const tools = [];
+        const lowerTask = task.toLowerCase();
+
+        // URL detection
+        const urlMatch = task.match(/https?:\/\/[^\s]+/);
+        if (urlMatch) {
+          tools.push({ tool: 'browser.navigate', args: { url: urlMatch[0] } });
+        } else if (lowerTask.includes('sam.gov')) {
+          tools.push({ tool: 'browser.navigate', args: { url: 'https://sam.gov/search' } });
+        } else if (lowerTask.includes('usaspending')) {
+          tools.push({ tool: 'browser.navigate', args: { url: 'https://usaspending.gov' } });
+        }
+
+        // Search detection
+        const searchMatch = task.match(/search\s+(?:for\s+)?["']?([^"']+)["']?/i);
+        if (searchMatch) {
+          tools.push({ tool: 'browser.type', args: { text: searchMatch[1], target: 'search input' } });
+          tools.push({ tool: 'browser.click', args: { target: 'search button' } });
+        }
+
+        // Extract detection
+        if (lowerTask.includes('extract') || lowerTask.includes('get data') || lowerTask.includes('find')) {
+          tools.push({ tool: 'browser.extract', args: { selector: 'main content' } });
+        }
+
+        // Screenshot always at end
+        tools.push({ tool: 'browser.screenshot', args: {} });
+
+        return tools;
+      },
+
+      // Navigate directly through Tool Router
+      async navigate(url) {
+        try {
+          await GIAToolRouter.invoke('browser.navigate', { url });
+          this.setUrl(url);
+          this.log(`Navigate: ${url}`, 'action');
+        } catch (err) {
+          this.log(`Navigate failed: ${err.message}`, 'error');
+        }
+      },
+
+      // Take screenshot through Tool Router
       async takeScreenshot() {
-        this.log('Request screenshot from Claude MCP...', 'action');
-        addLine('system', '*', '<span class="hl-dim">To capture screenshot, ask Claude: "take a screenshot"</span>');
+        try {
+          await GIAToolRouter.invoke('browser.screenshot', {});
+          this.log('Screenshot requested', 'action');
+        } catch (err) {
+          this.log(`Screenshot failed: ${err.message}`, 'error');
+        }
       },
 
       // Setup resize functionality
