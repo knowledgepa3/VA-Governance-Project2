@@ -5284,11 +5284,12 @@ OUTPUT: Complete formatted report ready for case file.`
         };
 
         // Register tools with Tool Router (deferred if not yet available)
+        // NOTE: Use window.GIAToolRouter to avoid TDZ issues with const declarations
         const registerTools = () => {
           module.tools.forEach(tool => {
             const toolId = `${module.id}.${tool.action}`;
-            if (typeof GIAToolRouter !== 'undefined' && GIAToolRouter.registerTool) {
-              GIAToolRouter.registerTool(toolId, {
+            if (window.GIAToolRouter && window.GIAToolRouter.registerTool) {
+              window.GIAToolRouter.registerTool(toolId, {
                 module: module.id,
                 risk: tool.risk || module.riskLevel,
                 requiresGate: tool.requiresGate || false,
@@ -5303,7 +5304,8 @@ OUTPUT: Complete formatted report ready for case file.`
         };
 
         // Try now, or defer to after GIAToolRouter is defined
-        if (typeof GIAToolRouter !== 'undefined') {
+        // Check window.GIAToolRouter to avoid Temporal Dead Zone error with const
+        if (window.GIAToolRouter) {
           registerTools();
         } else {
           // Store for later registration
