@@ -4134,6 +4134,11 @@ OUTPUT: Complete formatted report ready for case file.`
         addLine('output', ' ', '  list tools  — show all registered tools');
         addLine('output', ' ', '  audit       — export full audit trail (Intent→Decision→Execution)');
         addSpacer();
+        addLine('output', ' ', '<span class="hl-cyan">Module System:</span>');
+        addLine('output', ' ', '  modules     — list registered GIA modules');
+        addLine('output', ' ', '  instances   — list active module instances');
+        addLine('output', ' ', '  module status — show full system status');
+        addSpacer();
         addLine('output', ' ', '<span class="hl-cyan">Browser:</span>');
         addLine('output', ' ', '  browser     — open browser panel');
         addLine('output', ' ', '  close browser — close browser panel');
@@ -4445,6 +4450,95 @@ OUTPUT: Complete formatted report ready for case file.`
 
         addLine('success', '+', 'Audit trail downloaded');
         addLine('system', '*', '<span class="hl-dim">Contains: Intent hashes, Decision records, Execution results, PII redaction manifest</span>');
+        addSpacer();
+
+        inputField.value = '';
+        inputField.style.height = 'auto';
+        return;
+      }
+
+      // Module system commands
+      if (lowerText === 'modules' || lowerText === 'list modules') {
+        addLine('human', 'you:', text);
+        addSpacer();
+
+        const modules = GIAModuleSystem.listModules();
+        addLine('system', '*', '<span class="hl-accent">REGISTERED GIA MODULES</span>');
+        addSpacer();
+
+        if (modules.length === 0) {
+          addLine('output', ' ', '<span class="hl-dim">No modules registered</span>');
+        } else {
+          modules.forEach(m => {
+            const riskColor = m.riskLevel === 'CRITICAL' ? 'hl-red' : m.riskLevel === 'HIGH' ? 'hl-yellow' : 'hl-dim';
+            addLine('output', ' ', `<span class="hl-cyan">${m.name}</span> v${m.version}`);
+            addLine('output', '  ', `ID: ${m.id} | Risk: <span class="${riskColor}">${m.riskLevel}</span> | Tools: ${m.tools} | Gates: ${m.gates}`);
+            addLine('output', '  ', `<span class="hl-dim">Active instances: ${m.instances}</span>`);
+          });
+        }
+        addSpacer();
+
+        inputField.value = '';
+        inputField.style.height = 'auto';
+        return;
+      }
+
+      if (lowerText === 'instances' || lowerText === 'list instances') {
+        addLine('human', 'you:', text);
+        addSpacer();
+
+        const instances = GIAModuleSystem.listInstances();
+        addLine('system', '*', '<span class="hl-accent">ACTIVE MODULE INSTANCES</span>');
+        addSpacer();
+
+        if (instances.length === 0) {
+          addLine('output', ' ', '<span class="hl-dim">No active instances</span>');
+        } else {
+          instances.forEach(i => {
+            const statusColor = i.status === 'READY' ? 'hl-green' : i.status === 'RUNNING' ? 'hl-cyan' : i.status === 'SUSPENDED' ? 'hl-yellow' : 'hl-dim';
+            addLine('output', ' ', `<span class="hl-green">${i.id}</span>`);
+            addLine('output', '  ', `Module: ${i.moduleName} | Status: <span class="${statusColor}">${i.status}</span>`);
+            addLine('output', '  ', `Tool Calls: ${i.toolCalls} | Gates: ${i.gatesPassed} | Tokens: ${i.tokensUsed}`);
+          });
+        }
+        addSpacer();
+
+        inputField.value = '';
+        inputField.style.height = 'auto';
+        return;
+      }
+
+      if (lowerText === 'module status' || lowerText === 'system status') {
+        addLine('human', 'you:', text);
+        addSpacer();
+
+        const status = GIAModuleSystem.getStatus();
+        addLine('system', '*', '<span class="hl-accent">GIA MODULE SYSTEM STATUS</span>');
+        addSpacer();
+
+        addLine('output', ' ', '<span class="hl-cyan">Modules:</span>');
+        addLine('output', '  ', `Total: ${status.modules.total}`);
+        Object.entries(status.modules.byRisk).forEach(([risk, count]) => {
+          const color = risk === 'CRITICAL' ? 'hl-red' : risk === 'HIGH' ? 'hl-yellow' : 'hl-dim';
+          addLine('output', '  ', `${risk}: <span class="${color}">${count}</span>`);
+        });
+        addSpacer();
+
+        addLine('output', ' ', '<span class="hl-cyan">Instances:</span>');
+        addLine('output', '  ', `Total: ${status.instances.total}`);
+        Object.entries(status.instances.byStatus).forEach(([st, count]) => {
+          addLine('output', '  ', `${st}: ${count}`);
+        });
+        addLine('output', '  ', `Total Tool Calls: ${status.instances.totalToolCalls}`);
+        addLine('output', '  ', `Total Gates Passed: ${status.instances.totalGates}`);
+        addSpacer();
+
+        if (status.eventLog.length > 0) {
+          addLine('output', ' ', '<span class="hl-cyan">Recent Events:</span>');
+          status.eventLog.slice(-5).forEach(e => {
+            addLine('output', '  ', `<span class="hl-dim">${e.type}</span>: ${e.targetId}`);
+          });
+        }
         addSpacer();
 
         inputField.value = '';
@@ -5090,6 +5184,577 @@ OUTPUT: Complete formatted report ready for case file.`
     function sleep(ms) {
       return new Promise(resolve => setTimeout(resolve, ms));
     }
+
+    // ============================================
+    // GIA MODULE SYSTEM
+    // Formal interface for governed AI modules
+    // MCP controls instances of GIA through this layer
+    // ============================================
+
+    const GIAModuleSystem = {
+      // Module registry
+      _modules: new Map(),
+      _instances: new Map(),
+      _eventLog: [],
+
+      // ============================================
+      // MODULE INTERFACE DEFINITION
+      // All modules must implement this contract
+      // ============================================
+
+      /**
+       * Module Schema - what a module must provide
+       */
+      MODULE_SCHEMA: {
+        // Required fields
+        id: 'string',           // Unique identifier (e.g., 'va-claims', 'browser-agent')
+        name: 'string',         // Display name
+        version: 'string',      // Semantic version
+
+        // Capabilities
+        tools: 'array',         // Tools this module provides
+        gates: 'array',         // Gates this module requires
+
+        // Policies
+        riskLevel: 'string',    // LOW | MEDIUM | HIGH | CRITICAL
+        piiPolicy: 'string',    // REDACT | GATE | ALLOW_M
+        domainWhitelist: 'array', // Allowed domains (for browser modules)
+        tokenBudget: 'number',  // Max tokens per session
+
+        // Lifecycle hooks
+        onInit: 'function',     // Called when module initializes
+        onSuspend: 'function',  // Called when module suspends
+        onResume: 'function',   // Called when module resumes
+        onDestroy: 'function',  // Called when module destroys
+
+        // Execution
+        execute: 'function'     // Main execution entry point
+      },
+
+      /**
+       * Register a new module with the GIA system
+       */
+      register(moduleConfig) {
+        // Validate required fields
+        const required = ['id', 'name', 'version', 'tools', 'execute'];
+        for (const field of required) {
+          if (!moduleConfig[field]) {
+            throw new Error(`[GIA Module] Missing required field: ${field}`);
+          }
+        }
+
+        // Create module record
+        const module = {
+          // Identity
+          id: moduleConfig.id,
+          name: moduleConfig.name,
+          version: moduleConfig.version,
+          description: moduleConfig.description || '',
+
+          // Capabilities
+          tools: moduleConfig.tools || [],
+          gates: moduleConfig.gates || [],
+
+          // Policies
+          riskLevel: moduleConfig.riskLevel || 'MEDIUM',
+          piiPolicy: moduleConfig.piiPolicy || 'REDACT',
+          domainWhitelist: moduleConfig.domainWhitelist || [],
+          tokenBudget: moduleConfig.tokenBudget || 50000,
+          financialCeiling: moduleConfig.financialCeiling || 0,
+
+          // Lifecycle hooks
+          onInit: moduleConfig.onInit || (() => {}),
+          onSuspend: moduleConfig.onSuspend || (() => {}),
+          onResume: moduleConfig.onResume || (() => {}),
+          onDestroy: moduleConfig.onDestroy || (() => {}),
+
+          // Execution
+          execute: moduleConfig.execute,
+
+          // Metadata
+          registeredAt: new Date().toISOString(),
+          status: 'REGISTERED',
+          instanceCount: 0
+        };
+
+        // Register tools with Tool Router
+        module.tools.forEach(tool => {
+          const toolId = `${module.id}.${tool.action}`;
+          GIAToolRouter.registerTool(toolId, {
+            module: module.id,
+            risk: tool.risk || module.riskLevel,
+            requiresGate: tool.requiresGate || false,
+            piiCheck: tool.piiCheck || false,
+            piiRedact: module.piiPolicy === 'REDACT',
+            allowedDomains: module.domainWhitelist,
+            financialCeiling: tool.financialCeiling || module.financialCeiling,
+            description: tool.description || tool.action
+          });
+        });
+
+        this._modules.set(module.id, module);
+        this._logEvent('MODULE_REGISTERED', module.id, { name: module.name, version: module.version });
+
+        console.log(`[GIA Module] Registered: ${module.id} v${module.version}`);
+        addLine('success', '+', `Module registered: <span class="hl-cyan">${module.name}</span> v${module.version}`);
+
+        return module;
+      },
+
+      /**
+       * Create a new instance of a module
+       */
+      async createInstance(moduleId, config = {}) {
+        const module = this._modules.get(moduleId);
+        if (!module) {
+          throw new Error(`[GIA Module] Unknown module: ${moduleId}`);
+        }
+
+        // Generate instance ID
+        const instanceId = `${moduleId}-${Date.now().toString(36)}`;
+
+        // Create instance record
+        const instance = {
+          id: instanceId,
+          moduleId: moduleId,
+          moduleName: module.name,
+          config: config,
+          status: 'INITIALIZING',
+          createdAt: new Date().toISOString(),
+
+          // Runtime state
+          toolCalls: 0,
+          gatesPassed: 0,
+          tokensUsed: 0,
+          evidencePacks: [],
+
+          // Context
+          workflowContext: null,
+          constraints: [],
+
+          // Methods bound to this instance
+          invoke: async (action, args) => {
+            return await this.invokeOnInstance(instanceId, action, args);
+          },
+          suspend: async () => {
+            return await this.suspendInstance(instanceId);
+          },
+          resume: async () => {
+            return await this.resumeInstance(instanceId);
+          },
+          destroy: async () => {
+            return await this.destroyInstance(instanceId);
+          }
+        };
+
+        this._instances.set(instanceId, instance);
+        module.instanceCount++;
+
+        // Initialize
+        try {
+          await module.onInit(instance, config);
+          instance.status = 'READY';
+          this._logEvent('INSTANCE_CREATED', instanceId, { moduleId, config });
+
+          addLine('step', '>', `Instance created: <span class="hl-green">${instanceId}</span>`);
+        } catch (err) {
+          instance.status = 'INIT_FAILED';
+          this._logEvent('INSTANCE_INIT_FAILED', instanceId, { error: err.message });
+          throw err;
+        }
+
+        return instance;
+      },
+
+      /**
+       * Invoke an action on a module instance
+       * This is the main entry point for MCP → GIA
+       */
+      async invokeOnInstance(instanceId, action, args) {
+        const instance = this._instances.get(instanceId);
+        if (!instance) {
+          throw new Error(`[GIA Module] Unknown instance: ${instanceId}`);
+        }
+
+        const module = this._modules.get(instance.moduleId);
+        if (!module) {
+          throw new Error(`[GIA Module] Orphaned instance: ${instanceId}`);
+        }
+
+        // Check instance status
+        if (instance.status !== 'READY' && instance.status !== 'RUNNING') {
+          throw new Error(`[GIA Module] Instance not ready: ${instance.status}`);
+        }
+
+        // Check token budget
+        if (instance.tokensUsed >= module.tokenBudget) {
+          throw new Error(`[GIA Module] Token budget exhausted for ${instanceId}`);
+        }
+
+        instance.status = 'RUNNING';
+        instance.toolCalls++;
+
+        // Route through Tool Router for governance
+        const toolId = `${module.id}.${action}`;
+        try {
+          const result = await GIAToolRouter.invoke(toolId, args, {
+            instanceId: instanceId,
+            moduleId: module.id
+          });
+
+          this._logEvent('INSTANCE_INVOKE', instanceId, { action, success: true });
+          return result;
+        } catch (err) {
+          this._logEvent('INSTANCE_INVOKE', instanceId, { action, success: false, error: err.message });
+          throw err;
+        } finally {
+          if (instance.status === 'RUNNING') {
+            instance.status = 'READY';
+          }
+        }
+      },
+
+      /**
+       * Execute a module's main workflow
+       */
+      async executeModule(moduleId, params = {}) {
+        const module = this._modules.get(moduleId);
+        if (!module) {
+          throw new Error(`[GIA Module] Unknown module: ${moduleId}`);
+        }
+
+        // Create instance for this execution
+        const instance = await this.createInstance(moduleId, params);
+
+        try {
+          instance.status = 'EXECUTING';
+          this._logEvent('MODULE_EXECUTE_START', instance.id, { moduleId, params });
+
+          // Execute module's main function
+          const result = await module.execute(instance, params);
+
+          instance.status = 'COMPLETED';
+          this._logEvent('MODULE_EXECUTE_COMPLETE', instance.id, { moduleId, success: true });
+
+          return { instance, result };
+        } catch (err) {
+          instance.status = 'FAILED';
+          this._logEvent('MODULE_EXECUTE_FAILED', instance.id, { moduleId, error: err.message });
+          throw err;
+        }
+      },
+
+      /**
+       * Suspend an instance (pause without destroying)
+       */
+      async suspendInstance(instanceId) {
+        const instance = this._instances.get(instanceId);
+        if (!instance) return false;
+
+        const module = this._modules.get(instance.moduleId);
+
+        instance.status = 'SUSPENDED';
+        instance.suspendedAt = new Date().toISOString();
+
+        if (module?.onSuspend) {
+          await module.onSuspend(instance);
+        }
+
+        this._logEvent('INSTANCE_SUSPENDED', instanceId);
+        addLine('warning', '~', `Instance suspended: ${instanceId}`);
+        return true;
+      },
+
+      /**
+       * Resume a suspended instance
+       */
+      async resumeInstance(instanceId) {
+        const instance = this._instances.get(instanceId);
+        if (!instance || instance.status !== 'SUSPENDED') return false;
+
+        const module = this._modules.get(instance.moduleId);
+
+        instance.status = 'READY';
+        instance.resumedAt = new Date().toISOString();
+
+        if (module?.onResume) {
+          await module.onResume(instance);
+        }
+
+        this._logEvent('INSTANCE_RESUMED', instanceId);
+        addLine('success', '+', `Instance resumed: ${instanceId}`);
+        return true;
+      },
+
+      /**
+       * Destroy an instance (cleanup)
+       */
+      async destroyInstance(instanceId) {
+        const instance = this._instances.get(instanceId);
+        if (!instance) return false;
+
+        const module = this._modules.get(instance.moduleId);
+
+        instance.status = 'DESTROYING';
+
+        if (module?.onDestroy) {
+          await module.onDestroy(instance);
+        }
+
+        instance.status = 'DESTROYED';
+        instance.destroyedAt = new Date().toISOString();
+
+        if (module) {
+          module.instanceCount--;
+        }
+
+        this._logEvent('INSTANCE_DESTROYED', instanceId);
+        addLine('output', ' ', `Instance destroyed: ${instanceId}`);
+
+        // Keep in map for audit trail, but mark as destroyed
+        return true;
+      },
+
+      /**
+       * Get module by ID
+       */
+      getModule(moduleId) {
+        return this._modules.get(moduleId);
+      },
+
+      /**
+       * Get instance by ID
+       */
+      getInstance(instanceId) {
+        return this._instances.get(instanceId);
+      },
+
+      /**
+       * Get all registered modules
+       */
+      listModules() {
+        return Array.from(this._modules.values()).map(m => ({
+          id: m.id,
+          name: m.name,
+          version: m.version,
+          status: m.status,
+          riskLevel: m.riskLevel,
+          tools: m.tools.length,
+          gates: m.gates.length,
+          instances: m.instanceCount
+        }));
+      },
+
+      /**
+       * Get all active instances
+       */
+      listInstances(moduleId = null) {
+        let instances = Array.from(this._instances.values());
+        if (moduleId) {
+          instances = instances.filter(i => i.moduleId === moduleId);
+        }
+        return instances.map(i => ({
+          id: i.id,
+          moduleId: i.moduleId,
+          moduleName: i.moduleName,
+          status: i.status,
+          toolCalls: i.toolCalls,
+          gatesPassed: i.gatesPassed,
+          tokensUsed: i.tokensUsed,
+          createdAt: i.createdAt
+        }));
+      },
+
+      /**
+       * Get system status
+       */
+      getStatus() {
+        const modules = this.listModules();
+        const instances = this.listInstances();
+
+        return {
+          modules: {
+            total: modules.length,
+            byRisk: modules.reduce((acc, m) => {
+              acc[m.riskLevel] = (acc[m.riskLevel] || 0) + 1;
+              return acc;
+            }, {})
+          },
+          instances: {
+            total: instances.length,
+            byStatus: instances.reduce((acc, i) => {
+              acc[i.status] = (acc[i.status] || 0) + 1;
+              return acc;
+            }, {}),
+            totalToolCalls: instances.reduce((sum, i) => sum + i.toolCalls, 0),
+            totalGates: instances.reduce((sum, i) => sum + i.gatesPassed, 0)
+          },
+          eventLog: this._eventLog.slice(-20)
+        };
+      },
+
+      /**
+       * Log system event
+       */
+      _logEvent(type, targetId, data = {}) {
+        const event = {
+          type,
+          targetId,
+          data,
+          timestamp: new Date().toISOString()
+        };
+        this._eventLog.push(event);
+
+        // Keep last 500 events
+        if (this._eventLog.length > 500) {
+          this._eventLog.shift();
+        }
+      }
+    };
+
+    // Make globally available
+    window.GIAModuleSystem = GIAModuleSystem;
+
+    // ============================================
+    // REGISTER BUILT-IN MODULES
+    // ============================================
+
+    // VA Claims Module
+    GIAModuleSystem.register({
+      id: 'va-claims',
+      name: 'VA Claims Analysis',
+      version: '2.0.0',
+      description: 'Analyzes VA disability claims for CUE errors, rating increases, and service connection',
+
+      tools: [
+        { action: 'extract_text', description: 'Extract text from documents', risk: 'LOW' },
+        { action: 'timeline', description: 'Generate medical timeline', risk: 'LOW' },
+        { action: 'cue_scan', description: 'Scan for CUE errors', risk: 'LOW' },
+        { action: 'nexus_analysis', description: 'Analyze service connection', risk: 'MEDIUM' },
+        { action: 'rating_calculation', description: 'Calculate disability rating', risk: 'HIGH', requiresGate: true },
+        { action: 'generate_report', description: 'Generate final report', risk: 'HIGH', requiresGate: true }
+      ],
+
+      gates: ['document-review', 'rating-approval', 'report-approval'],
+      riskLevel: 'HIGH',
+      piiPolicy: 'REDACT',
+      tokenBudget: 100000,
+
+      async execute(instance, params) {
+        // Delegate to existing workflow
+        return await runLiveVAClaims();
+      }
+    });
+
+    // Browser Agent Module
+    GIAModuleSystem.register({
+      id: 'browser-agent',
+      name: 'Browser Agent',
+      version: '2.0.0',
+      description: 'Governed browser automation via Claude MCP',
+
+      tools: [
+        { action: 'navigate', description: 'Navigate to URL', risk: 'LOW' },
+        { action: 'screenshot', description: 'Capture screenshot', risk: 'LOW' },
+        { action: 'click', description: 'Click element', risk: 'MEDIUM' },
+        { action: 'type', description: 'Type text', risk: 'MEDIUM', piiCheck: true },
+        { action: 'extract', description: 'Extract page data', risk: 'LOW' },
+        { action: 'submit', description: 'Submit form', risk: 'HIGH', requiresGate: true }
+      ],
+
+      gates: ['task-approval', 'submit-approval'],
+      riskLevel: 'MEDIUM',
+      piiPolicy: 'REDACT',
+      domainWhitelist: ['sam.gov', 'usaspending.gov', 'google.com', 'bing.com'],
+      tokenBudget: 50000,
+
+      onInit(instance) {
+        BrowserAgent.init();
+        BrowserAgent.open();
+      },
+
+      onDestroy(instance) {
+        BrowserAgent.close();
+      },
+
+      async execute(instance, params) {
+        return await runLiveBrowserResearch();
+      }
+    });
+
+    // Federal BD Module
+    GIAModuleSystem.register({
+      id: 'federal-bd',
+      name: 'Federal BD Search',
+      version: '1.0.0',
+      description: 'Search and analyze federal contracting opportunities',
+
+      tools: [
+        { action: 'search', description: 'Search SAM.gov', risk: 'LOW' },
+        { action: 'filter', description: 'Filter opportunities', risk: 'LOW' },
+        { action: 'analyze', description: 'Analyze opportunity', risk: 'MEDIUM' },
+        { action: 'export', description: 'Export results', risk: 'LOW' }
+      ],
+
+      gates: ['capture-approval', 'export-approval'],
+      riskLevel: 'MEDIUM',
+      piiPolicy: 'REDACT',
+      domainWhitelist: ['sam.gov', 'usaspending.gov', 'fpds.gov'],
+      tokenBudget: 30000,
+
+      async execute(instance, params) {
+        return await runLiveFederalBD();
+      }
+    });
+
+    // Red Team Module
+    GIAModuleSystem.register({
+      id: 'red-team',
+      name: 'Red Team Security',
+      version: '1.0.0',
+      description: 'Adversarial assurance layer for AI safety testing',
+
+      tools: [
+        { action: 'scan', description: 'Run security scan', risk: 'LOW' },
+        { action: 'probe', description: 'Execute probe', risk: 'MEDIUM' },
+        { action: 'exploit_check', description: 'Check for exploits', risk: 'MEDIUM', requiresGate: true },
+        { action: 'report', description: 'Generate security report', risk: 'LOW' }
+      ],
+
+      gates: ['findings-review'],
+      riskLevel: 'LOW',
+      piiPolicy: 'REDACT',
+      tokenBudget: 40000,
+
+      async execute(instance, params) {
+        return await runLiveAAL();
+      }
+    });
+
+    // Household Module
+    GIAModuleSystem.register({
+      id: 'household',
+      name: 'Household Tasks',
+      version: '1.0.0',
+      description: 'Managed household automation with financial governance',
+
+      tools: [
+        { action: 'list_tasks', description: 'List pending tasks', risk: 'LOW' },
+        { action: 'check_balance', description: 'Check account balance', risk: 'LOW' },
+        { action: 'bill_pay', description: 'Pay bill', risk: 'CRITICAL', requiresGate: true, financialCeiling: 500 },
+        { action: 'order', description: 'Place order', risk: 'HIGH', requiresGate: true, financialCeiling: 200 }
+      ],
+
+      gates: ['payment-approval', 'order-approval'],
+      riskLevel: 'CRITICAL',
+      piiPolicy: 'GATE',
+      financialCeiling: 500,
+      tokenBudget: 20000,
+
+      async execute(instance, params) {
+        return await runLiveHousehold();
+      }
+    });
 
     // ============================================
     // GIA TOOL ROUTER - Central Governance Layer
