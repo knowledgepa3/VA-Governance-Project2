@@ -5281,6 +5281,7 @@ MCP Browser: NOT CONNECTED`);
       }
 
       if (lowerCmd === 'abort' || lowerCmd === 'stop') {
+        // Abort workflow state
         if (workflowState.isRunning) {
           workflowState.isRunning = false;
           workflowState.isPaused = false;
@@ -5295,8 +5296,19 @@ MCP Browser: NOT CONNECTED`);
           addLine('system', '*', 'evidence sealed — audit trail preserved');
           setIntegrity('SEALED');
           addSpacer();
-          return true;
         }
+
+        // Also abort GIAExecutionLoop if active
+        if (typeof GIAExecutionLoop !== 'undefined' && GIAExecutionLoop._loopActive) {
+          GIAExecutionLoop.abort('User clicked ABORT button');
+        }
+
+        // Also abort any active playbook execution
+        if (typeof GIAPlaybookEngine !== 'undefined' && GIAPlaybookEngine._currentExecution) {
+          GIAPlaybookEngine.abort('User clicked ABORT button');
+        }
+
+        return true;
       }
 
       if (lowerCmd === 'restart') {
