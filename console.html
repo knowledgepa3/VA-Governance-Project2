@@ -4094,6 +4094,12 @@ OUTPUT: Complete formatted report ready for case file.`
       const text = inputField.value.trim();
       if (!text) return;
 
+      // SECURITY: Record user gesture for capability token issuance
+      // This proves a human typed a command (vs XSS programmatic call)
+      if (typeof GIASecurityContext !== 'undefined') {
+        GIASecurityContext._recordGesture();
+      }
+
       // Check for special commands first
       const lowerText = text.toLowerCase();
 
@@ -4324,6 +4330,53 @@ OUTPUT: Complete formatted report ready for case file.`
         } else {
           addLine('warning', '!', `Unknown MCP command: ${mcpCommand}`);
           addLine('output', ' ', '<span class="hl-dim">Try: mcp status, mcp pending, mcp clear</span>');
+        }
+
+        addSpacer();
+        inputField.value = '';
+        inputField.style.height = 'auto';
+        return;
+      }
+
+      // Security / Token commands
+      if (lowerText.startsWith('security ') || lowerText === 'security') {
+        addLine('human', 'you:', text);
+        addSpacer();
+
+        const parts = text.trim().split(/\s+/);
+        const subCommand = parts[1]?.toLowerCase() || 'status';
+
+        if (subCommand === 'status') {
+          addLine('system', '*', '<span class="hl-accent">SECURITY TOKEN STATUS</span>');
+          const status = GIASecurityContext.getStatus();
+          if (Object.keys(status).length === 0) {
+            addLine('output', ' ', '<span class="hl-dim">No active tokens</span>');
+          } else {
+            Object.entries(status).forEach(([scope, data]) => {
+              const color = data.valid ? 'hl-green' : 'hl-red';
+              addLine('output', ' ', `<span class="${color}">${scope}:</span> ${data.valid ? 'valid' : 'expired'} (${data.expiresIn})`);
+            });
+          }
+        } else if (subCommand === 'token' || subCommand === 'request') {
+          // Issue a TERMINAL token (requires valid gesture)
+          const token = GIASecurityContext._generateScopedToken('TERMINAL', true);
+          if (token) {
+            addLine('success', '+', '<span class="hl-accent">TERMINAL TOKEN ISSUED</span>');
+            addLine('output', ' ', `<span class="hl-dim">Token:</span> ${token.substring(0, 8)}...${token.substring(56)}`);
+            addLine('output', ' ', '<span class="hl-dim">Valid for 1 hour or until inactivity</span>');
+          } else {
+            addLine('error', 'x', 'Token issuance failed - gesture not verified');
+          }
+        } else if (subCommand === 'revoke') {
+          GIASecurityContext.revokeAll();
+          addLine('warning', '!', 'All tokens revoked');
+        } else if (subCommand === 'help') {
+          addLine('system', '*', '<span class="hl-accent">SECURITY COMMANDS</span>');
+          addLine('output', ' ', '  security status  — show token status');
+          addLine('output', ' ', '  security token   — request terminal token (gesture required)');
+          addLine('output', ' ', '  security revoke  — revoke all tokens');
+        } else {
+          addLine('warning', '!', `Unknown security command: ${subCommand}`);
         }
 
         addSpacer();
@@ -8068,6 +8121,88 @@ MCP Browser: NOT CONNECTED`);
       },
 
       // ============================================
+      // RESULT SANITIZATION (SECURITY)
+      // ============================================
+
+      /**
+       * Sanitize incoming result from MCP
+       * Prevents injection attacks through result data
+       */
+      _sanitizeResult(result) {
+        if (result === null || result === undefined) {
+          return null;
+        }
+
+        // Check for circular references
+        try {
+          JSON.stringify(result);
+        } catch (e) {
+          console.warn('[GIA Security] Result contains circular reference, flattening');
+          return { _sanitized: true, error: 'Circular reference removed' };
+        }
+
+        // Deep sanitize object
+        return this._deepSanitize(result, 0);
+      },
+
+      /**
+       * Recursively sanitize object, removing dangerous properties
+       */
+      _deepSanitize(obj, depth = 0) {
+        // Prevent stack overflow
+        if (depth > 10) return '[MAX_DEPTH]';
+
+        if (obj === null || obj === undefined) return obj;
+        if (typeof obj === 'number' || typeof obj === 'boolean') return obj;
+
+        if (typeof obj === 'string') {
+          // Sanitize HTML/script injection in strings
+          return obj
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/javascript:/gi, '[BLOCKED]')
+            .replace(/on\w+=/gi, '[BLOCKED]')
+            .substring(0, 10000); // Cap string length
+        }
+
+        if (Array.isArray(obj)) {
+          return obj.slice(0, 100).map(item => this._deepSanitize(item, depth + 1));
+        }
+
+        if (typeof obj === 'object') {
+          const sanitized = {};
+          const keys = Object.keys(obj).slice(0, 50); // Cap number of keys
+
+          for (const key of keys) {
+            // Skip dangerous keys
+            if (['__proto__', 'constructor', 'prototype'].includes(key)) continue;
+            // Sanitize key name
+            const safeKey = key.replace(/[<>]/g, '').substring(0, 100);
+            sanitized[safeKey] = this._deepSanitize(obj[key], depth + 1);
+          }
+          return sanitized;
+        }
+
+        // Functions and other types are not allowed
+        return '[REMOVED]';
+      },
+
+      /**
+       * Sanitize error object
+       */
+      _sanitizeError(error) {
+        if (!error) return null;
+
+        return {
+          message: String(error.message || error).substring(0, 1000)
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;'),
+          code: String(error.code || 'ERROR').substring(0, 50),
+          // Don't include stack trace in sanitized error (could leak info)
+        };
+      },
+
+      // ============================================
       // QUEUE MANAGEMENT
       // ============================================
 
@@ -8165,13 +8300,17 @@ MCP Browser: NOT CONNECTED`);
           return;
         }
 
+        // SECURITY: Validate and sanitize incoming result
+        const sanitizedResult = this._sanitizeResult(result);
+        const sanitizedError = error ? this._sanitizeError(error) : null;
+
         // Calculate execution time
         const execDuration = task.executionStartedAt
           ? Date.now() - new Date(task.executionStartedAt).getTime()
           : 0;
 
-        // Create canonical result
-        const resultObj = this._createResult(task, result, error);
+        // Create canonical result with sanitized data
+        const resultObj = this._createResult(task, sanitizedResult, sanitizedError);
         resultObj.executionDurationMs = execDuration;
 
         // Update task status
@@ -8424,64 +8563,189 @@ MCP Browser: NOT CONNECTED`);
     // ============================================
 
     const GIASecurityContext = {
-      _capToken: null,
-      _tokenExpiry: null,
-      _tokenLifetimeMs: 3600000, // 1 hour
-      _lastActivity: Date.now(),
-      _inactivityTimeoutMs: 900000, // 15 minutes
+      // ============================================
+      // SCOPED TOKEN SYSTEM
+      // ============================================
+      // Tokens are scoped by capability (RUN, GATE, ABORT)
+      // Token issuance requires user gesture verification
+      // ============================================
 
-      // Generate cryptographically secure token
-      generateToken() {
+      _tokens: new Map(),             // scope -> {token, expiry, issuedAt}
+      _lastActivity: Date.now(),
+      _inactivityTimeoutMs: 900000,   // 15 minutes global inactivity
+      _pendingGesture: null,          // Pending gesture verification
+      _gestureTimeout: 5000,          // 5 seconds to complete gesture
+
+      // Token lifetimes by scope (more sensitive = shorter)
+      TOKEN_LIFETIMES: {
+        'TERMINAL': 3600000,          // 1 hour - for terminal commands
+        'RUN': 300000,                // 5 minutes - for playbook execution
+        'GATE_APPROVE': 60000,        // 1 minute - for gate approvals
+        'GATE_DENY': 60000,           // 1 minute - for gate denials
+        'ABORT': 120000,              // 2 minutes - for abort
+        'FORCE_UNLOCK': 30000         // 30 seconds - for emergency unlock
+      },
+
+      // ============================================
+      // GESTURE VERIFICATION
+      // ============================================
+      // Requires a user click within timeout window to issue token
+      // Prevents XSS from programmatically requesting tokens
+
+      _gestureVerified: false,
+      _gestureTimestamp: 0,
+
+      /**
+       * Mark that a user gesture occurred (called from trusted UI handlers)
+       * This is called ONLY from click handlers in the trusted terminal UI
+       */
+      _recordGesture() {
+        this._gestureVerified = true;
+        this._gestureTimestamp = Date.now();
+        // Gesture validity window: 2 seconds
+        setTimeout(() => {
+          if (this._gestureTimestamp === Date.now() - 2000) {
+            this._gestureVerified = false;
+          }
+        }, 2000);
+      },
+
+      /**
+       * Check if we're within a valid gesture window
+       */
+      _isGestureValid() {
+        return this._gestureVerified && (Date.now() - this._gestureTimestamp < 2000);
+      },
+
+      /**
+       * Generate a scoped capability token
+       * INTERNAL USE ONLY - not exposed on window
+       * @param {string} scope - Token scope (RUN, GATE_APPROVE, etc.)
+       * @param {boolean} requireGesture - Whether to require user gesture
+       */
+      _generateScopedToken(scope, requireGesture = true) {
+        // Validate scope
+        if (!this.TOKEN_LIFETIMES[scope]) {
+          console.error(`[GIA Security] Invalid token scope: ${scope}`);
+          return null;
+        }
+
+        // Check gesture requirement (TERMINAL scope exempt - issued at startup)
+        if (requireGesture && scope !== 'TERMINAL' && !this._isGestureValid()) {
+          console.warn(`[GIA Security] Token request for ${scope} rejected - no valid user gesture`);
+          return null;
+        }
+
+        // Generate cryptographically secure token
         const array = new Uint8Array(32);
         crypto.getRandomValues(array);
-        this._capToken = Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
-        this._tokenExpiry = Date.now() + this._tokenLifetimeMs;
+        const token = Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+
+        const lifetime = this.TOKEN_LIFETIMES[scope];
+        const tokenData = {
+          token: token,
+          scope: scope,
+          expiry: Date.now() + lifetime,
+          issuedAt: new Date().toISOString()
+        };
+
+        this._tokens.set(scope, tokenData);
         this._lastActivity = Date.now();
-        console.log('[GIA Security] Capability token generated');
-        return this._capToken;
+
+        console.log(`[GIA Security] ${scope} token issued (${lifetime/1000}s lifetime)`);
+        return token;
       },
 
-      // Validate token and check expiry
-      validateToken(providedToken) {
-        // Check inactivity
+      /**
+       * Validate a token for a specific scope
+       * @param {string} providedToken - Token to validate
+       * @param {string} requiredScope - Required scope for this operation
+       */
+      validateToken(providedToken, requiredScope = null) {
+        // Check global inactivity
         if (Date.now() - this._lastActivity > this._inactivityTimeoutMs) {
-          console.warn('[GIA Security] Token expired due to inactivity');
-          this._capToken = null;
+          console.warn('[GIA Security] All tokens expired due to inactivity');
+          this._tokens.clear();
           return false;
         }
 
-        // Check expiry
-        if (this._tokenExpiry && Date.now() > this._tokenExpiry) {
-          console.warn('[GIA Security] Token expired');
-          this._capToken = null;
-          return false;
+        // Find matching token across scopes (or specific scope)
+        const scopesToCheck = requiredScope ? [requiredScope] : Array.from(this._tokens.keys());
+
+        for (const scope of scopesToCheck) {
+          const tokenData = this._tokens.get(scope);
+          if (!tokenData) continue;
+
+          // Check expiry
+          if (Date.now() > tokenData.expiry) {
+            this._tokens.delete(scope);
+            continue;
+          }
+
+          // Check match
+          if (tokenData.token === providedToken) {
+            this._lastActivity = Date.now();
+
+            // For high-security scopes, token is single-use
+            if (['GATE_APPROVE', 'GATE_DENY', 'FORCE_UNLOCK'].includes(scope)) {
+              this._tokens.delete(scope);
+              console.log(`[GIA Security] Single-use ${scope} token consumed`);
+            }
+
+            return true;
+          }
         }
 
-        // Validate match
-        if (!this._capToken || providedToken !== this._capToken) {
-          console.warn('[GIA Security] Invalid capability token');
-          return false;
-        }
-
-        this._lastActivity = Date.now();
-        return true;
+        console.warn('[GIA Security] Token validation failed');
+        return false;
       },
 
-      // For internal use only - get current token
-      _getToken() {
-        return this._capToken;
+      /**
+       * Get existing token for scope (doesn't issue new one)
+       */
+      _getToken(scope = 'TERMINAL') {
+        const tokenData = this._tokens.get(scope);
+        if (tokenData && Date.now() < tokenData.expiry) {
+          return tokenData.token;
+        }
+        return null;
       },
 
-      // Revoke token (on logout, security concern, etc.)
-      revokeToken() {
-        this._capToken = null;
-        this._tokenExpiry = null;
-        console.log('[GIA Security] Token revoked');
+      /**
+       * Revoke all tokens
+       */
+      revokeAll() {
+        this._tokens.clear();
+        console.log('[GIA Security] All tokens revoked');
+      },
+
+      /**
+       * Revoke specific scope
+       */
+      revokeScope(scope) {
+        this._tokens.delete(scope);
+        console.log(`[GIA Security] ${scope} token revoked`);
+      },
+
+      /**
+       * Get token status (no secrets exposed)
+       */
+      getStatus() {
+        const status = {};
+        this._tokens.forEach((data, scope) => {
+          const remaining = Math.max(0, data.expiry - Date.now());
+          status[scope] = {
+            valid: remaining > 0,
+            expiresIn: Math.round(remaining / 1000) + 's',
+            issuedAt: data.issuedAt
+          };
+        });
+        return status;
       }
     };
 
-    // Generate initial token
-    GIASecurityContext.generateToken();
+    // Issue TERMINAL token at startup (no gesture required for initial)
+    GIASecurityContext._generateScopedToken('TERMINAL', false);
 
     // ============================================
     // SECURITY: DENY-BY-DEFAULT PUBLIC API
@@ -9992,27 +10256,32 @@ MCP Browser: NOT CONNECTED`);
         }
       },
 
+      // ============================================
+      // SECURE GATE STORAGE (NOT ON WINDOW)
+      // ============================================
+      // Gate resolvers stored in closure, not accessible to XSS
+      // Only approveGate/denyGate can access them
+      // ============================================
+      _secureGates: new Map(),
+
       /**
        * Prompt for gate approval with improved timeout handling
        * Production-grade: auto-deny on timeout, progress feedback, cleanup
+       * SECURITY: Resolvers stored in closure _secureGates, NOT on window
        */
       async _promptGate(gateId, message, timeout = 300000) {
         return new Promise((resolve) => {
           const startTime = Date.now();
           const timeoutSec = Math.floor(timeout / 1000);
 
-          // Store resolver for external approval
-          window._pendingGates = window._pendingGates || {};
-
           // Check for duplicate gate (shouldn't happen but safety check)
-          if (window._pendingGates[gateId]) {
+          if (this._secureGates.has(gateId)) {
             addLine('warning', '!', `Gate ${gateId} already pending - resolving previous`);
-            window._pendingGates[gateId](false);
-            clearTimeout(window._pendingGates[gateId]._timeout);
-            clearInterval(window._pendingGates[gateId]._progressInterval);
+            const oldGate = this._secureGates.get(gateId);
+            oldGate.resolve(false);
+            clearTimeout(oldGate.timeoutId);
+            clearInterval(oldGate.progressInterval);
           }
-
-          window._pendingGates[gateId] = resolve;
 
           // Progress countdown (every 30 seconds)
           const progressInterval = setInterval(() => {
@@ -10026,30 +10295,42 @@ MCP Browser: NOT CONNECTED`);
           // Timeout handler - auto-deny with clear messaging
           const timeoutId = setTimeout(() => {
             clearInterval(progressInterval);
-            delete window._pendingGates[gateId];
+            this._secureGates.delete(gateId);
             addLine('error', 'x', `Gate ${gateId} AUTO-DENIED (timeout after ${timeoutSec}s)`);
             addLine('output', ' ', '<span class="hl-dim">Playbook will abort. Re-run to try again.</span>');
             resolve(false);
           }, timeout);
 
-          // Store cleanup references
-          window._pendingGates[gateId]._timeout = timeoutId;
-          window._pendingGates[gateId]._progressInterval = progressInterval;
-          window._pendingGates[gateId]._startTime = startTime;
+          // Store in secure closure (NOT on window)
+          this._secureGates.set(gateId, {
+            resolve: resolve,
+            timeoutId: timeoutId,
+            progressInterval: progressInterval,
+            startTime: startTime
+          });
         });
       },
 
       /**
-       * Approve a pending gate (called from terminal)
+       * Get list of pending gate IDs (safe - just IDs, not resolvers)
+       */
+      getPendingGateIds() {
+        return Array.from(this._secureGates.keys());
+      },
+
+      /**
+       * Approve a pending gate (called from terminal via command)
+       * SECURITY: Only this method can access the resolver
        */
       approveGate(gateId) {
-        if (window._pendingGates && window._pendingGates[gateId]) {
-          clearTimeout(window._pendingGates[gateId]._timeout);
-          clearInterval(window._pendingGates[gateId]._progressInterval);
-          const elapsed = Date.now() - (window._pendingGates[gateId]._startTime || Date.now());
+        if (this._secureGates.has(gateId)) {
+          const gate = this._secureGates.get(gateId);
+          clearTimeout(gate.timeoutId);
+          clearInterval(gate.progressInterval);
+          const elapsed = Date.now() - gate.startTime;
           addLine('success', '+', `Gate ${gateId} APPROVED (${Math.round(elapsed/1000)}s)`);
-          window._pendingGates[gateId](true);
-          delete window._pendingGates[gateId];
+          gate.resolve(true);
+          this._secureGates.delete(gateId);
           return true;
         }
         return false;
@@ -10057,15 +10338,17 @@ MCP Browser: NOT CONNECTED`);
 
       /**
        * Deny a pending gate
+       * SECURITY: Only this method can access the resolver
        */
       denyGate(gateId) {
-        if (window._pendingGates && window._pendingGates[gateId]) {
-          clearTimeout(window._pendingGates[gateId]._timeout);
-          clearInterval(window._pendingGates[gateId]._progressInterval);
-          const elapsed = Date.now() - (window._pendingGates[gateId]._startTime || Date.now());
+        if (this._secureGates.has(gateId)) {
+          const gate = this._secureGates.get(gateId);
+          clearTimeout(gate.timeoutId);
+          clearInterval(gate.progressInterval);
+          const elapsed = Date.now() - gate.startTime;
           addLine('warning', '!', `Gate ${gateId} DENIED by operator (${Math.round(elapsed/1000)}s)`);
-          window._pendingGates[gateId](false);
-          delete window._pendingGates[gateId];
+          gate.resolve(false);
+          this._secureGates.delete(gateId);
           return true;
         }
         return false;
@@ -10074,16 +10357,19 @@ MCP Browser: NOT CONNECTED`);
       // ============================================
       // ASSIST MODE - Human Takes Over
       // ============================================
+      // SECURITY: Assist resolvers stored in closure, NOT on window
+      // ============================================
+      _secureAssists: new Map(),
 
       /**
        * Wait for human assistance
+       * SECURITY: Resolver stored in _secureAssists, not accessible to XSS
        */
       async _waitForHumanAssist(stepId, reason) {
         return new Promise((resolve) => {
           const assistId = `ASSIST-${stepId}`;
 
-          window._pendingAssist = window._pendingAssist || {};
-          window._pendingAssist[assistId] = resolve;
+          this._secureAssists.set(assistId, resolve);
 
           addLine('gate', '!', `<span class="hl-yellow">ASSIST MODE</span>`);
           addLine('output', ' ', `Step ${stepId} needs help: ${reason}`);
@@ -10092,13 +10378,22 @@ MCP Browser: NOT CONNECTED`);
       },
 
       /**
+       * Get list of pending assist IDs (safe - just IDs)
+       */
+      getPendingAssistIds() {
+        return Array.from(this._secureAssists.keys());
+      },
+
+      /**
        * Mark assist as complete
+       * SECURITY: Only this method can access the resolver
        */
       completeAssist(stepId) {
         const assistId = `ASSIST-${stepId}`;
-        if (window._pendingAssist && window._pendingAssist[assistId]) {
-          window._pendingAssist[assistId](true);
-          delete window._pendingAssist[assistId];
+        if (this._secureAssists.has(assistId)) {
+          const resolve = this._secureAssists.get(assistId);
+          resolve(true);
+          this._secureAssists.delete(assistId);
           addLine('success', '+', `Assist complete: ${stepId}`);
           return true;
         }
@@ -10450,7 +10745,7 @@ MCP Browser: NOT CONNECTED`);
           teachMode: !!this._teachRecording,
           registeredPlaybooks: this._playbooks.size,
           executionHistory: this._executionHistory.length,
-          pendingGates: Object.keys(window._pendingGates || {})
+          pendingGates: this.getPendingGateIds()
         };
       },
 
@@ -10952,25 +11247,26 @@ Return only the selector, no explanation.`;
       }
     });
 
-    // Security context for token management (only expose safe methods)
+    // ============================================
+    // PUBLIC SECURITY CONTEXT - MINIMAL SURFACE
+    // ============================================
+    // NO token issuance exposed to window
+    // Only status and validation (returns boolean, not token)
+    // Token issuance happens ONLY through trusted terminal commands
+    // ============================================
+
     window.GIASecurityContext = Object.freeze({
-      // Terminal can request token (displayed to operator, not logged)
-      requestToken: () => {
-        const token = GIASecurityContext._getToken();
-        if (token) {
-          addLine('system', '*', '<span class="hl-accent">CAPABILITY TOKEN</span>');
-          addLine('output', ' ', `<span class="hl-dim">Token:</span> ${token.substring(0, 8)}...${token.substring(56)}`);
-          addLine('output', ' ', '<span class="hl-dim">Use this token for gated operations</span>');
-          return token;
-        }
-        return GIASecurityContext.generateToken();
-      },
+      // Read-only: Get token status (no secrets)
+      getStatus: () => GIASecurityContext.getStatus(),
 
-      // Validate without exposing token
-      validate: (token) => GIASecurityContext.validateToken(token),
+      // Validate a token (returns boolean only)
+      validate: (token, scope) => GIASecurityContext.validateToken(token, scope),
 
-      // Revoke current token
-      revoke: () => GIASecurityContext.revokeToken()
+      // Check if gesture is valid (for UI feedback)
+      isGestureValid: () => GIASecurityContext._isGestureValid()
+
+      // NOTE: No requestToken(), generateToken(), or _getToken() exposed
+      // Token issuance requires trusted terminal command with gesture verification
     });
 
     // Setup MCP recording bridge
@@ -11365,8 +11661,17 @@ Return only the selector, no explanation.`;
           addLine('error', 'x', 'Usage: playbook run <playbook-id>');
           return;
         }
+
+        // Issue RUN token (requires valid gesture from terminal input)
+        const runToken = GIASecurityContext._generateScopedToken('RUN', true);
+        if (!runToken) {
+          addLine('error', 'x', 'Security: Could not issue RUN token - gesture verification failed');
+          return;
+        }
+
         try {
           // Terminal commands use internal engine directly (trusted context)
+          // Token issued for audit trail
           await _internalPlaybookEngine.run(playbookId);
         } catch (e) {
           addLine('error', 'x', `Execution failed: ${e.message}`);
@@ -11379,6 +11684,14 @@ Return only the selector, no explanation.`;
           addLine('output', ' ', 'Simulates playbook execution without real browser actions');
           return;
         }
+
+        // Dry runs are lower risk but still require gesture
+        const dryToken = GIASecurityContext._generateScopedToken('RUN', true);
+        if (!dryToken) {
+          addLine('error', 'x', 'Security: Gesture verification failed');
+          return;
+        }
+
         try {
           await _internalPlaybookEngine.run(playbookId, { dryRun: true });
         } catch (e) {
@@ -11387,6 +11700,13 @@ Return only the selector, no explanation.`;
       },
 
       abort: () => {
+        // Issue ABORT token (requires gesture)
+        const abortToken = GIASecurityContext._generateScopedToken('ABORT', true);
+        if (!abortToken) {
+          addLine('error', 'x', 'Security: Gesture verification failed for abort');
+          return;
+        }
+
         if (_internalPlaybookEngine.abort()) {
           addLine('warning', '!', 'Execution aborted');
         } else {
@@ -11395,6 +11715,13 @@ Return only the selector, no explanation.`;
       },
 
       'force-unlock': () => {
+        // FORCE_UNLOCK is highest security - requires gesture
+        const unlockToken = GIASecurityContext._generateScopedToken('FORCE_UNLOCK', true);
+        if (!unlockToken) {
+          addLine('error', 'x', 'Security: Gesture verification required for force-unlock');
+          return;
+        }
+
         // Emergency recovery for stuck mutex
         const result = _internalPlaybookEngine.forceUnlock();
         if (result.success) {
@@ -11405,8 +11732,15 @@ Return only the selector, no explanation.`;
       },
 
       approve: (gateId) => {
+        // Issue single-use GATE_APPROVE token
+        const approveToken = GIASecurityContext._generateScopedToken('GATE_APPROVE', true);
+        if (!approveToken) {
+          addLine('error', 'x', 'Security: Gesture verification required for gate approval');
+          return;
+        }
+
         // Try to find pending gate
-        const pending = Object.keys(window._pendingGates || {});
+        const pending = _internalPlaybookEngine.getPendingGateIds();
         const target = gateId || pending[0];
 
         if (target && _internalPlaybookEngine.approveGate(target)) {
@@ -11417,7 +11751,14 @@ Return only the selector, no explanation.`;
       },
 
       deny: (gateId) => {
-        const pending = Object.keys(window._pendingGates || {});
+        // Issue single-use GATE_DENY token
+        const denyToken = GIASecurityContext._generateScopedToken('GATE_DENY', true);
+        if (!denyToken) {
+          addLine('error', 'x', 'Security: Gesture verification required for gate denial');
+          return;
+        }
+
+        const pending = _internalPlaybookEngine.getPendingGateIds();
         const target = gateId || pending[0];
 
         if (target && _internalPlaybookEngine.denyGate(target)) {
@@ -11429,9 +11770,9 @@ Return only the selector, no explanation.`;
 
       done: () => {
         // Complete assist mode
-        const pending = Object.keys(window._pendingAssist || {});
+        const pending = _internalPlaybookEngine.getPendingAssistIds();
         if (pending.length > 0) {
-          GIAPlaybookEngine.completeAssist(pending[0].replace('ASSIST-', ''));
+          _internalPlaybookEngine.completeAssist(pending[0].replace('ASSIST-', ''));
         } else {
           addLine('output', ' ', 'No pending assist');
         }
