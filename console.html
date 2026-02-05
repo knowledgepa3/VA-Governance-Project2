@@ -5283,20 +5283,32 @@ OUTPUT: Complete formatted report ready for case file.`
           instanceCount: 0
         };
 
-        // Register tools with Tool Router
-        module.tools.forEach(tool => {
-          const toolId = `${module.id}.${tool.action}`;
-          GIAToolRouter.registerTool(toolId, {
-            module: module.id,
-            risk: tool.risk || module.riskLevel,
-            requiresGate: tool.requiresGate || false,
-            piiCheck: tool.piiCheck || false,
-            piiRedact: module.piiPolicy === 'REDACT',
-            allowedDomains: module.domainWhitelist,
-            financialCeiling: tool.financialCeiling || module.financialCeiling,
-            description: tool.description || tool.action
+        // Register tools with Tool Router (deferred if not yet available)
+        const registerTools = () => {
+          module.tools.forEach(tool => {
+            const toolId = `${module.id}.${tool.action}`;
+            if (typeof GIAToolRouter !== 'undefined' && GIAToolRouter.registerTool) {
+              GIAToolRouter.registerTool(toolId, {
+                module: module.id,
+                risk: tool.risk || module.riskLevel,
+                requiresGate: tool.requiresGate || false,
+                piiCheck: tool.piiCheck || false,
+                piiRedact: module.piiPolicy === 'REDACT',
+                allowedDomains: module.domainWhitelist,
+                financialCeiling: tool.financialCeiling || module.financialCeiling,
+                description: tool.description || tool.action
+              });
+            }
           });
-        });
+        };
+
+        // Try now, or defer to after GIAToolRouter is defined
+        if (typeof GIAToolRouter !== 'undefined') {
+          registerTools();
+        } else {
+          // Store for later registration
+          module._pendingToolRegistration = registerTools;
+        }
 
         this._modules.set(module.id, module);
         this._logEvent('MODULE_REGISTERED', module.id, { name: module.name, version: module.version });
@@ -6888,6 +6900,16 @@ OUTPUT: Complete formatted report ready for case file.`
 
     // Make globally available
     window.GIAToolRouter = GIAToolRouter;
+
+    // Register any pending module tools now that GIAToolRouter exists
+    if (typeof GIAModuleSystem !== 'undefined') {
+      GIAModuleSystem._modules.forEach(module => {
+        if (module._pendingToolRegistration) {
+          module._pendingToolRegistration();
+          delete module._pendingToolRegistration;
+        }
+      });
+    }
 
     // ============================================
     // BROWSER AGENT - Real browser automation via Claude Chrome Extension
