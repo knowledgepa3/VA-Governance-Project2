@@ -3959,7 +3959,8 @@ OUTPUT: Complete formatted report ready for case file.`
           description: 'Hash-chained evidence pack containing cryptographically linked action records',
           contents: ['hashChain', 'packs', 'chainVerification'],
           packCount: GIA.evidence.packs.length,
-          chainLength: GIA.evidence.hashChain.length,
+          packChainLength: GIA.evidence.packs.length,
+          executionEventCount: GIA.evidence.hashChain.length,
           chainIntegrity: chainVerification.valid ? 'VERIFIED' : 'BROKEN'
         },
         storageMode: GIA.storageMode,
@@ -4021,7 +4022,8 @@ OUTPUT: Complete formatted report ready for case file.`
             workflowId: document.getElementById('workflowTag').textContent,
             packCount: GIA.evidence.packs.length,
             capsuleCount: GIA.capsules.cache.size,
-            chainLength: GIA.evidence.hashChain.length,
+            packChainLength: GIA.evidence.packs.length,
+            executionEventCount: GIA.evidence.hashChain.length,
             chainIntegrity: chainVerification.valid ? 'VERIFIED' : 'BROKEN',
             totalApiCalls: apiCalls,
             totalCost: currentCost,
@@ -14194,13 +14196,13 @@ Consult accredited VSO or attorney for final decisions.`
             addLine('success', '+', `PII collected: ${veteranPII.name} (***-**-${veteranPII.ssn4})`);
             addLine('system', '*', '<span class="hl-dim">PII stored in memory only - NOT persisted</span>');
 
-            // Log PII collection to audit trail (HASHED, not plaintext)
+            // Log PII handling to audit trail (HASHED, not plaintext)
             const piiHash = await GIA.generateHash(veteranPII.name + veteranPII.ssn4);
             await GIAWorkflow.createPack(
               'VA-REPORT',
-              '/pii/collected',
+              '/privacy/handling-summary',
               { type: 'PII_GATE', hasName: !!veteranPII.name, hasSSN4: !!veteranPII.ssn4 },
-              { piiHash: piiHash, timestamp: new Date().toISOString(), storage: 'MEMORY_ONLY' }
+              { piiHash: piiHash, timestamp: new Date().toISOString(), storage: 'MEMORY_ONLY', note: 'Hash only - no plaintext PII stored' }
             );
           } else {
             addLine('output', ' ', 'PII entry cancelled - report will be anonymous');
