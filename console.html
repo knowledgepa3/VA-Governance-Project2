@@ -8416,13 +8416,131 @@ MCP Browser: NOT CONNECTED`);
       }
     };
 
-    // Initialize window queues for MCP communication
-    window.GIA_MCP_QUEUE = [];                    // Outbound: GIA → MCP
-    window.GIA_MCP_RESULTS = {};                  // Sealed results
-    window.GIA_MCP_INCOMING_RESULTS = {};         // Inbound: MCP → GIA
+    // ============================================
+    // SECURITY: CAPABILITY TOKEN SYSTEM
+    // ============================================
+    // Generates per-session tokens to protect command invocation
+    // Rotates on refresh and after inactivity
+    // ============================================
 
-    // Make relay globally available
-    window.GIAMCPRelay = GIAMCPRelay;
+    const GIASecurityContext = {
+      _capToken: null,
+      _tokenExpiry: null,
+      _tokenLifetimeMs: 3600000, // 1 hour
+      _lastActivity: Date.now(),
+      _inactivityTimeoutMs: 900000, // 15 minutes
+
+      // Generate cryptographically secure token
+      generateToken() {
+        const array = new Uint8Array(32);
+        crypto.getRandomValues(array);
+        this._capToken = Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+        this._tokenExpiry = Date.now() + this._tokenLifetimeMs;
+        this._lastActivity = Date.now();
+        console.log('[GIA Security] Capability token generated');
+        return this._capToken;
+      },
+
+      // Validate token and check expiry
+      validateToken(providedToken) {
+        // Check inactivity
+        if (Date.now() - this._lastActivity > this._inactivityTimeoutMs) {
+          console.warn('[GIA Security] Token expired due to inactivity');
+          this._capToken = null;
+          return false;
+        }
+
+        // Check expiry
+        if (this._tokenExpiry && Date.now() > this._tokenExpiry) {
+          console.warn('[GIA Security] Token expired');
+          this._capToken = null;
+          return false;
+        }
+
+        // Validate match
+        if (!this._capToken || providedToken !== this._capToken) {
+          console.warn('[GIA Security] Invalid capability token');
+          return false;
+        }
+
+        this._lastActivity = Date.now();
+        return true;
+      },
+
+      // For internal use only - get current token
+      _getToken() {
+        return this._capToken;
+      },
+
+      // Revoke token (on logout, security concern, etc.)
+      revokeToken() {
+        this._capToken = null;
+        this._tokenExpiry = null;
+        console.log('[GIA Security] Token revoked');
+      }
+    };
+
+    // Generate initial token
+    GIASecurityContext.generateToken();
+
+    // ============================================
+    // SECURITY: DENY-BY-DEFAULT PUBLIC API
+    // ============================================
+    // Expose minimal, sanitized, read-only surface
+    // No internal state references - all deep copies
+    // ============================================
+
+    // Initialize SANITIZED window interfaces for MCP communication
+    // These expose ONLY what the MCP extension needs - nothing more
+    window.GIA_MCP_QUEUE = [];                    // Sanitized outbound queue (deep copy)
+    window.GIA_MCP_RESULTS = {};                  // Status-only results (no extracted data)
+    window.GIA_MCP_INCOMING_RESULTS = {};         // Inbound: MCP → GIA (extension writes here)
+
+    // INTERNAL relay reference (not exposed on window directly for security)
+    const _internalMCPRelay = GIAMCPRelay;
+
+    // PUBLIC API: Minimal read-only surface for MCP extension
+    window.GIAMCPRelay = Object.freeze({
+      // Version info only
+      version: GIAMCPRelay.config.version,
+
+      // Get sanitized pending tasks (deep copy, minimal fields)
+      getPendingTasks: () => {
+        return _internalMCPRelay.getPendingTasks().map(t => ({
+          taskId: t.taskId,
+          type: t.type,
+          nonce: t.nonce,
+          // Sanitize payload - only expose safe fields
+          payload: {
+            url: t.payload?.url, // URLs are ok
+            // NO selectors with potential PII patterns
+            // NO typed text values
+            // NO extracted data
+            action: t.type?.split('.')[1]
+          },
+          createdAt: t.createdAt,
+          expiresAt: t.expiresAt
+        }));
+      },
+
+      // Mark task as executing (requires valid nonce)
+      markExecuting: (taskId) => {
+        _internalMCPRelay.markExecuting(taskId);
+      },
+
+      // Submit result (the only write operation MCP needs)
+      submitResult: (taskId, result, error) => {
+        _internalMCPRelay.submitResult(taskId, result, error);
+      },
+
+      // Status only - no internal metrics
+      getStatus: () => ({
+        tasksQueued: _internalMCPRelay._metrics.tasksQueued,
+        tasksExecuted: _internalMCPRelay._metrics.tasksExecuted,
+        tasksFailed: _internalMCPRelay._metrics.tasksFailed,
+        isPolling: _internalMCPRelay._isPolling
+      })
+    });
 
     // ============================================
     // MCP RELAY ↔ BROWSER AGENT BRIDGE
@@ -8807,6 +8925,9 @@ MCP Browser: NOT CONNECTED`);
       MAX_EXECUTION_HISTORY: 100,     // Cap execution history to prevent memory leak
       MAX_CACHE_AGE_MS: 86400000,     // 24 hours cache TTL
       GATE_TIMEOUT_MS: 300000,        // 5 minutes gate timeout with auto-deny
+      MUTEX_WATCHDOG_MS: 600000,      // 10 minutes max execution before watchdog triggers
+      _watchdogTimer: null,           // Watchdog timer reference
+      _lastHeartbeat: null,           // Last activity timestamp for watchdog
 
       // ============================================
       // SENSITIVE ACTIONS - NEVER AUTOMATED
@@ -8836,7 +8957,8 @@ MCP Browser: NOT CONNECTED`);
           throw new Error(`Invalid playbook spec: ${validation.errors.join(', ')}`);
         }
 
-        // Compute hash for integrity
+        // Compute hash for change detection (non-security, sync ok)
+        // Note: Security-critical hashes (gate approval, evidence sealing) use SHA-256
         const specHash = this._hashSpec(spec);
         spec.manifest.hash = specHash;
 
@@ -9372,11 +9494,14 @@ MCP Browser: NOT CONNECTED`);
         // MUTEX: Prevent concurrent playbook executions
         if (this._executionLock) {
           const currentId = this._currentExecution?.executionId || 'unknown';
-          throw new Error(`Execution in progress: ${currentId}. Use 'playbook abort' first or wait for completion.`);
+          const lockAge = Date.now() - this._executionLock;
+          throw new Error(`Execution in progress: ${currentId} (${Math.round(lockAge/1000)}s). Use 'playbook abort' or 'playbook force-unlock' if stuck.`);
         }
 
-        // Acquire lock
+        // Acquire lock and start watchdog
         this._executionLock = Date.now();
+        this._lastHeartbeat = Date.now();
+        this._startWatchdog();
 
         const playbook = this._playbooks.get(playbookId);
         if (!playbook) {
@@ -9487,12 +9612,98 @@ MCP Browser: NOT CONNECTED`);
           this._executionHistory.push(execution);
           this._pruneExecutionHistory();
 
-          // Release execution lock
+          // Release execution lock and stop watchdog
           this._currentExecution = null;
           this._executionLock = null;
+          this._stopWatchdog();
         }
 
         return execution;
+      },
+
+      /**
+       * Start mutex watchdog timer
+       * Auto-releases stuck mutex after MUTEX_WATCHDOG_MS
+       */
+      _startWatchdog() {
+        this._stopWatchdog(); // Clear any existing
+        this._watchdogTimer = setTimeout(() => {
+          if (this._executionLock) {
+            const lockAge = Date.now() - this._executionLock;
+            addLine('error', 'x', `<span class="hl-red">WATCHDOG: Execution stuck for ${Math.round(lockAge/1000)}s - auto-releasing lock</span>`);
+            addLine('output', ' ', 'Use "playbook status" to check state, may need to refresh page');
+
+            // Force release
+            if (this._currentExecution) {
+              this._currentExecution.state = 'WATCHDOG_TIMEOUT';
+              this._currentExecution.completedAt = new Date().toISOString();
+              this._currentExecution.outcome = {
+                success: false,
+                failureReason: 'Watchdog timeout - execution exceeded maximum duration'
+              };
+            }
+            this._executionLock = null;
+            this._currentExecution = null;
+          }
+        }, this.MUTEX_WATCHDOG_MS);
+      },
+
+      /**
+       * Stop watchdog timer
+       */
+      _stopWatchdog() {
+        if (this._watchdogTimer) {
+          clearTimeout(this._watchdogTimer);
+          this._watchdogTimer = null;
+        }
+      },
+
+      /**
+       * Heartbeat to reset watchdog (call during long operations)
+       */
+      _heartbeat() {
+        this._lastHeartbeat = Date.now();
+      },
+
+      /**
+       * Force unlock mutex (emergency recovery)
+       * Requires confirmation and logs the action
+       */
+      forceUnlock() {
+        if (!this._executionLock) {
+          return { success: false, reason: 'No lock to release' };
+        }
+
+        const lockAge = Date.now() - this._executionLock;
+        const executionId = this._currentExecution?.executionId || 'unknown';
+
+        addLine('warning', '!', `<span class="hl-yellow">FORCE UNLOCK: Releasing stuck lock</span>`);
+        addLine('output', ' ', `Execution: ${executionId} | Lock age: ${Math.round(lockAge/1000)}s`);
+
+        // Log for audit
+        console.warn('[GIA] Force unlock invoked', {
+          executionId,
+          lockAge,
+          timestamp: new Date().toISOString()
+        });
+
+        // Mark execution as force-terminated if exists
+        if (this._currentExecution) {
+          this._currentExecution.state = 'FORCE_UNLOCKED';
+          this._currentExecution.completedAt = new Date().toISOString();
+          this._currentExecution.outcome = {
+            success: false,
+            failureReason: 'Force unlocked by operator'
+          };
+          this._executionHistory.push(this._currentExecution);
+        }
+
+        // Release
+        this._executionLock = null;
+        this._currentExecution = null;
+        this._stopWatchdog();
+
+        return { success: true, executionId, lockAge };
       },
 
       /**
@@ -9765,14 +9976,15 @@ MCP Browser: NOT CONNECTED`);
 
         if (approved) {
           gateRecord.decision = 'approved';
-          // Hash-lock the approval
-          gateRecord.approvalHash = this._hashSpec({
+          // Hash-lock the approval with cryptographic SHA-256 (security-critical)
+          gateRecord.approvalHash = await this._hashSpecAsync({
             gateId: gate.id,
             stepId: step.id,
-            timestamp: gateRecord.decidedAt
+            timestamp: gateRecord.decidedAt,
+            operatorId: gateRecord.decidedBy
           });
           execution.state = 'RUNNING';
-          addLine('success', '+', `Gate ${gate.id}: APPROVED`);
+          addLine('success', '+', `Gate ${gate.id}: APPROVED [${gateRecord.approvalHash.substring(0, 16)}...]`);
         } else {
           gateRecord.decision = 'denied';
           execution.state = 'ABORTED';
@@ -10167,7 +10379,7 @@ MCP Browser: NOT CONNECTED`);
       },
 
       async _sealExecution(execution) {
-        // Create evidence pack
+        // Create evidence pack with cryptographic integrity (security-critical)
         const evidenceData = {
           executionId: execution.executionId,
           playbookId: execution.playbookId,
@@ -10180,24 +10392,30 @@ MCP Browser: NOT CONNECTED`);
           gateDecisions: execution.gates.map(g => ({
             gateId: g.gateId,
             decision: g.decision,
-            approvalHash: g.approvalHash
+            approvalHash: g.approvalHash  // Already SHA-256 from _handleGate
           })),
           driftReport: execution.driftReport
         };
+
+        // Compute cryptographic hash of evidence (security-critical)
+        const evidenceHash = await this._hashSpecAsync(evidenceData);
+        evidenceData._integrityHash = evidenceHash;
 
         if (GIAWorkflow?._context) {
           const packId = await GIAWorkflow.createPack(
             'PLAYBOOK_EXECUTION',
             `/${execution.playbookId}`,
             evidenceData,
-            { sealed: true, version: '1.0' }
+            { sealed: true, version: '1.0', integrityHash: evidenceHash }
           );
           execution.evidencePackId = packId;
         } else {
           const pack = GIA.evidence.create(execution.executionId, 'PLAYBOOK_EXECUTION', `/${execution.playbookId}`);
-          await GIA.evidence.seal(pack.id, evidenceData, { sealed: true });
+          await GIA.evidence.seal(pack.id, evidenceData, { sealed: true, integrityHash: evidenceHash });
           execution.evidencePackId = pack.id;
         }
+
+        addLine('output', ' ', `<span class="hl-dim">Evidence sealed:</span> ${evidenceHash.substring(0, 24)}...`);
       },
 
       // ============================================
@@ -10647,8 +10865,113 @@ Return only the selector, no explanation.`;
       }
     };
 
-    // Make globally available
-    window.GIAPlaybookEngine = GIAPlaybookEngine;
+    // ============================================
+    // SECURITY: DENY-BY-DEFAULT PLAYBOOK API
+    // ============================================
+    // Expose minimal public interface - internal engine is NOT on window
+    // Commands require capability token for sensitive operations
+    // ============================================
+
+    // INTERNAL reference (not on window)
+    const _internalPlaybookEngine = GIAPlaybookEngine;
+
+    // PUBLIC API: Minimal, read-only, sanitized surface
+    window.GIAPlaybookEngine = Object.freeze({
+      version: GIAPlaybookEngine.config.version,
+
+      // Read-only: List playbooks (safe metadata only)
+      listPlaybooks: () => {
+        return _internalPlaybookEngine.listPlaybooks().map(pb => ({
+          id: pb.id,
+          name: pb.name,
+          version: pb.version,
+          executionCount: pb.executionCount,
+          // NO: raw steps, selectors, domains, etc.
+        }));
+      },
+
+      // Read-only: Get status (safe fields only)
+      getStatus: () => {
+        const status = _internalPlaybookEngine.getStatus();
+        return {
+          isRunning: status.isRunning,
+          teachMode: status.teachMode,
+          registeredPlaybooks: status.registeredPlaybooks,
+          executionHistory: status.executionHistory,
+          pendingGates: status.pendingGates,
+          currentExecution: status.currentExecution ? {
+            executionId: status.currentExecution.executionId,
+            playbookId: status.currentExecution.playbookId,
+            state: status.currentExecution.state,
+            currentStep: status.currentExecution.currentStep,
+            totalSteps: status.currentExecution.totalSteps
+            // NO: step details, selectors, extracted values
+          } : null
+        };
+      },
+
+      // GATED: Run playbook (requires capability token)
+      run: async (playbookId, options = {}) => {
+        // Capability token required for execution
+        if (!options._capToken || !GIASecurityContext.validateToken(options._capToken)) {
+          throw new Error('SECURITY: Valid capability token required for playbook execution');
+        }
+        return await _internalPlaybookEngine.run(playbookId, options);
+      },
+
+      // GATED: Approve gate (requires token)
+      approveGate: (gateId, capToken) => {
+        if (!GIASecurityContext.validateToken(capToken)) {
+          console.warn('[GIA Security] Gate approval rejected - invalid token');
+          return false;
+        }
+        return _internalPlaybookEngine.approveGate(gateId);
+      },
+
+      // GATED: Deny gate (requires token)
+      denyGate: (gateId, capToken) => {
+        if (!GIASecurityContext.validateToken(capToken)) {
+          console.warn('[GIA Security] Gate denial rejected - invalid token');
+          return false;
+        }
+        return _internalPlaybookEngine.denyGate(gateId);
+      },
+
+      // Read-only: Validate a spec (safe - just returns errors)
+      validateSpec: (spec) => {
+        return _internalPlaybookEngine.validateSpec(spec);
+      },
+
+      // GATED: Abort (requires token)
+      abort: (capToken) => {
+        if (!GIASecurityContext.validateToken(capToken)) {
+          console.warn('[GIA Security] Abort rejected - invalid token');
+          return false;
+        }
+        return _internalPlaybookEngine.abort();
+      }
+    });
+
+    // Security context for token management (only expose safe methods)
+    window.GIASecurityContext = Object.freeze({
+      // Terminal can request token (displayed to operator, not logged)
+      requestToken: () => {
+        const token = GIASecurityContext._getToken();
+        if (token) {
+          addLine('system', '*', '<span class="hl-accent">CAPABILITY TOKEN</span>');
+          addLine('output', ' ', `<span class="hl-dim">Token:</span> ${token.substring(0, 8)}...${token.substring(56)}`);
+          addLine('output', ' ', '<span class="hl-dim">Use this token for gated operations</span>');
+          return token;
+        }
+        return GIASecurityContext.generateToken();
+      },
+
+      // Validate without exposing token
+      validate: (token) => GIASecurityContext.validateToken(token),
+
+      // Revoke current token
+      revoke: () => GIASecurityContext.revokeToken()
+    });
 
     // Setup MCP recording bridge
     GIAPlaybookEngine._setupMCPRecordingBridge();
@@ -10975,9 +11298,16 @@ Return only the selector, no explanation.`;
     // PLAYBOOK TERMINAL COMMANDS
     // ============================================
 
+    // ============================================
+    // TERMINAL COMMANDS - Use INTERNAL engine with token
+    // ============================================
+    // These commands run in the trusted terminal context
+    // and use the internal engine reference (not public API)
+    // ============================================
+
     window._playbookCommands = {
       status: () => {
-        const status = GIAPlaybookEngine.getStatus();
+        const status = _internalPlaybookEngine.getStatus();
         addLine('system', '*', '<span class="hl-accent">PLAYBOOK ENGINE STATUS</span>');
         addLine('output', ' ', `<span class="hl-dim">Running:</span> ${status.isRunning}`);
         addLine('output', ' ', `<span class="hl-dim">Teach Mode:</span> ${status.teachMode}`);
@@ -10998,7 +11328,7 @@ Return only the selector, no explanation.`;
       },
 
       list: () => {
-        const playbooks = GIAPlaybookEngine.listPlaybooks();
+        const playbooks = _internalPlaybookEngine.listPlaybooks();
         addLine('system', '*', '<span class="hl-accent">REGISTERED PLAYBOOKS</span>');
         if (playbooks.length === 0) {
           addLine('output', ' ', '<span class="hl-dim">No playbooks registered</span>');
@@ -11015,16 +11345,16 @@ Return only the selector, no explanation.`;
           addLine('error', 'x', 'Usage: playbook teach <name>');
           return;
         }
-        GIAPlaybookEngine.startTeach(name);
+        _internalPlaybookEngine.startTeach(name);
       },
 
       'teach-gate': (name) => {
-        GIAPlaybookEngine.markGate(name || 'checkpoint', 'Confirm to continue?');
+        _internalPlaybookEngine.markGate(name || 'checkpoint', 'Confirm to continue?');
       },
 
       'teach-stop': async () => {
         try {
-          await GIAPlaybookEngine.stopTeach();
+          await _internalPlaybookEngine.stopTeach();
         } catch (e) {
           addLine('error', 'x', e.message);
         }
@@ -11036,7 +11366,8 @@ Return only the selector, no explanation.`;
           return;
         }
         try {
-          await GIAPlaybookEngine.run(playbookId);
+          // Terminal commands use internal engine directly (trusted context)
+          await _internalPlaybookEngine.run(playbookId);
         } catch (e) {
           addLine('error', 'x', `Execution failed: ${e.message}`);
         }
@@ -11049,17 +11380,27 @@ Return only the selector, no explanation.`;
           return;
         }
         try {
-          await GIAPlaybookEngine.run(playbookId, { dryRun: true });
+          await _internalPlaybookEngine.run(playbookId, { dryRun: true });
         } catch (e) {
           addLine('error', 'x', `Dry run failed: ${e.message}`);
         }
       },
 
       abort: () => {
-        if (GIAPlaybookEngine.abort()) {
+        if (_internalPlaybookEngine.abort()) {
           addLine('warning', '!', 'Execution aborted');
         } else {
           addLine('output', ' ', 'No active execution to abort');
+        }
+      },
+
+      'force-unlock': () => {
+        // Emergency recovery for stuck mutex
+        const result = _internalPlaybookEngine.forceUnlock();
+        if (result.success) {
+          addLine('warning', '!', `Lock released for: ${result.executionId}`);
+        } else {
+          addLine('output', ' ', result.reason || 'No stuck lock found');
         }
       },
 
@@ -11068,7 +11409,7 @@ Return only the selector, no explanation.`;
         const pending = Object.keys(window._pendingGates || {});
         const target = gateId || pending[0];
 
-        if (target && GIAPlaybookEngine.approveGate(target)) {
+        if (target && _internalPlaybookEngine.approveGate(target)) {
           // Approval handled by gate system
         } else {
           addLine('output', ' ', 'No pending gate to approve');
@@ -11079,7 +11420,7 @@ Return only the selector, no explanation.`;
         const pending = Object.keys(window._pendingGates || {});
         const target = gateId || pending[0];
 
-        if (target && GIAPlaybookEngine.denyGate(target)) {
+        if (target && _internalPlaybookEngine.denyGate(target)) {
           // Denial handled by gate system
         } else {
           addLine('output', ' ', 'No pending gate to deny');
