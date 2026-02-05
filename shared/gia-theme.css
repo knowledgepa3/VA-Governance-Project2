@@ -1,0 +1,458 @@
+/**
+ * GIA THEME - JARVIS-Inspired Design System
+ * ==========================================
+ * Single source of truth for all GIA visual styling.
+ * Import this file in any HTML page for consistent branding.
+ *
+ * Usage: <link rel="stylesheet" href="/shared/gia-theme.css">
+ */
+
+/* ============================================
+   CSS CUSTOM PROPERTIES (Design Tokens)
+   ============================================ */
+
+:root {
+  /* Primary Palette - JARVIS Blue */
+  --gia-primary: #4a9eff;
+  --gia-primary-dark: #3a7ecc;
+  --gia-primary-dim: rgba(74, 158, 255, 0.2);
+  --gia-primary-glow: rgba(74, 158, 255, 0.4);
+
+  /* Accent Colors */
+  --gia-accent-cyan: #00d4ff;
+  --gia-accent-warm: #c9a227;
+  --gia-accent-pink: #ff6b9d;
+
+  /* Semantic Colors */
+  --gia-success: #6b8f71;
+  --gia-success-dim: rgba(107, 143, 113, 0.2);
+  --gia-warning: #d9af6a;
+  --gia-warning-dim: rgba(217, 175, 106, 0.2);
+  --gia-error: #f85149;
+  --gia-error-dim: rgba(248, 81, 73, 0.2);
+  --gia-info: #58a6ff;
+
+  /* Neutral Palette - Dark Mode */
+  --gia-bg: #0a0a0c;
+  --gia-bg-secondary: #0d1117;
+  --gia-bg-tertiary: #161b22;
+  --gia-border: #21262d;
+  --gia-border-bright: #30363d;
+
+  /* Text Colors */
+  --gia-text: #c9d1d9;
+  --gia-text-bright: #f0f6fc;
+  --gia-text-dim: #8b949e;
+  --gia-text-muted: #484f58;
+
+  /* Glow Effects */
+  --gia-glow-primary: 0 0 20px rgba(74, 158, 255, 0.4);
+  --gia-glow-cyan: 0 0 15px rgba(0, 212, 255, 0.3);
+  --gia-glow-success: 0 0 10px rgba(107, 143, 113, 0.4);
+
+  /* Typography */
+  --gia-font-mono: 'JetBrains Mono', 'SF Mono', 'Consolas', 'Monaco', monospace;
+  --gia-font-size-xs: 0.55rem;
+  --gia-font-size-sm: 0.7rem;
+  --gia-font-size-base: 0.85rem;
+  --gia-font-size-lg: 1rem;
+  --gia-font-size-xl: 1.25rem;
+
+  /* Spacing */
+  --gia-space-xs: 0.25rem;
+  --gia-space-sm: 0.5rem;
+  --gia-space-md: 1rem;
+  --gia-space-lg: 1.5rem;
+  --gia-space-xl: 2rem;
+
+  /* Border Radius */
+  --gia-radius-sm: 2px;
+  --gia-radius-md: 4px;
+  --gia-radius-lg: 8px;
+  --gia-radius-full: 50%;
+
+  /* Transitions */
+  --gia-transition-fast: 0.1s ease;
+  --gia-transition-normal: 0.2s ease;
+  --gia-transition-slow: 0.3s ease;
+}
+
+/* ============================================
+   JARVIS ANIMATIONS
+   ============================================ */
+
+@keyframes gia-reactor-pulse {
+  0%, 100% {
+    box-shadow: 0 0 10px var(--gia-primary-glow), inset 0 0 10px var(--gia-primary-glow);
+  }
+  50% {
+    box-shadow: 0 0 25px var(--gia-primary-glow), inset 0 0 15px var(--gia-primary-glow);
+  }
+}
+
+@keyframes gia-border-glow {
+  0%, 100% { border-color: var(--gia-border); }
+  50% { border-color: var(--gia-primary); }
+}
+
+@keyframes gia-text-reveal {
+  from { opacity: 0; letter-spacing: 0.3em; }
+  to { opacity: 1; letter-spacing: 0.05em; }
+}
+
+@keyframes gia-fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes gia-scan-line {
+  0% { transform: translateY(-100%); opacity: 0; }
+  50% { opacity: 0.5; }
+  100% { transform: translateY(100vh); opacity: 0; }
+}
+
+@keyframes gia-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes gia-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================
+   BASE RESET & DEFAULTS
+   ============================================ */
+
+.gia-reset {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.gia-body {
+  font-family: var(--gia-font-mono);
+  background: var(--gia-bg);
+  color: var(--gia-text);
+  line-height: 1.5;
+  min-height: 100vh;
+  font-size: var(--gia-font-size-base);
+}
+
+/* ============================================
+   LOGO / REACTOR COMPONENT
+   ============================================ */
+
+.gia-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--gia-primary);
+  text-transform: uppercase;
+}
+
+.gia-reactor {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--gia-radius-full);
+  background: radial-gradient(circle at center, var(--gia-primary) 0%, var(--gia-bg) 70%);
+  border: 2px solid var(--gia-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: gia-reactor-pulse 3s ease-in-out infinite;
+  position: relative;
+}
+
+.gia-reactor::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: var(--gia-radius-full);
+  background: var(--gia-accent-cyan);
+  box-shadow: 0 0 10px var(--gia-accent-cyan);
+}
+
+.gia-reactor::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--gia-primary);
+  border-radius: var(--gia-radius-full);
+  opacity: 0.5;
+}
+
+.gia-reactor--lg {
+  width: 80px;
+  height: 80px;
+  border-width: 3px;
+}
+
+.gia-reactor--lg::before {
+  width: 30px;
+  height: 30px;
+  box-shadow: 0 0 30px var(--gia-accent-cyan), 0 0 60px var(--gia-primary);
+}
+
+.gia-reactor--lg::after {
+  width: 60px;
+  height: 60px;
+  border-width: 2px;
+}
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+
+.gia-btn {
+  padding: 0.5rem 1rem;
+  border-radius: var(--gia-radius-sm);
+  font-size: var(--gia-font-size-sm);
+  font-weight: 600;
+  font-family: var(--gia-font-mono);
+  cursor: pointer;
+  transition: all var(--gia-transition-normal);
+  border: 1px solid var(--gia-border);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: transparent;
+  color: var(--gia-text);
+}
+
+.gia-btn:hover {
+  border-color: var(--gia-border-bright);
+  transform: translateY(-1px);
+}
+
+.gia-btn--primary {
+  background: var(--gia-primary);
+  color: var(--gia-bg);
+  border-color: var(--gia-primary);
+  box-shadow: 0 0 10px rgba(74, 158, 255, 0.2);
+}
+
+.gia-btn--primary:hover {
+  background: var(--gia-primary-dark);
+  box-shadow: var(--gia-glow-primary);
+}
+
+.gia-btn--success {
+  background: var(--gia-success);
+  color: var(--gia-text-bright);
+  border-color: var(--gia-success);
+}
+
+.gia-btn--success:hover {
+  box-shadow: var(--gia-glow-success);
+}
+
+.gia-btn--danger {
+  background: var(--gia-error-dim);
+  color: var(--gia-error);
+  border-color: var(--gia-error);
+}
+
+.gia-btn--danger:hover {
+  background: var(--gia-error);
+  color: var(--gia-text-bright);
+}
+
+.gia-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.gia-btn--ghost:hover {
+  background: var(--gia-bg-tertiary);
+}
+
+/* ============================================
+   CARDS & PANELS
+   ============================================ */
+
+.gia-card {
+  background: var(--gia-bg-secondary);
+  border: 1px solid var(--gia-border);
+  border-radius: var(--gia-radius-sm);
+  padding: var(--gia-space-md);
+  transition: all var(--gia-transition-normal);
+}
+
+.gia-card:hover {
+  border-color: var(--gia-border-bright);
+}
+
+.gia-card--selected {
+  border-color: var(--gia-primary);
+  box-shadow: var(--gia-glow-primary), inset 0 0 30px rgba(74, 158, 255, 0.05);
+  background: linear-gradient(135deg, var(--gia-bg-secondary) 0%, rgba(74, 158, 255, 0.05) 100%);
+}
+
+.gia-card--interactive {
+  cursor: pointer;
+}
+
+.gia-card--interactive:hover {
+  transform: translateY(-2px);
+}
+
+/* ============================================
+   FORM INPUTS
+   ============================================ */
+
+.gia-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: var(--gia-bg);
+  border: 1px solid var(--gia-border);
+  border-radius: var(--gia-radius-sm);
+  color: var(--gia-text-bright);
+  font-size: var(--gia-font-size-base);
+  font-family: var(--gia-font-mono);
+  transition: border-color var(--gia-transition-fast);
+}
+
+.gia-input:focus {
+  outline: none;
+  border-color: var(--gia-primary);
+  box-shadow: 0 0 0 2px var(--gia-primary-dim);
+}
+
+.gia-input::placeholder {
+  color: var(--gia-text-muted);
+}
+
+/* ============================================
+   STATUS INDICATORS
+   ============================================ */
+
+.gia-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  font-size: var(--gia-font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: var(--gia-radius-sm);
+}
+
+.gia-status--online {
+  background: var(--gia-success-dim);
+  color: var(--gia-success);
+}
+
+.gia-status--warning {
+  background: var(--gia-warning-dim);
+  color: var(--gia-warning);
+}
+
+.gia-status--error {
+  background: var(--gia-error-dim);
+  color: var(--gia-error);
+}
+
+.gia-status--info {
+  background: var(--gia-primary-dim);
+  color: var(--gia-primary);
+}
+
+.gia-status__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--gia-radius-full);
+  background: currentColor;
+  animation: gia-pulse 2s ease-in-out infinite;
+}
+
+/* ============================================
+   TAGS / BADGES
+   ============================================ */
+
+.gia-tag {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  font-size: var(--gia-font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: var(--gia-radius-sm);
+}
+
+.gia-tag--primary {
+  background: var(--gia-primary);
+  color: var(--gia-bg);
+}
+
+.gia-tag--success {
+  background: var(--gia-success);
+  color: var(--gia-text-bright);
+}
+
+.gia-tag--warning {
+  background: var(--gia-warning);
+  color: var(--gia-bg);
+}
+
+.gia-tag--error {
+  background: var(--gia-error);
+  color: var(--gia-text-bright);
+}
+
+.gia-tag--ghost {
+  background: transparent;
+  border: 1px solid currentColor;
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+/* Text colors */
+.gia-text-primary { color: var(--gia-primary); }
+.gia-text-success { color: var(--gia-success); }
+.gia-text-warning { color: var(--gia-warning); }
+.gia-text-error { color: var(--gia-error); }
+.gia-text-dim { color: var(--gia-text-dim); }
+.gia-text-muted { color: var(--gia-text-muted); }
+.gia-text-bright { color: var(--gia-text-bright); }
+.gia-text-cyan { color: var(--gia-accent-cyan); }
+
+/* Background colors */
+.gia-bg-primary { background: var(--gia-bg); }
+.gia-bg-secondary { background: var(--gia-bg-secondary); }
+.gia-bg-tertiary { background: var(--gia-bg-tertiary); }
+
+/* Glow effects */
+.gia-glow-primary { box-shadow: var(--gia-glow-primary); }
+.gia-glow-cyan { box-shadow: var(--gia-glow-cyan); }
+
+/* Animation utilities */
+.gia-animate-pulse { animation: gia-reactor-pulse 2s ease-in-out infinite; }
+.gia-animate-fade-in { animation: gia-fade-in 0.3s ease; }
+.gia-animate-text-reveal { animation: gia-text-reveal 0.5s ease-out; }
+
+/* Layout helpers */
+.gia-flex { display: flex; }
+.gia-flex-center { display: flex; align-items: center; justify-content: center; }
+.gia-flex-between { display: flex; align-items: center; justify-content: space-between; }
+.gia-gap-sm { gap: var(--gia-space-sm); }
+.gia-gap-md { gap: var(--gia-space-md); }
+
+/* ============================================
+   HIGHLIGHT CLASSES (Terminal-style)
+   ============================================ */
+
+.hl-green { color: var(--gia-success); }
+.hl-yellow { color: var(--gia-warning); }
+.hl-red { color: var(--gia-error); }
+.hl-cyan { color: var(--gia-accent-cyan); }
+.hl-accent { color: var(--gia-primary); }
+.hl-pink { color: var(--gia-accent-pink); }
+.hl-dim { color: var(--gia-text-dim); }
