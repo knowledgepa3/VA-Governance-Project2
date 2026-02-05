@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gia.ace-consulting.io/schemas/playbook-cache-v1",
+  "title": "GIA PlaybookCache",
+  "description": "Performance-only cache layer. TTL-based, auto-invalidates on UI changes. Never stores credentials.",
+  "version": "1.0.0",
+
+  "type": "object",
+
+  "properties": {
+    "domFingerprints": {
+      "type": "object",
+      "description": "Structural fingerprints for drift detection",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "fingerprint": {
+            "type": "string",
+            "description": "Hash of key DOM structure"
+          },
+          "capturedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ttl": {
+            "type": "integer",
+            "description": "Time-to-live in seconds",
+            "default": 3600
+          },
+          "keyElements": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Critical elements used for fingerprint"
+          }
+        }
+      }
+    },
+
+    "selectorCache": {
+      "type": "object",
+      "description": "Last successful selectors per step",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "selector": { "type": "string" },
+          "successCount": { "type": "integer" },
+          "lastUsed": { "type": "string", "format": "date-time" },
+          "ttl": { "type": "integer", "default": 86400 }
+        }
+      }
+    },
+
+    "routeMap": {
+      "type": "object",
+      "description": "Cached navigation routes per domain",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "routes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": { "type": "string" },
+                "to": { "type": "string" },
+                "actions": { "type": "array", "items": { "type": "string" } }
+              }
+            }
+          },
+          "capturedAt": { "type": "string", "format": "date-time" },
+          "ttl": { "type": "integer", "default": 86400 }
+        }
+      }
+    },
+
+    "waitTimes": {
+      "type": "object",
+      "description": "Observed page load times per domain/action",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "averageMs": { "type": "integer" },
+          "samples": { "type": "integer" },
+          "lastUpdated": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+
+    "errorPatterns": {
+      "type": "array",
+      "description": "Known error states and successful recoveries",
+      "items": {
+        "type": "object",
+        "properties": {
+          "domain": { "type": "string" },
+          "pattern": { "type": "string" },
+          "recoveryAction": { "type": "string" },
+          "successRate": { "type": "number" },
+          "lastSeen": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+
+    "sessionState": {
+      "type": "object",
+      "description": "Current session state (non-sensitive only)",
+      "properties": {
+        "isLoggedIn": { "type": "boolean" },
+        "loginCheckUrl": { "type": "string" },
+        "loginCheckSelector": { "type": "string" },
+        "lastVerified": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+
+  "invalidation": {
+    "description": "Conditions that invalidate cache entries",
+    "rules": [
+      "TTL expired",
+      "DOM fingerprint mismatch",
+      "Key selector not found",
+      "Critical button text changed",
+      "Redirect to login detected",
+      "2FA/CAPTCHA prompt appeared",
+      "Playbook version bumped"
+    ]
+  },
+
+  "forbidden": {
+    "description": "NEVER cache these",
+    "items": [
+      "session_tokens",
+      "csrf_tokens",
+      "auth_cookies",
+      "bearer_tokens",
+      "api_keys",
+      "credentials"
+    ]
+  }
+}

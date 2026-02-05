@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gia.ace-consulting.io/schemas/playbook-execution-v1",
+  "title": "GIA PlaybookExecution",
+  "description": "Runtime execution record for playbook runs. Sealed to evidence chain.",
+  "version": "1.0.0",
+
+  "type": "object",
+  "required": ["executionId", "playbookId", "state", "steps"],
+
+  "properties": {
+    "executionId": {
+      "type": "string",
+      "pattern": "^EXEC-[A-Z0-9]+-[A-Z0-9]+$",
+      "description": "Unique execution identifier",
+      "examples": ["EXEC-PB-PAY_RENT-2024011509"]
+    },
+
+    "playbookId": {
+      "type": "string",
+      "description": "Reference to PlaybookSpec.manifest.id"
+    },
+
+    "playbookVersion": {
+      "type": "string",
+      "description": "Version of playbook being executed"
+    },
+
+    "playbookHash": {
+      "type": "string",
+      "description": "Hash of playbook at execution time (drift detection)"
+    },
+
+    "state": {
+      "type": "string",
+      "enum": [
+        "INITIALIZING",
+        "RUNNING",
+        "PAUSED_AT_GATE",
+        "WAITING_FOR_HUMAN",
+        "COMPLETED",
+        "FAILED",
+        "ABORTED"
+      ],
+      "description": "Current execution state"
+    },
+
+    "mode": {
+      "type": "string",
+      "enum": ["TEACH", "COMPILE", "RUN", "ASSIST"],
+      "description": "Execution mode"
+    },
+
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "completedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "operatorId": {
+      "type": "string",
+      "description": "Who initiated this execution"
+    },
+
+    "steps": {
+      "type": "array",
+      "description": "Execution record for each step",
+      "items": {
+        "type": "object",
+        "required": ["stepId", "status"],
+        "properties": {
+          "stepId": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "executing", "completed", "failed", "skipped", "gated"]
+          },
+          "startedAt": { "type": "string", "format": "date-time" },
+          "completedAt": { "type": "string", "format": "date-time" },
+          "durationMs": { "type": "integer" },
+          "selectorUsed": { "type": "string" },
+          "retryCount": { "type": "integer", "default": 0 },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" },
+              "recoveryAttempted": { "type": "string" }
+            }
+          },
+          "evidence": {
+            "type": "object",
+            "properties": {
+              "screenshotId": { "type": "string" },
+              "extractedData": { "type": "object" },
+              "url": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "gates": {
+      "type": "array",
+      "description": "Gate decisions during execution",
+      "items": {
+        "type": "object",
+        "required": ["gateId", "decision"],
+        "properties": {
+          "gateId": { "type": "string" },
+          "triggeredAt": { "type": "string", "format": "date-time" },
+          "decision": {
+            "type": "string",
+            "enum": ["approved", "denied", "timeout", "pending"]
+          },
+          "decidedAt": { "type": "string", "format": "date-time" },
+          "decidedBy": { "type": "string" },
+          "context": {
+            "type": "object",
+            "description": "What was shown to the human",
+            "properties": {
+              "message": { "type": "string" },
+              "screenshotId": { "type": "string" },
+              "proposedAction": { "type": "string" },
+              "amount": { "type": "number" }
+            }
+          },
+          "approvalHash": {
+            "type": "string",
+            "description": "Hash of the exact payload that was approved"
+          }
+        }
+      }
+    },
+
+    "outcome": {
+      "type": "object",
+      "description": "Final execution outcome",
+      "properties": {
+        "success": { "type": "boolean" },
+        "successCriteriaMet": { "type": "boolean" },
+        "extractedData": {
+          "type": "object",
+          "description": "Data extracted during execution (PII redacted)"
+        },
+        "failureStep": { "type": "string" },
+        "failureReason": { "type": "string" },
+        "totalDurationMs": { "type": "integer" },
+        "stepsCompleted": { "type": "integer" },
+        "stepsTotal": { "type": "integer" },
+        "gatesPassed": { "type": "integer" },
+        "gatesDenied": { "type": "integer" }
+      }
+    },
+
+    "driftReport": {
+      "type": "object",
+      "description": "UI changes detected during execution",
+      "properties": {
+        "driftDetected": { "type": "boolean" },
+        "changes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "stepId": { "type": "string" },
+              "expected": { "type": "string" },
+              "found": { "type": "string" },
+              "severity": { "enum": ["low", "medium", "high", "critical"] }
+            }
+          }
+        },
+        "playbookInvalidated": { "type": "boolean" }
+      }
+    },
+
+    "evidencePackId": {
+      "type": "string",
+      "description": "Reference to sealed evidence pack in GIA chain"
+    }
+  }
+}

@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gia.ace-consulting.io/schemas/playbook-memory-v1",
+  "title": "GIA PlaybookMemory",
+  "description": "User preferences and context that personalizes playbook execution. Never stores credentials or full account numbers.",
+  "version": "1.0.0",
+
+  "type": "object",
+  "required": ["userId", "preferences"],
+
+  "properties": {
+    "userId": {
+      "type": "string",
+      "description": "Hashed user identifier (never store plaintext PII as ID)"
+    },
+
+    "preferences": {
+      "type": "object",
+      "description": "User preferences that personalize playbook behavior",
+      "properties": {
+        "defaultPaymentNickname": {
+          "type": "string",
+          "description": "Nickname like 'Chase Checking' - never store account #",
+          "examples": ["Chase Checking", "Amex Gold", "PayPal"]
+        },
+        "defaultDeliveryAddress": {
+          "type": "object",
+          "description": "Stored delivery address",
+          "properties": {
+            "label": { "type": "string", "examples": ["Home", "Office"] },
+            "street": { "type": "string" },
+            "city": { "type": "string" },
+            "state": { "type": "string" },
+            "zip": { "type": "string" }
+          }
+        },
+        "favoriteStores": {
+          "type": "array",
+          "items": { "type": "string" },
+          "examples": [["Costco", "Trader Joe's", "Target"]]
+        },
+        "typicalCartSize": {
+          "type": "string",
+          "enum": ["small", "medium", "large"],
+          "description": "Helps predict total for balance checks"
+        },
+        "preferredDeliveryWindow": {
+          "type": "string",
+          "examples": ["morning", "afternoon", "evening"]
+        },
+        "autoReorderThreshold": {
+          "type": "number",
+          "description": "Item count threshold for auto-suggesting reorder"
+        }
+      }
+    },
+
+    "accountNicknames": {
+      "type": "object",
+      "description": "Map of friendly names to masked account identifiers",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "nickname": { "type": "string" },
+          "maskedId": {
+            "type": "string",
+            "description": "Last 4 digits only, e.g., '****6789'"
+          },
+          "institution": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": ["checking", "savings", "credit", "debit", "paypal", "venmo"]
+          }
+        }
+      },
+      "examples": [{
+        "chase_checking": {
+          "nickname": "Chase Checking",
+          "maskedId": "****6789",
+          "institution": "Chase",
+          "type": "checking"
+        }
+      }]
+    },
+
+    "landmarks": {
+      "type": "object",
+      "description": "Last known good UI navigation paths per domain",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "lastSuccessfulPath": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Menu/button sequence that worked"
+          },
+          "lastWorkingSelectors": {
+            "type": "object",
+            "description": "Selectors that successfully found elements",
+            "additionalProperties": { "type": "string" }
+          },
+          "lastVerifiedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+
+    "outcomeHistory": {
+      "type": "array",
+      "description": "Recent playbook outcomes for learning (no PII)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "playbookId": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "outcome": {
+            "type": "string",
+            "enum": ["success", "failed", "aborted", "gated_denied"]
+          },
+          "failureStep": { "type": "string" },
+          "failureReason": { "type": "string" },
+          "durationMs": { "type": "integer" },
+          "recoveryUsed": { "type": "string" }
+        }
+      },
+      "maxItems": 50
+    },
+
+    "driftDetection": {
+      "type": "object",
+      "description": "Tracking UI changes across sites",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "lastKnownFingerprint": { "type": "string" },
+          "lastChecked": { "type": "string", "format": "date-time" },
+          "driftDetected": { "type": "boolean" },
+          "driftDetails": { "type": "string" }
+        }
+      }
+    }
+  },
+
+  "forbidden": {
+    "description": "NEVER store these in memory",
+    "items": [
+      "passwords",
+      "full_account_numbers",
+      "ssn",
+      "credit_card_numbers",
+      "cvv",
+      "pins",
+      "security_answers",
+      "auth_tokens",
+      "session_cookies"
+    ]
+  }
+}

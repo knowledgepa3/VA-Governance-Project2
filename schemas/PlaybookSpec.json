@@ -1,0 +1,341 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gia.ace-consulting.io/schemas/playbook-spec-v1",
+  "title": "GIA PlaybookSpec",
+  "description": "Deterministic procedure specification for governed automation. Playbooks define WHAT to do; Memory provides HOW the user prefers it; Cache makes it fast.",
+  "version": "1.0.0",
+
+  "type": "object",
+  "required": ["manifest", "policy", "steps"],
+
+  "properties": {
+    "manifest": {
+      "type": "object",
+      "description": "Versioned artifact identity with integrity hashes",
+      "required": ["id", "version", "name", "hash", "allowedDomains"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^PB-[A-Z0-9_]+$",
+          "description": "Unique playbook identifier (e.g., PB-GROCERIES_CHECKOUT)",
+          "examples": ["PB-PAY_RENT", "PB-ORDER_GROCERIES", "PB-CHECK_BALANCE"]
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^v\\d+$",
+          "description": "Version tag, bumped on any change",
+          "examples": ["v1", "v2", "v3"]
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable name"
+        },
+        "description": {
+          "type": "string",
+          "description": "Purpose and scope of this playbook"
+        },
+        "hash": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "description": "SHA-256 hash of steps + policy for drift detection"
+        },
+        "allowedDomains": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Domains this playbook may interact with",
+          "examples": [["instacart.com", "chase.com"]]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "Operator who created/approved this playbook"
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "examples": [["financial", "payment", "recurring"]]
+        }
+      }
+    },
+
+    "policy": {
+      "type": "object",
+      "description": "What's allowed vs what requires human gate approval",
+      "required": ["automationLevel", "gates", "sensitiveActions"],
+      "properties": {
+        "automationLevel": {
+          "type": "string",
+          "enum": ["ASSIST", "SEMI_AUTO", "FULL_AUTO"],
+          "description": "ASSIST=human confirms each step, SEMI_AUTO=runs until gate, FULL_AUTO=no gates (rare)"
+        },
+        "gates": {
+          "type": "array",
+          "description": "Hard gates that ALWAYS require human approval",
+          "items": {
+            "type": "object",
+            "required": ["id", "trigger", "message"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^GATE-[A-Z0-9_]+$",
+                "examples": ["GATE-SUBMIT_PAYMENT", "GATE-CONFIRM_TRANSFER"]
+              },
+              "trigger": {
+                "type": "string",
+                "description": "When this gate activates (step ID or condition)",
+                "examples": ["before:submit_order", "amount > 100"]
+              },
+              "message": {
+                "type": "string",
+                "description": "What to show the human"
+              },
+              "timeout": {
+                "type": "integer",
+                "description": "Auto-deny after N seconds (0 = no timeout)",
+                "default": 300
+              },
+              "requiresDualKey": {
+                "type": "boolean",
+                "description": "Requires both human + system verification",
+                "default": false
+              }
+            }
+          }
+        },
+        "sensitiveActions": {
+          "type": "array",
+          "description": "Actions that are NEVER automated, only proposed",
+          "items": {
+            "type": "string",
+            "enum": [
+              "SUBMIT_PAYMENT",
+              "INITIATE_TRANSFER",
+              "ADD_PAYMENT_METHOD",
+              "CHANGE_PASSWORD",
+              "DELETE_ACCOUNT",
+              "SHARE_DOCUMENT",
+              "SEND_MESSAGE",
+              "AUTHORIZE_APP"
+            ]
+          }
+        },
+        "financialCeiling": {
+          "type": "number",
+          "description": "Max $ amount before auto-gate (0 = always gate)",
+          "default": 0
+        },
+        "allowedHours": {
+          "type": "object",
+          "description": "Time window when playbook can run",
+          "properties": {
+            "start": { "type": "string", "pattern": "^\\d{2}:\\d{2}$" },
+            "end": { "type": "string", "pattern": "^\\d{2}:\\d{2}$" },
+            "timezone": { "type": "string" }
+          }
+        }
+      }
+    },
+
+    "steps": {
+      "type": "array",
+      "description": "Ordered list of actions to perform",
+      "items": {
+        "type": "object",
+        "required": ["id", "action", "selectors"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique step identifier",
+            "examples": ["navigate_to_cart", "click_checkout", "enter_address"]
+          },
+          "action": {
+            "type": "string",
+            "enum": ["navigate", "click", "type", "select", "wait", "extract", "screenshot", "assert", "conditional"],
+            "description": "Type of browser action"
+          },
+          "selectors": {
+            "type": "object",
+            "description": "Robust element targeting with fallbacks",
+            "properties": {
+              "primary": {
+                "type": "string",
+                "description": "Main selector (CSS, XPath, or text)"
+              },
+              "fallback": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Backup selectors if primary fails"
+              },
+              "textMatch": {
+                "type": "string",
+                "description": "Text content to match"
+              },
+              "role": {
+                "type": "string",
+                "description": "ARIA role for accessibility-based targeting"
+              },
+              "relativeAnchor": {
+                "type": "object",
+                "description": "Find element relative to another",
+                "properties": {
+                  "anchor": { "type": "string" },
+                  "direction": { "enum": ["above", "below", "left", "right", "inside"] }
+                }
+              }
+            }
+          },
+          "value": {
+            "type": "string",
+            "description": "Value to type/select (can reference memory: ${memory.address})"
+          },
+          "waitFor": {
+            "type": "object",
+            "description": "Wait condition before action",
+            "properties": {
+              "selector": { "type": "string" },
+              "state": { "enum": ["visible", "hidden", "attached", "detached"] },
+              "timeout": { "type": "integer", "default": 10000 }
+            }
+          },
+          "postcondition": {
+            "type": "object",
+            "description": "What must be true after this step",
+            "properties": {
+              "urlContains": { "type": "string" },
+              "elementVisible": { "type": "string" },
+              "textPresent": { "type": "string" }
+            }
+          },
+          "evidence": {
+            "type": "object",
+            "description": "What to capture for audit trail",
+            "properties": {
+              "screenshot": { "type": "boolean", "default": false },
+              "extractFields": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "selector": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "onError": {
+            "type": "string",
+            "description": "Error handling strategy",
+            "enum": ["abort", "retry", "skip", "branch"],
+            "default": "abort"
+          },
+          "branchTo": {
+            "type": "string",
+            "description": "Step ID to branch to on error (if onError=branch)"
+          }
+        }
+      }
+    },
+
+    "guards": {
+      "type": "array",
+      "description": "Preconditions that must be true before playbook runs",
+      "items": {
+        "type": "object",
+        "required": ["id", "check"],
+        "properties": {
+          "id": { "type": "string" },
+          "check": {
+            "type": "string",
+            "description": "Condition to evaluate",
+            "examples": ["url.startsWith('https://chase.com')", "balance >= cart_total"]
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message if guard fails"
+          },
+          "canBypass": {
+            "type": "boolean",
+            "description": "Can human override this guard?",
+            "default": false
+          }
+        }
+      }
+    },
+
+    "recoveryRoutes": {
+      "type": "array",
+      "description": "Known error patterns and how to handle them",
+      "items": {
+        "type": "object",
+        "required": ["pattern", "action"],
+        "properties": {
+          "pattern": {
+            "type": "object",
+            "description": "How to detect this error state",
+            "properties": {
+              "urlMatch": { "type": "string" },
+              "textMatch": { "type": "string" },
+              "elementPresent": { "type": "string" }
+            }
+          },
+          "action": {
+            "type": "string",
+            "enum": ["retry", "branch", "abort", "escalate", "wait_for_human"],
+            "description": "What to do when pattern matches"
+          },
+          "branchTo": {
+            "type": "string",
+            "description": "Step ID for branch action"
+          },
+          "message": {
+            "type": "string",
+            "description": "Message for escalate/wait_for_human"
+          }
+        }
+      }
+    },
+
+    "evidenceSchema": {
+      "type": "object",
+      "description": "What evidence to collect during execution",
+      "properties": {
+        "captureScreenshots": {
+          "type": "string",
+          "enum": ["none", "gates_only", "all_steps"],
+          "default": "gates_only"
+        },
+        "extractFields": {
+          "type": "array",
+          "description": "Data to extract and log",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "selector": { "type": "string" },
+              "redact": { "type": "boolean", "default": false }
+            }
+          }
+        },
+        "successCriteria": {
+          "type": "object",
+          "description": "How to know playbook succeeded",
+          "properties": {
+            "urlContains": { "type": "string" },
+            "textPresent": { "type": "string" },
+            "fieldValue": {
+              "type": "object",
+              "properties": {
+                "selector": { "type": "string" },
+                "pattern": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
