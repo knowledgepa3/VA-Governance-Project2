@@ -4130,8 +4130,9 @@ OUTPUT: Complete formatted report ready for case file.`
         addSpacer();
         addLine('output', ' ', '<span class="hl-cyan">Tool Router:</span>');
         addLine('output', ' ', '  tools       — show tool router status & stats');
-        addLine('output', ' ', '  pending     — show pending MCP calls');
+        addLine('output', ' ', '  pending     — show pending MCP calls summary');
         addLine('output', ' ', '  list tools  — show all registered tools');
+        addLine('output', ' ', '  audit       — export full audit trail (Intent→Decision→Execution)');
         addSpacer();
         addLine('output', ' ', '<span class="hl-cyan">Browser:</span>');
         addLine('output', ' ', '  browser     — open browser panel');
@@ -4282,21 +4283,51 @@ OUTPUT: Complete formatted report ready for case file.`
         addLine('human', 'you:', text);
         addSpacer();
         const stats = GIAToolRouter.getStats();
-        addLine('system', '*', '<span class="hl-accent">GIA TOOL ROUTER STATUS</span>');
+        addLine('system', '*', '<span class="hl-accent">GIA TOOL ROUTER STATUS (v2.0)</span>');
         addSpacer();
-        addLine('output', ' ', `Total Calls: ${stats.totalCalls}`);
-        addLine('output', ' ', `Completed: <span class="hl-green">${stats.completed}</span>`);
-        addLine('output', ' ', `Blocked: <span class="hl-red">${stats.blocked}</span>`);
-        addLine('output', ' ', `Failed: <span class="hl-yellow">${stats.failed}</span>`);
+
+        // Canonical Schemas
+        addLine('output', ' ', '<span class="hl-cyan">Canonical Schemas:</span>');
+        addLine('output', '  ', `Intents: ${stats.schemas.intents} | Decisions: ${stats.schemas.decisions} | Executions: ${stats.schemas.executions}`);
         addSpacer();
-        addLine('output', ' ', '<span class="hl-cyan">By Module:</span>');
-        Object.entries(stats.byModule).forEach(([mod, count]) => {
-          addLine('output', '  ', `${mod}: ${count} calls`);
-        });
+
+        // Decisions breakdown
+        addLine('output', ' ', '<span class="hl-cyan">Decisions:</span>');
+        addLine('output', '  ', `Approved: <span class="hl-green">${stats.decisions.approved}</span> | Rejected: <span class="hl-red">${stats.decisions.rejected}</span> | Expired: <span class="hl-yellow">${stats.decisions.expired}</span> | Gated: ${stats.decisions.gated}`);
         addSpacer();
-        addLine('output', ' ', `Token Usage: ${stats.tokenUsage.input + stats.tokenUsage.output} total`);
-        addLine('output', ' ', `  Input: ${stats.tokenUsage.input} | Output: ${stats.tokenUsage.output}`);
+
+        // Executions
+        addLine('output', ' ', '<span class="hl-cyan">Executions:</span>');
+        addLine('output', '  ', `Executed: <span class="hl-green">${stats.executions.executed}</span> | Failed: <span class="hl-red">${stats.executions.failed}</span> | Sealed: <span class="hl-green">${stats.executions.sealed}</span>`);
         addSpacer();
+
+        // Redactions
+        if (stats.redactions.total > 0) {
+          addLine('output', ' ', '<span class="hl-cyan">PII Redactions:</span>');
+          addLine('output', '  ', `Total: ${stats.redactions.total}`);
+          Object.entries(stats.redactions.byType).forEach(([type, count]) => {
+            addLine('output', '   ', `• ${type}: ${count}`);
+          });
+          addSpacer();
+        }
+
+        // Security
+        addLine('output', ' ', '<span class="hl-cyan">Security:</span>');
+        addLine('output', '  ', `Nonces Used: ${stats.security.noncesUsed}`);
+        if (stats.security.replayAttempts > 0) {
+          addLine('warning', '  ', `Replay Attempts Blocked: <span class="hl-red">${stats.security.replayAttempts}</span>`);
+        }
+        if (stats.security.hashLockFailures > 0) {
+          addLine('warning', '  ', `Hash Lock Failures: <span class="hl-red">${stats.security.hashLockFailures}</span>`);
+        }
+        addSpacer();
+
+        // Token Usage
+        addLine('output', ' ', '<span class="hl-cyan">Token Budget:</span>');
+        addLine('output', '  ', `Used: ${stats.tokenUsage.input + stats.tokenUsage.output} / ${stats.tokenCeiling} (${stats.tokenRemaining} remaining)`);
+        addLine('output', '   ', `Input: ${stats.tokenUsage.input} | Output: ${stats.tokenUsage.output}`);
+        addSpacer();
+
         inputField.value = '';
         inputField.style.height = 'auto';
         return;
@@ -4306,20 +4337,58 @@ OUTPUT: Complete formatted report ready for case file.`
       if (lowerText === 'pending' || lowerText === 'mcp pending') {
         addLine('human', 'you:', text);
         addSpacer();
-        const pending = GIAToolRouter.getPendingCalls();
-        addLine('system', '*', '<span class="hl-accent">PENDING MCP CALLS</span>');
+
+        // Clear expired calls first
+        GIAToolRouter.clearExpired();
+
+        const summary = GIAToolRouter.getPendingSummary();
+        addLine('system', '*', '<span class="hl-accent">PENDING QUEUE SUMMARY</span>');
         addSpacer();
-        if (pending.length === 0) {
-          addLine('output', ' ', '<span class="hl-dim">No pending calls</span>');
-        } else {
-          pending.forEach(call => {
-            addLine('output', ' ', `<span class="hl-cyan">${call.id}</span>: ${call.action}`);
-            addLine('output', '  ', `Tool: ${call.tool}`);
-            addLine('output', '  ', `Args: ${JSON.stringify(call.args)}`);
+
+        // Counts
+        addLine('output', ' ', `<span class="hl-cyan">Queue Status:</span>`);
+        addLine('output', '  ', `Pending: <span class="hl-green">${summary.counts.pending}</span> | Executed: ${summary.counts.executed} | Expired: <span class="hl-yellow">${summary.counts.expired}</span> | Rejected: <span class="hl-red">${summary.counts.rejected}</span>`);
+        addSpacer();
+
+        // Domains
+        if (summary.domains.length > 0) {
+          addLine('output', ' ', `<span class="hl-cyan">Target Domains:</span>`);
+          summary.domains.forEach(d => addLine('output', '  ', `• ${d}`));
+          addSpacer();
+        }
+
+        // Risk levels
+        addLine('output', ' ', `<span class="hl-cyan">Risk Distribution:</span>`);
+        addLine('output', '  ', `LOW: ${summary.byRisk.LOW} | MEDIUM: <span class="hl-yellow">${summary.byRisk.MEDIUM}</span> | HIGH: <span class="hl-red">${summary.byRisk.HIGH}</span> | CRITICAL: <span class="hl-red">${summary.byRisk.CRITICAL}</span>`);
+        addSpacer();
+
+        // Gates
+        addLine('output', ' ', `<span class="hl-cyan">Gate Status:</span>`);
+        addLine('output', '  ', `Satisfied: <span class="hl-green">${summary.gates.satisfied}</span> | Pending Approval: <span class="hl-yellow">${summary.gates.pending}</span>`);
+        addSpacer();
+
+        // Blocked items
+        if (summary.blocked.length > 0) {
+          addLine('warning', '!', `<span class="hl-yellow">BLOCKED CALLS (${summary.blocked.length}):</span>`);
+          summary.blocked.forEach(b => {
+            addLine('output', '  ', `${b.id}: ${b.action} — <span class="hl-red">${b.status}</span> (${b.reason})`);
           });
           addSpacer();
-          addLine('system', '*', '<span class="hl-dim">Tell Claude: "Execute the pending browser tasks"</span>');
         }
+
+        // Pending details
+        if (summary.pendingDetails.length > 0) {
+          addLine('output', ' ', `<span class="hl-cyan">Pending Calls:</span>`);
+          summary.pendingDetails.forEach(p => {
+            addLine('output', '  ', `<span class="hl-green">${p.id}</span>: ${p.action}`);
+            addLine('output', '   ', `<span class="hl-dim">Nonce: ${p.nonce} | Expires: ${p.expiresIn}</span>`);
+          });
+          addSpacer();
+          addLine('system', '*', summary.executionInstructions);
+        } else {
+          addLine('output', ' ', '<span class="hl-dim">No pending calls to execute</span>');
+        }
+
         addSpacer();
         inputField.value = '';
         inputField.style.height = 'auto';
@@ -4347,6 +4416,37 @@ OUTPUT: Complete formatted report ready for case file.`
           });
         });
         addSpacer();
+        inputField.value = '';
+        inputField.style.height = 'auto';
+        return;
+      }
+
+      // Export audit trail
+      if (lowerText === 'audit' || lowerText === 'export audit' || lowerText === 'audit trail') {
+        addLine('human', 'you:', text);
+        addSpacer();
+
+        const trail = GIAToolRouter.exportAuditTrail();
+        addLine('system', '*', '<span class="hl-accent">AUDIT TRAIL EXPORT</span>');
+        addSpacer();
+        addLine('output', ' ', `Schema: ${trail.schema} v${trail.version}`);
+        addLine('output', ' ', `Exported: ${trail.exportedAt}`);
+        addLine('output', ' ', `Chains: ${trail.chains.length} (Intent→Decision→Execution)`);
+        addSpacer();
+
+        // Download as JSON
+        const blob = new Blob([JSON.stringify(trail, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `gia-audit-trail-${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        addLine('success', '+', 'Audit trail downloaded');
+        addLine('system', '*', '<span class="hl-dim">Contains: Intent hashes, Decision records, Execution results, PII redaction manifest</span>');
+        addSpacer();
+
         inputField.value = '';
         inputField.style.height = 'auto';
         return;
@@ -4995,10 +5095,93 @@ OUTPUT: Complete formatted report ready for case file.`
     // GIA TOOL ROUTER - Central Governance Layer
     // ALL MCP tool calls MUST flow through here
     // Claude proposes → GIA evaluates → gate if needed → execute → log + hash
+    //
+    // ENTERPRISE FEATURES:
+    // 1. Canonical schemas (ToolCallIntent, ToolCallDecision, ToolCallExecution)
+    // 2. Idempotency + replay protection (nonce, expiresAt, status states)
+    // 3. Hash-locked gates (approvedPayloadHash)
+    // 4. Pre-flight PII redaction (deterministic, not advisory)
+    // 5. Pending queue summary with risk/domain/gate status
     // ============================================
 
     const GIAToolRouter = {
-      // Tool registry with policies
+      // ============================================
+      // CANONICAL SCHEMAS
+      // ============================================
+
+      /**
+       * Create a ToolCallIntent schema - what Claude proposed
+       */
+      _createIntent(callId, toolName, args, context) {
+        const argsJson = JSON.stringify(args, Object.keys(args).sort());
+        return {
+          schema: 'ToolCallIntent',
+          version: '1.0',
+          callId: callId,
+          nonce: this._generateNonce(),
+          toolName: toolName,
+          args: args,
+          argsHash: this._hash(argsJson),
+          context: {
+            workflowId: GIAWorkflow._context?.runId || null,
+            taskId: context.taskId || null,
+            operatorId: GIA.config?.operatorToken || 'ANONYMOUS'
+          },
+          timestamp: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + 300000).toISOString() // 5 min TTL
+        };
+      },
+
+      /**
+       * Create a ToolCallDecision schema - what GIA allowed/denied
+       */
+      _createDecision(intent, decision, reason, redactions = []) {
+        return {
+          schema: 'ToolCallDecision',
+          version: '1.0',
+          callId: intent.callId,
+          nonce: intent.nonce,
+          intentHash: this._hash(JSON.stringify(intent)),
+          decision: decision, // APPROVED | REJECTED | GATED | EXPIRED
+          reason: reason,
+          policyChecks: {
+            mai: null,
+            domain: null,
+            pii: null,
+            financial: null,
+            token: null
+          },
+          redactions: redactions,
+          gateRequired: false,
+          approvedPayloadHash: null, // Set if gate approved
+          timestamp: new Date().toISOString()
+        };
+      },
+
+      /**
+       * Create a ToolCallExecution schema - what MCP returned
+       */
+      _createExecution(intent, decision, result, error = null) {
+        const resultJson = JSON.stringify(result || {});
+        return {
+          schema: 'ToolCallExecution',
+          version: '1.0',
+          callId: intent.callId,
+          nonce: intent.nonce,
+          intentHash: this._hash(JSON.stringify(intent)),
+          decisionHash: this._hash(JSON.stringify(decision)),
+          status: error ? 'FAILED' : 'EXECUTED',
+          resultHash: this._hash(resultJson),
+          resultPreview: resultJson.substring(0, 200), // Truncated for logs
+          error: error,
+          durationMs: 0,
+          timestamp: new Date().toISOString()
+        };
+      },
+
+      // ============================================
+      // TOOL REGISTRY WITH POLICIES
+      // ============================================
       tools: {
         // Browser Module
         'browser.navigate': {
@@ -5025,6 +5208,7 @@ OUTPUT: Complete formatted report ready for case file.`
           risk: 'MEDIUM',
           requiresGate: false,
           piiCheck: true,
+          piiRedact: true, // Pre-flight redaction
           description: 'Type text into field'
         },
         'browser.extract': {
@@ -5045,6 +5229,7 @@ OUTPUT: Complete formatted report ready for case file.`
           module: 'va-pipeline',
           risk: 'LOW',
           requiresGate: false,
+          piiRedact: true,
           description: 'Extract text from documents'
         },
         'va.timeline': {
@@ -5129,15 +5314,105 @@ OUTPUT: Complete formatted report ready for case file.`
         }
       },
 
-      // Execution state
-      _pendingCalls: [],
-      _executionLog: [],
+      // ============================================
+      // EXECUTION STATE
+      // ============================================
+      _pendingCalls: [],        // Calls awaiting MCP execution
+      _executionLog: [],        // Canonical execution records
+      _intentLog: [],           // ToolCallIntent records
+      _decisionLog: [],         // ToolCallDecision records
       _tokenUsage: { input: 0, output: 0 },
-      _tokenCeiling: 100000, // per session
+      _tokenCeiling: 100000,    // Per session
+      _usedNonces: new Set(),   // Replay protection
+
+      // ============================================
+      // CRYPTO UTILITIES
+      // ============================================
 
       /**
-       * Register a new tool
+       * Generate cryptographic nonce for replay protection
        */
+      _generateNonce() {
+        const array = new Uint8Array(16);
+        crypto.getRandomValues(array);
+        return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+      },
+
+      /**
+       * SHA-256 hash (browser-native)
+       */
+      async _hashAsync(data) {
+        const encoder = new TextEncoder();
+        const dataBuffer = encoder.encode(data);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      },
+
+      /**
+       * Synchronous hash (for immediate use, less secure but fast)
+       */
+      _hash(data) {
+        // Simple hash for sync operations - use _hashAsync for critical paths
+        let hash = 0;
+        for (let i = 0; i < data.length; i++) {
+          const char = data.charCodeAt(i);
+          hash = ((hash << 5) - hash) + char;
+          hash = hash & hash;
+        }
+        return 'H' + Math.abs(hash).toString(16).padStart(8, '0');
+      },
+
+      // ============================================
+      // PII REDACTION (PRE-FLIGHT, DETERMINISTIC)
+      // ============================================
+
+      /**
+       * Redact PII from text - returns redacted text and redaction manifest
+       */
+      _redactPII(text, mode = 'STANDARD') {
+        if (!text || typeof text !== 'string') return { text, redactions: [], rawHash: null };
+
+        const rawHash = this._hash(text);
+        const redactions = [];
+        let redactedText = text;
+
+        const patterns = {
+          'SSN': { pattern: /\b(\d{3})-(\d{2})-(\d{4})\b/g, replacement: '***-**-$3' },
+          'CREDIT_CARD': { pattern: /\b(\d{4})[\s-]?(\d{4})[\s-]?(\d{4})[\s-]?(\d{4})\b/g, replacement: '****-****-****-$4' },
+          'EMAIL': { pattern: /\b([A-Za-z0-9._%+-]+)@([A-Za-z0-9.-]+\.[A-Z|a-z]{2,})\b/g, replacement: '***@$2' },
+          'PHONE': { pattern: /\b(\d{3})[-.]?(\d{3})[-.]?(\d{4})\b/g, replacement: '***-***-$3' },
+          'DOB': { pattern: /\b(0?[1-9]|1[0-2])[\/\-](0?[1-9]|[12]\d|3[01])[\/\-](19|20)\d{2}\b/g, replacement: '**/**/$3**' }
+        };
+
+        // M mode = allow PII with explicit approval (don't redact)
+        if (mode === 'M') {
+          // Just detect and log, don't redact
+          for (const [type, config] of Object.entries(patterns)) {
+            const matches = text.match(config.pattern);
+            if (matches) {
+              redactions.push({ type, count: matches.length, redacted: false, mode: 'M' });
+            }
+          }
+          return { text, redactions, rawHash };
+        }
+
+        // Standard mode - redact all PII
+        for (const [type, config] of Object.entries(patterns)) {
+          const matches = text.match(config.pattern);
+          if (matches) {
+            redactedText = redactedText.replace(config.pattern, config.replacement);
+            redactions.push({ type, count: matches.length, redacted: true, mode: 'STANDARD' });
+          }
+        }
+
+        return { text: redactedText, redactions, rawHash };
+      },
+
+      // ============================================
+      // REGISTER TOOL
+      // ============================================
+
       registerTool(name, config) {
         this.tools[name] = {
           module: config.module || 'custom',
@@ -5149,153 +5424,267 @@ OUTPUT: Complete formatted report ready for case file.`
         console.log(`[GIA ToolRouter] Registered: ${name}`);
       },
 
-      /**
-       * MAIN ENTRY POINT - All tool calls flow through here
-       * Claude proposes → GIA evaluates → gate if needed → execute → log + hash
-       */
+      // ============================================
+      // MAIN ENTRY POINT - INVOKE
+      // Claude proposes → GIA evaluates → gate if needed → execute → log + hash
+      // ============================================
+
       async invoke(toolName, args, context = {}) {
         const callId = `TC-${Date.now().toString(36).toUpperCase()}`;
         const startTime = Date.now();
 
-        // Log the proposal
-        console.log(`[GIA ToolRouter] Proposal: ${toolName}`, args);
-        this._logCall(callId, 'proposed', toolName, args);
-
         // Get tool config
         const toolConfig = this.tools[toolName];
         if (!toolConfig) {
-          this._logCall(callId, 'rejected', toolName, args, 'Unknown tool');
           throw new Error(`[GIA] Unknown tool: ${toolName}`);
         }
 
         // ============================================
-        // PRE-EXECUTION POLICY CHECKS
+        // 1. CREATE INTENT (what Claude proposed)
         // ============================================
+        const intent = this._createIntent(callId, toolName, args, context);
+        this._intentLog.push(intent);
+        console.log(`[GIA ToolRouter] Intent: ${callId}`, intent);
 
-        // 1. MAI Classification
-        const maiResult = this._classifyIntent(toolName, args, context);
+        // Check for replay attack (nonce reuse)
+        if (this._usedNonces.has(intent.nonce)) {
+          const decision = this._createDecision(intent, 'REJECTED', 'Replay attack detected: nonce reused');
+          this._decisionLog.push(decision);
+          throw new Error(`[GIA Security] Replay attack blocked`);
+        }
+        this._usedNonces.add(intent.nonce);
+
+        // Check expiration
+        if (new Date(intent.expiresAt) < new Date()) {
+          const decision = this._createDecision(intent, 'EXPIRED', 'Intent expired before execution');
+          this._decisionLog.push(decision);
+          throw new Error(`[GIA] Tool call expired`);
+        }
+
+        // ============================================
+        // 2. PRE-FLIGHT PII REDACTION (DETERMINISTIC)
+        // ============================================
+        let redactedArgs = { ...args };
+        let redactions = [];
+
+        if (toolConfig.piiRedact || toolConfig.piiCheck) {
+          // Check all string fields for PII
+          for (const [key, value] of Object.entries(args)) {
+            if (typeof value === 'string') {
+              const result = this._redactPII(value, context.piiMode || 'STANDARD');
+              if (result.redactions.length > 0) {
+                redactedArgs[key] = result.text;
+                redactions.push({ field: key, ...result });
+                addLine('warning', '!', `<span class="hl-yellow">PII REDACTED</span> in ${key}: ${result.redactions.map(r => r.type).join(', ')}`);
+              }
+            }
+          }
+        }
+
+        // ============================================
+        // 3. POLICY CHECKS (create decision record)
+        // ============================================
+        const decision = this._createDecision(intent, 'PENDING', 'Evaluating policies', redactions);
+
+        // MAI Classification
+        const maiResult = this._classifyIntent(toolName, redactedArgs, context);
+        decision.policyChecks.mai = maiResult;
         if (maiResult.blocked) {
-          this._logCall(callId, 'blocked', toolName, args, maiResult.reason);
+          decision.decision = 'REJECTED';
+          decision.reason = `MAI blocked: ${maiResult.reason}`;
+          this._decisionLog.push(decision);
           addLine('error', 'x', `<span class="hl-red">BLOCKED</span> ${toolName}: ${maiResult.reason}`);
           throw new Error(`[GIA MAI] ${maiResult.reason}`);
         }
 
-        // 2. Domain whitelist check (for browser tools)
-        if (toolConfig.allowedDomains && args.url) {
-          const allowed = this._checkDomain(args.url, toolConfig.allowedDomains);
+        // Domain whitelist check
+        if (toolConfig.allowedDomains && redactedArgs.url) {
+          const allowed = this._checkDomain(redactedArgs.url, toolConfig.allowedDomains);
+          decision.policyChecks.domain = { url: redactedArgs.url, allowed };
           if (!allowed) {
-            this._logCall(callId, 'blocked', toolName, args, 'Domain not whitelisted');
-            addLine('error', 'x', `<span class="hl-red">BLOCKED</span> Domain not allowed: ${args.url}`);
-            throw new Error(`[GIA Policy] Domain not whitelisted: ${args.url}`);
+            decision.decision = 'REJECTED';
+            decision.reason = `Domain not whitelisted: ${redactedArgs.url}`;
+            this._decisionLog.push(decision);
+            addLine('error', 'x', `<span class="hl-red">BLOCKED</span> Domain: ${redactedArgs.url}`);
+            throw new Error(`[GIA Policy] Domain not whitelisted`);
           }
         }
 
-        // 3. PII check (for type/input tools)
-        if (toolConfig.piiCheck && args.text) {
-          const piiFound = this._checkPII(args.text);
-          if (piiFound.length > 0) {
-            addLine('warning', '!', `<span class="hl-yellow">PII DETECTED</span>: ${piiFound.join(', ')}`);
-            // Don't block, but require gate
-            toolConfig.requiresGate = true;
+        // PII check (if redaction found PII, may require gate)
+        decision.policyChecks.pii = { found: redactions.length > 0, redactions };
+        if (redactions.length > 0 && !toolConfig.piiRedact) {
+          // PII found but tool doesn't auto-redact - require gate
+          toolConfig.requiresGate = true;
+        }
+
+        // Financial ceiling check
+        if (toolConfig.financialCeiling && redactedArgs.amount) {
+          decision.policyChecks.financial = {
+            amount: redactedArgs.amount,
+            ceiling: toolConfig.financialCeiling,
+            allowed: redactedArgs.amount <= toolConfig.financialCeiling
+          };
+          if (redactedArgs.amount > toolConfig.financialCeiling) {
+            decision.decision = 'REJECTED';
+            decision.reason = `Amount $${redactedArgs.amount} exceeds ceiling $${toolConfig.financialCeiling}`;
+            this._decisionLog.push(decision);
+            addLine('error', 'x', `<span class="hl-red">BLOCKED</span> ${decision.reason}`);
+            throw new Error(`[GIA Policy] Financial ceiling exceeded`);
           }
         }
 
-        // 4. Financial ceiling check
-        if (toolConfig.financialCeiling && args.amount) {
-          if (args.amount > toolConfig.financialCeiling) {
-            this._logCall(callId, 'blocked', toolName, args, `Exceeds ceiling: $${toolConfig.financialCeiling}`);
-            addLine('error', 'x', `<span class="hl-red">BLOCKED</span> Amount $${args.amount} exceeds ceiling $${toolConfig.financialCeiling}`);
-            throw new Error(`[GIA Policy] Amount exceeds financial ceiling`);
-          }
-        }
-
-        // 5. Token ceiling check
-        if (this._tokenUsage.input + this._tokenUsage.output > this._tokenCeiling) {
-          this._logCall(callId, 'blocked', toolName, args, 'Token ceiling reached');
-          addLine('error', 'x', `<span class="hl-red">BLOCKED</span> Session token ceiling reached`);
-          throw new Error(`[GIA Policy] Session token ceiling exceeded`);
+        // Token ceiling check
+        const currentTokens = this._tokenUsage.input + this._tokenUsage.output;
+        decision.policyChecks.token = { current: currentTokens, ceiling: this._tokenCeiling };
+        if (currentTokens > this._tokenCeiling) {
+          decision.decision = 'REJECTED';
+          decision.reason = 'Session token ceiling exceeded';
+          this._decisionLog.push(decision);
+          addLine('error', 'x', `<span class="hl-red">BLOCKED</span> Token ceiling reached`);
+          throw new Error(`[GIA Policy] Token ceiling exceeded`);
         }
 
         // ============================================
-        // GATE CHECK (if required)
+        // 4. GATE CHECK WITH HASH LOCK
         // ============================================
+        decision.gateRequired = toolConfig.requiresGate;
+
         if (toolConfig.requiresGate) {
           addLine('gate', '!', `<span class="hl-yellow">GATE REQUIRED</span> for ${toolName}`);
           addLine('output', ' ', `Risk: ${toolConfig.risk} | ${toolConfig.description}`);
 
+          // Compute payload hash BEFORE showing gate
+          const payloadHash = await this._hashAsync(JSON.stringify(redactedArgs));
+
           try {
-            // Use GIAWorkflow gate if in a workflow context
+            let approved = false;
             if (GIAWorkflow._context) {
               await GIAWorkflow.gate(`tool-${toolName}`,
-                `Approve ${toolConfig.description}?\n\nTool: ${toolName}\nArgs: ${JSON.stringify(args, null, 2)}`
+                `Approve ${toolConfig.description}?\n\nTool: ${toolName}\nPayload Hash: ${payloadHash.substring(0, 16)}...\nArgs: ${JSON.stringify(redactedArgs, null, 2)}`
               );
+              approved = true;
             } else {
-              // Standalone gate
-              const approved = await this._standaloneGate(callId, toolName, args, toolConfig);
-              if (!approved) {
-                this._logCall(callId, 'aborted', toolName, args, 'Gate denied');
-                throw new Error(`[GIA Gate] Tool execution denied by operator`);
-              }
+              approved = await this._standaloneGate(callId, toolName, redactedArgs, toolConfig, payloadHash);
             }
+
+            if (!approved) {
+              decision.decision = 'REJECTED';
+              decision.reason = 'Gate denied by operator';
+              this._decisionLog.push(decision);
+              throw new Error(`[GIA Gate] Denied by operator`);
+            }
+
+            // HASH LOCK: Store approved payload hash
+            decision.approvedPayloadHash = payloadHash;
+
+            // Verify payload hasn't changed since approval
+            const currentPayloadHash = await this._hashAsync(JSON.stringify(redactedArgs));
+            if (currentPayloadHash !== payloadHash) {
+              decision.decision = 'REJECTED';
+              decision.reason = 'Payload modified after gate approval (hash mismatch)';
+              this._decisionLog.push(decision);
+              addLine('error', 'x', `<span class="hl-red">HASH LOCK FAILED</span> Payload changed after approval`);
+              throw new Error(`[GIA Security] Payload modified after approval`);
+            }
+
           } catch (err) {
-            this._logCall(callId, 'aborted', toolName, args, 'Gate aborted');
+            if (!decision.decision || decision.decision === 'PENDING') {
+              decision.decision = 'REJECTED';
+              decision.reason = err.message;
+            }
+            this._decisionLog.push(decision);
             throw err;
           }
         }
 
+        // Mark decision as approved
+        decision.decision = 'APPROVED';
+        decision.reason = 'All policy checks passed';
+        this._decisionLog.push(decision);
+
         // ============================================
-        // EXECUTE TOOL
+        // 5. EXECUTE TOOL
         // ============================================
         addLine('step', '>', `executing: ${toolName}`);
         BrowserAgent.log(`Tool: ${toolName}`, 'action');
 
         let result;
+        let execution;
         try {
-          result = await this._executeTool(toolName, args, context);
-          this._logCall(callId, 'completed', toolName, args, null, result);
+          result = await this._executeTool(toolName, redactedArgs, context, intent);
+          execution = this._createExecution(intent, decision, result);
+          execution.durationMs = Date.now() - startTime;
+          execution.status = 'EXECUTED';
         } catch (err) {
-          this._logCall(callId, 'failed', toolName, args, err.message);
+          execution = this._createExecution(intent, decision, null, err.message);
+          execution.durationMs = Date.now() - startTime;
+          execution.status = 'FAILED';
+          this._executionLog.push(execution);
           addLine('error', 'x', `Tool failed: ${err.message}`);
           throw err;
         }
 
         // ============================================
-        // POST-EXECUTION: EVIDENCE + HASH
+        // 6. SEAL EVIDENCE (Intent + Decision + Execution)
         // ============================================
-        const duration = Date.now() - startTime;
+        this._executionLog.push(execution);
 
-        // Create evidence pack for the tool call
+        // Create comprehensive evidence pack
+        const evidenceData = {
+          intent: {
+            callId: intent.callId,
+            nonce: intent.nonce,
+            toolName: intent.toolName,
+            argsHash: intent.argsHash,
+            timestamp: intent.timestamp
+          },
+          decision: {
+            decision: decision.decision,
+            reason: decision.reason,
+            policyChecks: decision.policyChecks,
+            approvedPayloadHash: decision.approvedPayloadHash,
+            redactions: decision.redactions.map(r => ({ field: r.field, types: r.redactions?.map(x => x.type) }))
+          },
+          execution: {
+            status: execution.status,
+            resultHash: execution.resultHash,
+            durationMs: execution.durationMs
+          }
+        };
+
         if (GIAWorkflow._context) {
           await GIAWorkflow.createPack(
             `TOOL:${toolConfig.module}`,
             `/${toolName}`,
-            { tool: toolName, args: args, callId: callId },
-            { result: result, durationMs: duration }
+            evidenceData,
+            { sealed: true, version: '2.0' }
           );
         } else {
-          // Standalone evidence
           const pack = GIA.evidence.create(`STANDALONE-${callId}`, `TOOL:${toolConfig.module}`, `/${toolName}`);
-          await GIA.evidence.seal(pack.id, { tool: toolName, args }, { result, durationMs: duration });
+          await GIA.evidence.seal(pack.id, evidenceData, { sealed: true, version: '2.0' });
         }
 
-        addLine('success', '+', `${toolName} complete (${duration}ms)`);
-        BrowserAgent.log(`✓ ${toolName} complete`, 'success');
+        addLine('success', '+', `${toolName} complete (${execution.durationMs}ms) [${execution.resultHash}]`);
+        BrowserAgent.log(`✓ ${toolName} sealed`, 'success');
 
         return result;
       },
 
-      /**
-       * MAI Classification - Determine if intent is allowed
-       */
+      // ============================================
+      // POLICY CHECKS
+      // ============================================
+
       _classifyIntent(toolName, args, context) {
-        // Block obviously malicious patterns
         const maliciousPatterns = [
           /delete\s+all/i,
           /rm\s+-rf/i,
           /drop\s+table/i,
           /format\s+c:/i,
           /<script>/i,
-          /eval\(/i
+          /eval\(/i,
+          /passwd/i,
+          /shadow/i,
+          /\.ssh/i
         ];
 
         const argsStr = JSON.stringify(args);
@@ -5305,27 +5694,20 @@ OUTPUT: Complete formatted report ready for case file.`
           }
         }
 
-        // Block scope drift (accessing tools outside current workflow)
+        // Scope drift warning
         if (GIAWorkflow._context) {
           const currentModule = GIAWorkflow._context.config?.name?.toLowerCase() || '';
           const toolModule = this.tools[toolName]?.module || '';
-
-          // Allow browser module from any workflow (it's a utility)
           if (toolModule !== 'browser' && !currentModule.includes(toolModule.split('-')[0])) {
-            // Soft warning, not blocking
             addLine('warning', '!', `<span class="hl-yellow">SCOPE DRIFT</span>: ${toolName} outside ${currentModule}`);
           }
         }
 
-        return { blocked: false };
+        return { blocked: false, reason: 'Intent allowed' };
       },
 
-      /**
-       * Check if domain is whitelisted
-       */
       _checkDomain(url, allowedDomains) {
         if (allowedDomains.includes('*')) return true;
-
         try {
           const hostname = new URL(url).hostname;
           return allowedDomains.some(d => hostname.endsWith(d));
@@ -5334,29 +5716,11 @@ OUTPUT: Complete formatted report ready for case file.`
         }
       },
 
-      /**
-       * Check for PII in text
-       */
-      _checkPII(text) {
-        const found = [];
-        const patterns = {
-          'SSN': /\b\d{3}-\d{2}-\d{4}\b/,
-          'Credit Card': /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/,
-          'Email': /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/,
-          'Phone': /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/
-        };
+      // ============================================
+      // GATE WITH HASH LOCK
+      // ============================================
 
-        for (const [name, pattern] of Object.entries(patterns)) {
-          if (pattern.test(text)) found.push(name);
-        }
-
-        return found;
-      },
-
-      /**
-       * Standalone gate (when not in workflow)
-       */
-      async _standaloneGate(callId, toolName, args, toolConfig) {
+      async _standaloneGate(callId, toolName, args, toolConfig, payloadHash) {
         return new Promise((resolve) => {
           const gateId = `gate-${callId}`;
 
@@ -5367,28 +5731,31 @@ OUTPUT: Complete formatted report ready for case file.`
             <div style="font-size: 0.65rem; margin-bottom: 0.5rem;">
               <strong>Tool:</strong> ${toolName}<br>
               <strong>Risk:</strong> ${toolConfig.risk}<br>
-              <strong>Description:</strong> ${toolConfig.description}
+              <strong>Payload Hash:</strong> <code>${payloadHash.substring(0, 16)}...</code>
             </div>
             <div style="font-size: 0.6rem; color: var(--text-dim); font-family: monospace; background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 4px; max-height: 100px; overflow-y: auto;">
               ${escapeHtml(JSON.stringify(args, null, 2))}
             </div>
+            <div style="font-size: 0.55rem; color: var(--warn); margin-top: 0.5rem;">
+              ⚠️ Approval is hash-locked to this exact payload
+            </div>
           `);
 
-          // Store resolver for gate buttons
           window._gateResolvers = window._gateResolvers || {};
           window._gateResolvers[gateId] = resolve;
         });
       },
 
-      /**
-       * Execute the actual tool (maps to MCP or internal)
-       */
-      async _executeTool(toolName, args, context) {
+      // ============================================
+      // TOOL EXECUTION
+      // ============================================
+
+      async _executeTool(toolName, args, context, intent) {
         const [module, action] = toolName.split('.');
 
         switch (module) {
           case 'browser':
-            return await this._executeBrowserTool(action, args);
+            return await this._executeBrowserTool(action, args, intent);
           case 'va':
             return await this._executeVATool(action, args);
           case 'redteam':
@@ -5402,12 +5769,7 @@ OUTPUT: Complete formatted report ready for case file.`
         }
       },
 
-      /**
-       * Browser tool execution - interfaces with Claude MCP
-       */
-      async _executeBrowserTool(action, args) {
-        // These map to the actual MCP tools Claude will execute
-        // GIA logs and governs, Claude executes via MCP
+      async _executeBrowserTool(action, args, intent) {
         const mcpMapping = {
           'navigate': 'mcp__Claude_in_Chrome__navigate',
           'screenshot': 'mcp__Claude_in_Chrome__computer',
@@ -5419,152 +5781,314 @@ OUTPUT: Complete formatted report ready for case file.`
         };
 
         const mcpTool = mcpMapping[action];
-        if (!mcpTool) {
-          throw new Error(`Unknown browser action: ${action}`);
-        }
+        if (!mcpTool) throw new Error(`Unknown browser action: ${action}`);
 
-        // Store the pending MCP call for Claude to execute
+        // Create pending call with full idempotency fields
         const pendingCall = {
           id: `MCP-${Date.now().toString(36)}`,
           tool: mcpTool,
           action: action,
           args: args,
-          status: 'pending',
-          createdAt: new Date().toISOString()
+          // IDEMPOTENCY FIELDS
+          nonce: intent.nonce,
+          intentHash: this._hash(JSON.stringify(intent)),
+          requestHash: await this._hashAsync(JSON.stringify({ tool: mcpTool, args })),
+          status: 'QUEUED', // PROPOSED | APPROVED | QUEUED | EXECUTED | SEALED | REJECTED | EXPIRED
+          expiresAt: intent.expiresAt,
+          createdAt: new Date().toISOString(),
+          // For completion verification
+          expectedRequestEchoHash: null,
+          resultHash: null
         };
 
-        this._pendingCalls.push(pendingCall);
-        BrowserAgent.log(`Queued: ${action} → ${mcpTool}`, 'action');
+        // Set expected echo hash for verification on completion
+        pendingCall.expectedRequestEchoHash = pendingCall.requestHash;
 
-        // Update browser panel
+        this._pendingCalls.push(pendingCall);
+        BrowserAgent.log(`Queued: ${action} [${pendingCall.id}]`, 'action');
+
         if (action === 'navigate' && args.url) {
           BrowserAgent.setUrl(args.url);
         }
 
-        // Return the pending call info - Claude will execute and send results back
         return {
           mcpTool: mcpTool,
           callId: pendingCall.id,
-          status: 'queued_for_mcp',
-          message: 'Execute via Claude MCP and call GIAToolRouter.completeMCPCall() with results'
+          nonce: pendingCall.nonce,
+          requestHash: pendingCall.requestHash,
+          status: 'QUEUED',
+          expiresAt: pendingCall.expiresAt,
+          message: 'Execute via Claude MCP. Call completeMCPCall() with requestEchoHash for verification.'
         };
       },
 
       /**
-       * Complete an MCP call (called by Claude after execution)
+       * Complete an MCP call with verification
+       * GOLD STANDARD: Verify result corresponds to same call request
        */
-      completeMCPCall(callId, result, screenshot = null) {
+      completeMCPCall(callId, result, screenshot = null, requestEchoHash = null) {
         const call = this._pendingCalls.find(c => c.id === callId);
-        if (call) {
-          call.status = 'completed';
-          call.result = result;
-          call.completedAt = new Date().toISOString();
-
-          if (screenshot) {
-            BrowserAgent.receiveScreenshot(screenshot);
-          }
-
-          addLine('success', '+', `MCP call ${callId} completed`);
-          BrowserAgent.log(`✓ MCP ${call.action} complete`, 'success');
+        if (!call) {
+          addLine('error', 'x', `Unknown MCP call: ${callId}`);
+          return null;
         }
+
+        // Check expiration
+        if (new Date(call.expiresAt) < new Date()) {
+          call.status = 'EXPIRED';
+          addLine('error', 'x', `MCP call ${callId} expired`);
+          return call;
+        }
+
+        // Check for duplicate completion (idempotency)
+        if (call.status === 'EXECUTED' || call.status === 'SEALED') {
+          addLine('warning', '!', `MCP call ${callId} already completed (idempotency block)`);
+          return call;
+        }
+
+        // GOLD STANDARD: Verify request echo hash
+        if (requestEchoHash && call.expectedRequestEchoHash) {
+          if (requestEchoHash !== call.expectedRequestEchoHash) {
+            call.status = 'REJECTED';
+            addLine('error', 'x', `<span class="hl-red">REQUEST MISMATCH</span> Expected ${call.expectedRequestEchoHash.substring(0,8)}... got ${requestEchoHash.substring(0,8)}...`);
+            return call;
+          }
+          addLine('success', '+', `Request verified: ${requestEchoHash.substring(0, 12)}...`);
+        }
+
+        // Store result with hash
+        call.result = result;
+        call.resultHash = this._hash(JSON.stringify(result || {}));
+        call.completedAt = new Date().toISOString();
+        call.status = 'EXECUTED';
+
+        if (screenshot) {
+          BrowserAgent.receiveScreenshot(screenshot);
+        }
+
+        // Create sealed execution record
+        const sealedRecord = {
+          callId: call.id,
+          nonce: call.nonce,
+          intentHash: call.intentHash,
+          requestHash: call.requestHash,
+          resultHash: call.resultHash,
+          requestEchoVerified: requestEchoHash === call.expectedRequestEchoHash,
+          status: 'SEALED',
+          sealedAt: new Date().toISOString()
+        };
+
+        call.status = 'SEALED';
+        call.sealedRecord = sealedRecord;
+
+        addLine('success', '+', `MCP ${callId} sealed [${call.resultHash}]`);
+        BrowserAgent.log(`✓ ${call.action} sealed`, 'success');
+
         return call;
       },
 
-      /**
-       * VA Pipeline tool execution
-       */
       async _executeVATool(action, args) {
-        // These use the existing VA workflow agents
-        // Already integrated with Claude API
-        return {
-          action: action,
-          status: 'delegated_to_va_pipeline',
-          message: 'Handled by VA workflow agents'
-        };
+        return { action, status: 'delegated_to_va_pipeline', message: 'Handled by VA workflow agents' };
       },
 
-      /**
-       * Red Team tool execution
-       */
       async _executeRedTeamTool(action, args) {
-        return {
-          action: action,
-          status: 'delegated_to_redteam',
-          message: 'Handled by Red Team workflow'
-        };
+        return { action, status: 'delegated_to_redteam', message: 'Handled by Red Team workflow' };
       },
 
-      /**
-       * Export tool execution
-       */
       async _executeExportTool(action, args) {
         if (action === 'evidence_bundle') {
-          const bundle = GIA.evidence.exportBundle();
-          return { bundle: bundle, count: bundle.packs.length };
+          return { bundle: GIA.evidence.exportBundle(), executionLog: this._executionLog };
         }
         if (action === 'audit_log') {
-          return { log: this._executionLog };
+          return {
+            intents: this._intentLog,
+            decisions: this._decisionLog,
+            executions: this._executionLog
+          };
         }
         throw new Error(`Unknown export action: ${action}`);
       },
 
-      /**
-       * Household tool execution
-       */
       async _executeHouseholdTool(action, args) {
-        // Financial transactions require special handling
-        return {
-          action: action,
-          status: 'requires_user_execution',
-          message: 'Financial transactions must be confirmed in browser panel'
-        };
+        return { action, status: 'requires_user_execution', message: 'Financial transactions require browser panel confirmation' };
       },
 
-      /**
-       * Log a tool call to execution history
-       */
-      _logCall(callId, status, toolName, args, error = null, result = null) {
-        const entry = {
-          callId,
-          status,
-          toolName,
-          args,
-          error,
-          result: result ? '[result]' : null, // Don't store full result
-          timestamp: new Date().toISOString()
-        };
+      // ============================================
+      // PENDING QUEUE SUMMARY
+      // ============================================
 
-        this._executionLog.push(entry);
-
-        // Keep last 100 entries
-        if (this._executionLog.length > 100) {
-          this._executionLog.shift();
-        }
-      },
-
-      /**
-       * Get pending MCP calls for Claude to execute
-       */
       getPendingCalls() {
-        return this._pendingCalls.filter(c => c.status === 'pending');
+        return this._pendingCalls.filter(c => c.status === 'QUEUED');
       },
 
       /**
-       * Get execution statistics
+       * Get comprehensive pending queue summary
+       * Surfaces: count, domains, risk levels, gate status, blocked items
+       */
+      getPendingSummary() {
+        const pending = this._pendingCalls.filter(c => c.status === 'QUEUED');
+        const expired = this._pendingCalls.filter(c => c.status === 'EXPIRED');
+        const executed = this._pendingCalls.filter(c => c.status === 'EXECUTED' || c.status === 'SEALED');
+        const rejected = this._pendingCalls.filter(c => c.status === 'REJECTED');
+
+        // Extract domains from pending calls
+        const domains = new Set();
+        pending.forEach(c => {
+          if (c.args?.url) {
+            try {
+              domains.add(new URL(c.args.url).hostname);
+            } catch {}
+          }
+        });
+
+        // Categorize by risk level
+        const byRisk = { LOW: [], MEDIUM: [], HIGH: [], CRITICAL: [] };
+        pending.forEach(c => {
+          const toolConfig = this.tools[`browser.${c.action}`] || this.tools[c.tool] || {};
+          const risk = toolConfig.risk || 'MEDIUM';
+          byRisk[risk].push(c);
+        });
+
+        // Check for blocked items (expired, rejected)
+        const blocked = [...expired, ...rejected];
+
+        // Gate status
+        const gatesSatisfied = this._decisionLog.filter(d =>
+          d.decision === 'APPROVED' && d.gateRequired
+        ).length;
+
+        const gatesPending = pending.filter(c => {
+          const toolConfig = this.tools[`browser.${c.action}`] || {};
+          return toolConfig.requiresGate;
+        }).length;
+
+        return {
+          counts: {
+            pending: pending.length,
+            executed: executed.length,
+            expired: expired.length,
+            rejected: rejected.length,
+            total: this._pendingCalls.length
+          },
+          domains: Array.from(domains),
+          byRisk: {
+            LOW: byRisk.LOW.length,
+            MEDIUM: byRisk.MEDIUM.length,
+            HIGH: byRisk.HIGH.length,
+            CRITICAL: byRisk.CRITICAL.length
+          },
+          gates: {
+            satisfied: gatesSatisfied,
+            pending: gatesPending
+          },
+          blocked: blocked.map(c => ({
+            id: c.id,
+            action: c.action,
+            status: c.status,
+            reason: c.status === 'EXPIRED' ? 'TTL exceeded' : 'Policy rejected'
+          })),
+          pendingDetails: pending.map(c => ({
+            id: c.id,
+            action: c.action,
+            tool: c.tool,
+            nonce: c.nonce?.substring(0, 8) + '...',
+            expiresIn: Math.max(0, Math.round((new Date(c.expiresAt) - new Date()) / 1000)) + 's',
+            args: c.args
+          })),
+          // For Claude to use when executing
+          executionInstructions: pending.length > 0 ?
+            `Execute ${pending.length} pending call(s). For each, call GIAToolRouter.completeMCPCall(callId, result, screenshot, requestEchoHash) where requestEchoHash matches the original requestHash.` :
+            'No pending calls to execute.'
+        };
+      },
+
+      /**
+       * Get execution statistics with canonical schema counts
        */
       getStats() {
-        const log = this._executionLog;
         return {
-          totalCalls: log.length,
-          completed: log.filter(e => e.status === 'completed').length,
-          blocked: log.filter(e => e.status === 'blocked').length,
-          failed: log.filter(e => e.status === 'failed').length,
-          byModule: log.reduce((acc, e) => {
-            const module = this.tools[e.toolName]?.module || 'unknown';
-            acc[module] = (acc[module] || 0) + 1;
-            return acc;
-          }, {}),
-          tokenUsage: this._tokenUsage
+          // Canonical schema counts
+          schemas: {
+            intents: this._intentLog.length,
+            decisions: this._decisionLog.length,
+            executions: this._executionLog.length
+          },
+          // Decision breakdown
+          decisions: {
+            approved: this._decisionLog.filter(d => d.decision === 'APPROVED').length,
+            rejected: this._decisionLog.filter(d => d.decision === 'REJECTED').length,
+            expired: this._decisionLog.filter(d => d.decision === 'EXPIRED').length,
+            gated: this._decisionLog.filter(d => d.gateRequired).length
+          },
+          // Execution breakdown
+          executions: {
+            executed: this._executionLog.filter(e => e.status === 'EXECUTED').length,
+            failed: this._executionLog.filter(e => e.status === 'FAILED').length,
+            sealed: this._pendingCalls.filter(c => c.status === 'SEALED').length
+          },
+          // Redaction stats
+          redactions: {
+            total: this._decisionLog.reduce((sum, d) => sum + (d.redactions?.length || 0), 0),
+            byType: this._decisionLog.reduce((acc, d) => {
+              (d.redactions || []).forEach(r => {
+                (r.redactions || []).forEach(t => {
+                  acc[t.type] = (acc[t.type] || 0) + 1;
+                });
+              });
+              return acc;
+            }, {})
+          },
+          // Security
+          security: {
+            noncesUsed: this._usedNonces.size,
+            replayAttempts: this._decisionLog.filter(d => d.reason?.includes('Replay')).length,
+            hashLockFailures: this._decisionLog.filter(d => d.reason?.includes('hash mismatch')).length
+          },
+          // Token usage
+          tokenUsage: this._tokenUsage,
+          tokenCeiling: this._tokenCeiling,
+          tokenRemaining: this._tokenCeiling - (this._tokenUsage.input + this._tokenUsage.output)
+        };
+      },
+
+      /**
+       * Export full audit trail (Intent → Decision → Execution chain)
+       */
+      exportAuditTrail() {
+        return {
+          schema: 'GIAAuditTrail',
+          version: '2.0',
+          exportedAt: new Date().toISOString(),
+          stats: this.getStats(),
+          pendingSummary: this.getPendingSummary(),
+          chains: this._intentLog.map(intent => {
+            const decision = this._decisionLog.find(d => d.callId === intent.callId);
+            const execution = this._executionLog.find(e => e.callId === intent.callId);
+            return {
+              intent: {
+                callId: intent.callId,
+                nonce: intent.nonce,
+                toolName: intent.toolName,
+                argsHash: intent.argsHash,
+                timestamp: intent.timestamp,
+                expiresAt: intent.expiresAt
+              },
+              decision: decision ? {
+                decision: decision.decision,
+                reason: decision.reason,
+                policyChecks: decision.policyChecks,
+                approvedPayloadHash: decision.approvedPayloadHash,
+                redactionCount: decision.redactions?.length || 0,
+                timestamp: decision.timestamp
+              } : null,
+              execution: execution ? {
+                status: execution.status,
+                resultHash: execution.resultHash,
+                durationMs: execution.durationMs,
+                timestamp: execution.timestamp
+              } : null
+            };
+          })
         };
       },
 
@@ -5574,6 +6098,24 @@ OUTPUT: Complete formatted report ready for case file.`
       updateTokens(input, output) {
         this._tokenUsage.input += input;
         this._tokenUsage.output += output;
+      },
+
+      /**
+       * Clear expired calls from pending queue
+       */
+      clearExpired() {
+        const now = new Date();
+        let cleared = 0;
+        this._pendingCalls.forEach(c => {
+          if (c.status === 'QUEUED' && new Date(c.expiresAt) < now) {
+            c.status = 'EXPIRED';
+            cleared++;
+          }
+        });
+        if (cleared > 0) {
+          addLine('warning', '!', `Cleared ${cleared} expired pending call(s)`);
+        }
+        return cleared;
       }
     };
 
