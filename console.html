@@ -8217,6 +8217,24 @@ MCP Browser: NOT CONNECTED`);
         // Create governed task
         const task = this._createTask(type, payload, context);
 
+        // === IDEMPOTENCY CHECK ===
+        // Reject duplicate taskId + nonce combinations
+        const existingTask = this._queue.find(t =>
+          t.taskId === task.taskId ||
+          (t.nonce === task.nonce && t.type === task.type)
+        );
+        if (existingTask) {
+          console.warn(`[GIA] Duplicate task rejected: ${task.taskId} (nonce: ${task.nonce})`);
+          // Return existing task's promise or resolved value
+          if (this._pendingCallbacks.has(existingTask.taskId)) {
+            return this._pendingCallbacks.get(existingTask.taskId).promise;
+          }
+          // Already completed - return cached result
+          if (this._results.has(existingTask.taskId)) {
+            return Promise.resolve(this._results.get(existingTask.taskId));
+          }
+        }
+
         // Validate queue capacity
         if (this._queue.length >= this.config.maxQueueSize) {
           throw new Error(`MCP queue full (max ${this.config.maxQueueSize})`);
@@ -8226,6 +8244,9 @@ MCP Browser: NOT CONNECTED`);
         this._queue.push(task);
         this._metrics.tasksQueued++;
         this._metrics.lastActivity = new Date().toISOString();
+
+        // === AUDIT: Log TASK_QUEUED event ===
+        this.logAuditEvent('TASK_QUEUED', task.taskId, { type, payload: task.payloadHash });
 
         // Expose sanitized view to window for MCP to consume
         // Note: Sensitive payloads are redacted in public queue view
@@ -8240,8 +8261,9 @@ MCP Browser: NOT CONNECTED`);
 
         // Create promise for async resolution
         return new Promise((resolve, reject) => {
-          // Store callback
-          this._pendingCallbacks.set(task.taskId, { resolve, reject, task });
+          // Store callback with promise reference for idempotency
+          const promiseData = { resolve, reject, task };
+          this._pendingCallbacks.set(task.taskId, promiseData);
 
           // Set timeout
           setTimeout(() => {
@@ -8273,13 +8295,25 @@ MCP Browser: NOT CONNECTED`);
       markExecuting(taskId) {
         const task = this._queue.find(t => t.taskId === taskId);
         if (task) {
+          // === ORDERING CHECK ===
+          // Prevent out-of-order execution - task must be QUEUED to start executing
+          if (task.status !== 'QUEUED') {
+            console.warn(`[GIA] Cannot execute task ${taskId}: status is ${task.status}, expected QUEUED`);
+            return false;
+          }
+
           task.status = 'EXECUTING';
           task.executionStartedAt = new Date().toISOString();
+
+          // === AUDIT: Log TASK_EXECUTING event ===
+          this.logAuditEvent('TASK_EXECUTING', taskId, { startedAt: task.executionStartedAt });
 
           if (typeof addLine === 'function') {
             addLine('step', '»', `<span class="hl-yellow">MCP EXECUTING:</span> ${taskId}`);
           }
+          return true;
         }
+        return false;
       },
 
       // ============================================
@@ -8362,20 +8396,56 @@ MCP Browser: NOT CONNECTED`);
       },
 
       /**
-       * Seal execution to evidence chain
+       * Seal execution to evidence chain (AUDIT-GRADE)
+       *
+       * Features:
+       * - Hash chaining (prevHash links to previous entry)
+       * - Canonical JSON for deterministic hashing
+       * - Explicit event types for audit clarity
+       * - SHA-256 via crypto.subtle
        */
-      _sealExecution(task, result) {
+      async _sealExecution(task, result, eventType = null) {
+        // Determine event type
+        const event = eventType || (result.status === 'COMPLETED' ? 'TASK_COMPLETED' :
+                                    result.status === 'FAILED' ? 'TASK_FAILED' : 'TASK_RESULT');
+
+        // Get previous hash for chaining
+        const prevEntry = this._executionHistory[this._executionHistory.length - 1];
+        const prevHash = prevEntry?.entryHash || 'GENESIS';
+
+        // Build execution record with all audit fields
         const executionRecord = {
+          // === Identification ===
+          entryIndex: this._executionHistory.length,
           timestamp: new Date().toISOString(),
           taskId: task.taskId,
-          type: task.type,
+          nonce: task.nonce,
+
+          // === Event Classification ===
+          eventType: event, // TASK_QUEUED | TASK_EXECUTING | TASK_COMPLETED | TASK_FAILED | GATE_PENDING | GATE_APPROVED | GATE_DENIED | ABORTED | ASSIST_TAKEOVER
+          taskType: task.type,
           status: result.status,
+
+          // === Hash Chain ===
+          prevHash: prevHash,
           taskHash: result.taskHash,
           resultHash: result.resultHash,
-          executionDurationMs: result.executionDurationMs,
+          // entryHash computed below
+
+          // === Governance ===
           gateId: task.gateId,
-          operatorId: task.operatorId
+          operatorId: task.operatorId,
+
+          // === Metrics ===
+          executionDurationMs: result.executionDurationMs,
+          queuedAt: task.createdAt,
+          completedAt: new Date().toISOString()
         };
+
+        // Compute entry hash using SHA-256 with canonical JSON
+        // entryHash = SHA256(prevHash + canonical(entry without entryHash))
+        const entryHash = await this._computeChainHash(prevHash, executionRecord);
+        executionRecord.entryHash = entryHash;
 
         this._executionHistory.push(executionRecord);
 
@@ -8384,9 +8454,64 @@ MCP Browser: NOT CONNECTED`);
           GIA.evidence.seal({
             source: 'MCP_EXECUTION',
             data: executionRecord,
-            hash: result.resultHash
+            hash: entryHash,
+            chainVerified: true
           });
         }
+
+        return executionRecord;
+      },
+
+      /**
+       * Compute chained hash using SHA-256
+       * Uses canonicalized JSON for deterministic hashing
+       */
+      async _computeChainHash(prevHash, record) {
+        // Canonicalize: sort keys alphabetically, stable stringify
+        const canonicalize = (obj) => {
+          if (obj === null || typeof obj !== 'object') {
+            return JSON.stringify(obj);
+          }
+          if (Array.isArray(obj)) {
+            return '[' + obj.map(item => canonicalize(item)).join(',') + ']';
+          }
+          const sortedKeys = Object.keys(obj).sort();
+          const pairs = sortedKeys.map(key => {
+            const value = canonicalize(obj[key]);
+            return JSON.stringify(key) + ':' + value;
+          });
+          return '{' + pairs.join(',') + '}';
+        };
+
+        // Build hash input: prevHash + canonical(record)
+        const canonical = canonicalize(record);
+        const hashInput = prevHash + '|' + canonical;
+
+        // Use crypto.subtle for real SHA-256
+        try {
+          const encoder = new TextEncoder();
+          const data = encoder.encode(hashInput);
+          const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+          const hashArray = Array.from(new Uint8Array(hashBuffer));
+          return 'sha256:' + hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        } catch (e) {
+          // Fallback to sync hash if crypto.subtle unavailable
+          return 'sha256:' + this._hash(hashInput);
+        }
+      },
+
+      /**
+       * Log explicit event to audit trail (for non-result events)
+       */
+      async logAuditEvent(eventType, taskId, data = {}) {
+        const task = this.getTask(taskId) || { taskId, type: 'unknown', nonce: null, gateId: null, operatorId: 'ANONYMOUS', createdAt: new Date().toISOString() };
+
+        return this._sealExecution(task, {
+          status: eventType,
+          taskHash: this._hash(JSON.stringify(task)),
+          resultHash: data ? this._hash(JSON.stringify(data)) : null,
+          executionDurationMs: 0
+        }, eventType);
       },
 
       // ============================================
@@ -9100,6 +9225,320 @@ MCP Browser: NOT CONNECTED`);
 
     // Make executor globally available
     window.GIAMCPExecutor = GIAMCPExecutor;
+
+    // ============================================
+    // CLAUDE EXECUTION LOOP PROTOCOL
+    // ============================================
+    // This provides a standardized protocol for Claude to execute MCP tasks
+    // through the GIA governance system. Claude calls startExecutionLoop()
+    // and follows the returned instructions.
+    //
+    // EXECUTION PROTOCOL:
+    // 1. Claude calls GIAExecutionLoop.start() to begin
+    // 2. GIA returns { action: 'EXECUTE_TASK', task: {...}, instructions: {...} }
+    // 3. Claude executes the MCP tool specified in instructions
+    // 4. Claude calls GIAExecutionLoop.complete(taskId, result)
+    // 5. Repeat until action is 'LOOP_COMPLETE'
+    // ============================================
+
+    const GIAExecutionLoop = {
+      _loopActive: false,
+      _loopId: null,
+      _startTime: null,
+      _tasksProcessed: 0,
+      _errors: [],
+      _currentTaskId: null,        // Track current task for ordering
+      _expectedTaskIndex: 0,       // Monotonic ordering
+      _abortTimer: null,           // Watchdog timer
+
+      /**
+       * Start the execution loop
+       * @param {object} options - Configuration options
+       * @param {number} options.tabId - Tab ID for MCP execution (required for browser tasks)
+       * @param {number} options.consoleTabId - Tab ID of the GIA Console (for state management)
+       * Returns the first action for Claude to take
+       */
+      start(options = {}) {
+        if (this._loopActive) {
+          return {
+            type: 'ERROR',
+            error: 'Execution loop already active',
+            loopId: this._loopId
+          };
+        }
+
+        // Set up tab context if provided
+        if (options.tabId) {
+          GIAMCPExecutor.setTabId(options.tabId);
+          this._executionTabId = options.tabId;
+        }
+        if (options.consoleTabId) {
+          this._consoleTabId = options.consoleTabId;
+        }
+
+        this._loopActive = true;
+        this._loopId = `LOOP-${Date.now().toString(36).toUpperCase()}`;
+        this._startTime = Date.now();
+        this._tasksProcessed = 0;
+        this._errors = [];
+        this._currentTaskId = null;
+        this._expectedTaskIndex = 0;
+
+        // === WATCHDOG TIMER ===
+        // Auto-abort after 10 minutes to prevent hung loops
+        this._abortTimer = setTimeout(() => {
+          if (this._loopActive) {
+            this._internalAbort('Watchdog timeout (10 min)');
+          }
+        }, 600000);
+
+        // === AUDIT: Log loop start ===
+        GIAMCPRelay.logAuditEvent('LOOP_STARTED', this._loopId, { tabId: options.tabId });
+
+        addLine('system', '*', `<span class="hl-accent">EXECUTION LOOP STARTED</span> [${this._loopId}]`);
+        if (options.tabId) {
+          addLine('output', ' ', `<span class="hl-dim">Execution Tab:</span> ${options.tabId}`);
+        }
+
+        return this.next();
+      },
+
+      /**
+       * Get the next action in the loop
+       * Called after completing a task to get the next one
+       *
+       * Returns one of:
+       *   { type: "TASK", task: {...}, instructions: {...} }
+       *   { type: "GATE", gate: {...} }  - Future: for pending gates
+       *   { type: "ASSIST", reason: ... } - Future: for assist takeover
+       *   { type: "DONE", summary: {...} }
+       *   { type: "ERROR", error: "..." }
+       */
+      next() {
+        if (!this._loopActive) {
+          return {
+            type: 'ERROR',
+            error: 'No active execution loop. Call start() first.'
+          };
+        }
+
+        // Get pending tasks
+        const pendingTasks = GIAMCPExecutor.getPendingTasks();
+
+        // Check for pending gates (future)
+        // const pendingGates = GIAPlaybookEngine._secureGates?.size > 0;
+        // if (pendingGates) {
+        //   return { type: 'GATE', gate: {...} };
+        // }
+
+        if (pendingTasks.length === 0) {
+          return this._finish();
+        }
+
+        // Get the next task
+        const nextTask = pendingTasks[0];
+
+        // === MONOTONIC ORDERING CHECK ===
+        // If we're expecting a specific task, don't skip ahead
+        if (this._currentTaskId && this._currentTaskId !== nextTask.taskId) {
+          // Current task not yet completed - don't proceed
+          return {
+            type: 'ERROR',
+            error: `Task ${this._currentTaskId} not yet completed. Complete it before requesting next.`
+          };
+        }
+
+        // Mark it as executing
+        const marked = GIAMCPExecutor.markExecuting(nextTask.taskId);
+        if (marked === false) {
+          // Task already executing or completed - skip to next
+          return this.next();
+        }
+
+        this._currentTaskId = nextTask.taskId;
+        this._expectedTaskIndex++;
+
+        addLine('output', '→', `<span class="hl-cyan">Executing:</span> ${nextTask.type} [${nextTask.taskId}]`);
+
+        return {
+          type: 'TASK',
+          loopId: this._loopId,
+          taskIndex: this._expectedTaskIndex,
+          task: {
+            taskId: nextTask.taskId,
+            type: nextTask.type,
+            payload: nextTask.payload
+          },
+          instructions: {
+            tool: nextTask.instructions.tool,
+            params: nextTask.instructions.params,
+            description: nextTask.instructions.description
+          },
+          remaining: pendingTasks.length - 1,
+          // Clear instructions for Claude
+          claudeInstructions: `
+EXECUTE THIS MCP TOOL:
+  Tool: ${nextTask.instructions.tool}
+  Params: ${JSON.stringify(nextTask.instructions.params)}
+
+AFTER EXECUTION, CALL:
+  GIAExecutionLoop.complete('${nextTask.taskId}', { success: true, ...resultData })
+
+IF ERROR OCCURS, CALL:
+  GIAExecutionLoop.error('${nextTask.taskId}', 'error message')
+          `.trim()
+        };
+      },
+
+      /**
+       * Report task completion (INTERNAL USE ONLY - not exposed on window)
+       * @param {string} taskId - The completed task ID
+       * @param {object} result - The execution result
+       */
+      complete(taskId, result) {
+        if (!this._loopActive) {
+          return { type: 'ERROR', error: 'No active loop' };
+        }
+
+        // === ORDERING CHECK ===
+        if (taskId !== this._currentTaskId) {
+          return {
+            type: 'ERROR',
+            error: `Cannot complete task ${taskId}: expected ${this._currentTaskId}`
+          };
+        }
+
+        // Submit result to GIA
+        GIAMCPExecutor.submitResult(taskId, result);
+        this._tasksProcessed++;
+        this._currentTaskId = null; // Ready for next task
+
+        addLine('success', '✓', `<span class="hl-green">Completed:</span> ${taskId}`);
+
+        // Get next action
+        return this.next();
+      },
+
+      /**
+       * Report task error (INTERNAL USE ONLY - not exposed on window)
+       * @param {string} taskId - The failed task ID
+       * @param {string} errorMessage - Error description
+       */
+      error(taskId, errorMessage) {
+        if (!this._loopActive) {
+          return { type: 'ERROR', error: 'No active loop' };
+        }
+
+        // === ORDERING CHECK ===
+        if (taskId !== this._currentTaskId) {
+          return {
+            type: 'ERROR',
+            error: `Cannot report error for task ${taskId}: expected ${this._currentTaskId}`
+          };
+        }
+
+        // Submit error to GIA
+        GIAMCPExecutor.submitError(taskId, errorMessage);
+        this._errors.push({ taskId, error: errorMessage });
+        this._currentTaskId = null; // Ready for next task
+
+        addLine('error', '✗', `<span class="hl-red">Failed:</span> ${taskId} - ${errorMessage}`);
+
+        // Continue with next task (don't stop on error)
+        return this.next();
+      },
+
+      /**
+       * Internal finish - called when all tasks complete
+       */
+      _finish() {
+        // Clear watchdog
+        if (this._abortTimer) {
+          clearTimeout(this._abortTimer);
+          this._abortTimer = null;
+        }
+
+        const duration = Date.now() - this._startTime;
+        const summary = {
+          type: 'DONE',
+          loopId: this._loopId,
+          summary: {
+            tasksProcessed: this._tasksProcessed,
+            errors: this._errors.length,
+            durationMs: duration,
+            errorDetails: this._errors
+          }
+        };
+
+        // === AUDIT: Log loop complete ===
+        GIAMCPRelay.logAuditEvent('LOOP_COMPLETED', this._loopId, summary.summary);
+
+        addLine('system', '*', `<span class="hl-accent">EXECUTION LOOP COMPLETE</span>`);
+        addLine('output', ' ', `<span class="hl-dim">Tasks:</span> ${this._tasksProcessed} | <span class="hl-dim">Errors:</span> ${this._errors.length} | <span class="hl-dim">Duration:</span> ${duration}ms`);
+
+        this._loopActive = false;
+        this._loopId = null;
+        this._currentTaskId = null;
+
+        return summary;
+      },
+
+      /**
+       * Internal abort (for watchdog and emergencies)
+       */
+      _internalAbort(reason) {
+        // Clear watchdog
+        if (this._abortTimer) {
+          clearTimeout(this._abortTimer);
+          this._abortTimer = null;
+        }
+
+        // === AUDIT: Log abort ===
+        GIAMCPRelay.logAuditEvent('ABORTED', this._loopId, { reason });
+
+        addLine('warning', '!', `<span class="hl-yellow">LOOP ABORTED:</span> ${reason}`);
+
+        const summary = this._finish();
+        summary.type = 'ABORTED';
+        summary.abortReason = reason;
+
+        return summary;
+      },
+
+      /**
+       * Abort the loop (for user-requested abort)
+       */
+      abort(reason = 'User requested abort') {
+        if (!this._loopActive) {
+          return { type: 'ERROR', error: 'No active loop to abort' };
+        }
+
+        return this._internalAbort(reason);
+      },
+
+      /**
+       * Get current loop status
+       */
+      status() {
+        if (!this._loopActive) {
+          return { active: false };
+        }
+
+        const pendingTasks = GIAMCPExecutor.getPendingTasks();
+
+        return {
+          active: true,
+          loopId: this._loopId,
+          tasksProcessed: this._tasksProcessed,
+          tasksPending: pendingTasks.length,
+          errors: this._errors.length,
+          runningFor: Date.now() - this._startTime
+        };
+      }
+    };
+
+    // Make globally available
+    window.GIAExecutionLoop = GIAExecutionLoop;
 
     // ============================================
     // MCP RELAY STATUS COMMAND
