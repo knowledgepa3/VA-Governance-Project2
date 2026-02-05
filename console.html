@@ -4156,6 +4156,7 @@ OUTPUT: Complete formatted report ready for case file.`
         addLine('output', ' ', '  playbook teach-gate <name> — mark gate during teach');
         addLine('output', ' ', '  playbook teach-stop — stop recording, compile playbook');
         addLine('output', ' ', '  playbook run <id> — execute a playbook');
+        addLine('output', ' ', '  playbook dry <id> — dry-run playbook (simulate without browser)');
         addLine('output', ' ', '  playbook progress — show execution progress');
         addLine('output', ' ', '  playbook abort — abort current execution');
         addLine('output', ' ', '  playbook export [id] — export playbook(s) to JSON');
@@ -4350,6 +4351,7 @@ OUTPUT: Complete formatted report ready for case file.`
           addLine('output', ' ', '  playbook teach-gate <name> — mark gate point');
           addLine('output', ' ', '  playbook teach-stop — compile recording to playbook');
           addLine('output', ' ', '  playbook run <id> — execute playbook');
+          addLine('output', ' ', '  playbook dry <id> — dry-run (simulate without browser)');
           addLine('output', ' ', '  playbook abort — abort current execution');
           addLine('output', ' ', '  playbook memory <set|get|list> [key] [value]');
         } else {
@@ -9224,7 +9226,11 @@ MCP Browser: NOT CONNECTED`);
       // ============================================
 
       /**
-       * Execute a playbook
+       * Execute a playbook (or dry-run)
+       * @param {string} playbookId - ID of playbook to run
+       * @param {object} options - Execution options
+       * @param {boolean} options.dryRun - If true, simulate execution without MCP calls
+       * @param {string} options.mode - Execution mode (RUN, ASSIST)
        */
       async run(playbookId, options = {}) {
         const playbook = this._playbooks.get(playbookId);
@@ -9233,7 +9239,8 @@ MCP Browser: NOT CONNECTED`);
         }
 
         const spec = playbook.spec;
-        const executionId = `EXEC-${playbookId}-${Date.now().toString(36).toUpperCase()}`;
+        const isDryRun = options.dryRun === true;
+        const executionId = `${isDryRun ? 'DRY' : 'EXEC'}-${playbookId}-${Date.now().toString(36).toUpperCase()}`;
 
         // Create execution context
         const execution = {
@@ -9242,7 +9249,7 @@ MCP Browser: NOT CONNECTED`);
           playbookVersion: spec.manifest.version,
           playbookHash: spec.manifest.hash,
           state: 'INITIALIZING',
-          mode: options.mode || 'RUN',
+          mode: isDryRun ? 'DRY_RUN' : (options.mode || 'RUN'),
           startedAt: new Date().toISOString(),
           completedAt: null,
           operatorId: GIA?.config?.operatorToken || 'ANONYMOUS',
@@ -9257,6 +9264,7 @@ MCP Browser: NOT CONNECTED`);
           evidencePackId: null,
           _spec: spec,
           _options: options,
+          _isDryRun: isDryRun,
           _currentStepIndex: 0,
           _abortController: new AbortController()
         };
@@ -9266,7 +9274,12 @@ MCP Browser: NOT CONNECTED`);
 
         // Display execution start
         addLine('system', '*', '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        addLine('system', '*', `<span class="hl-accent">PLAYBOOK EXECUTION: ${spec.manifest.name}</span>`);
+        if (isDryRun) {
+          addLine('system', '*', `<span class="hl-yellow">DRY RUN: ${spec.manifest.name}</span>`);
+          addLine('output', ' ', '<span class="hl-dim">Simulating execution - no browser actions will be performed</span>');
+        } else {
+          addLine('system', '*', `<span class="hl-accent">PLAYBOOK EXECUTION: ${spec.manifest.name}</span>`);
+        }
         addLine('output', ' ', `Execution ID: ${executionId}`);
         addLine('output', ' ', `Mode: ${execution.mode} | Steps: ${spec.steps.length} | Gates: ${spec.policy.gates.length}`);
         addLine('system', '*', '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -9405,13 +9418,23 @@ MCP Browser: NOT CONNECTED`);
         addLine('step', '»', `Step ${step.id}: <span class="hl-cyan">${step.action}</span>`);
 
         try {
-          // Wait for element if needed
-          if (step.waitFor) {
+          // Wait for element if needed (only if selector specified)
+          // If waitFor only has timeout, it's handled in _executeAction for 'wait' action
+          // Skip actual element waiting in dry-run mode
+          if (execution._isDryRun) {
+            if (step.waitFor) {
+              addLine('output', ' ', `<span class="hl-dim">[DRY] Would wait for:</span> ${step.waitFor.selector || `${step.waitFor.timeout}ms`}`);
+              await this._sleep(100); // Short delay for realism
+            }
+          } else if (step.waitFor && step.waitFor.selector) {
             await this._waitForElement(step.waitFor);
+          } else if (step.waitFor && !step.waitFor.selector && step.action !== 'wait') {
+            // Simple timeout wait for non-wait actions
+            await this._sleep(step.waitFor.timeout || 1000);
           }
 
-          // Execute action via MCP Relay
-          const result = await this._executeAction(step);
+          // Execute action via MCP Relay (or simulate in dry-run mode)
+          const result = await this._executeAction(step, execution._isDryRun);
 
           // Verify postcondition
           if (step.postcondition) {
@@ -9471,10 +9494,45 @@ MCP Browser: NOT CONNECTED`);
 
       /**
        * Execute a browser action via MCP Relay
+       * @param {object} step - Step definition
+       * @param {boolean} isDryRun - If true, simulate without actual MCP calls
        */
-      async _executeAction(step) {
+      async _executeAction(step, isDryRun = false) {
         const actionType = `browser.${step.action}`;
 
+        // DRY RUN MODE: Simulate actions without MCP calls
+        if (isDryRun) {
+          const simDelay = Math.random() * 200 + 50; // 50-250ms random delay
+          await this._sleep(simDelay);
+
+          const dryResult = {
+            _dryRun: true,
+            action: step.action,
+            target: step.selectors?.primary || step.url || 'N/A',
+            simulatedDuration: Math.round(simDelay)
+          };
+
+          addLine('output', ' ', `<span class="hl-dim">[DRY] Would execute:</span> ${step.action} → ${dryResult.target}`);
+
+          // Simulate expected result based on action type
+          switch (step.action) {
+            case 'extract':
+              dryResult.extractedData = { balance: '$1,234.56', _simulated: true };
+              break;
+            case 'wait':
+              const waitMs = step.waitFor?.timeout || 1000;
+              await this._sleep(Math.min(waitMs, 500)); // Cap at 500ms in dry run
+              dryResult.waited = waitMs;
+              break;
+            case 'assert':
+              dryResult.asserted = true;
+              break;
+          }
+
+          return dryResult;
+        }
+
+        // REAL EXECUTION: Route through MCP Relay
         switch (step.action) {
           case 'navigate':
             return await GIAMCPRelay.navigate(step.url || step.selectors?.primary);
@@ -9822,16 +9880,28 @@ MCP Browser: NOT CONNECTED`);
       },
 
       async _waitForElement(waitFor) {
+        if (!waitFor.selector) {
+          throw new Error('waitFor requires a selector - use action "wait" for timeout-only waits');
+        }
+
         const startTime = Date.now();
         const timeout = waitFor.timeout || 10000;
+        const selector = waitFor.selector;
+        const state = waitFor.state || 'visible';
+
+        addLine('output', ' ', `<span class="hl-dim">Waiting for element:</span> ${selector} (${state}, ${timeout}ms timeout)`);
 
         while (Date.now() - startTime < timeout) {
-          const found = await this._testSelector(waitFor.selector);
-          if (found) return true;
+          const found = await this._testSelector(selector);
+          if (found) {
+            addLine('output', ' ', `<span class="hl-dim">Element found after</span> ${Date.now() - startTime}ms`);
+            return true;
+          }
           await this._sleep(500);
         }
 
-        throw new Error(`Timeout waiting for element: ${waitFor.selector}`);
+        const elapsed = Date.now() - startTime;
+        throw new Error(`Timeout after ${elapsed}ms waiting for element "${selector}" to be ${state}`);
       },
 
       async _verifyPostcondition(postcondition) {
@@ -10752,6 +10822,19 @@ Return only the selector, no explanation.`;
           await GIAPlaybookEngine.run(playbookId);
         } catch (e) {
           addLine('error', 'x', `Execution failed: ${e.message}`);
+        }
+      },
+
+      dry: async (playbookId) => {
+        if (!playbookId) {
+          addLine('error', 'x', 'Usage: playbook dry <playbook-id>');
+          addLine('output', ' ', 'Simulates playbook execution without real browser actions');
+          return;
+        }
+        try {
+          await GIAPlaybookEngine.run(playbookId, { dryRun: true });
+        } catch (e) {
+          addLine('error', 'x', `Dry run failed: ${e.message}`);
         }
       },
 
