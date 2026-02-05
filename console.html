@@ -4823,10 +4823,16 @@ OUTPUT: Complete formatted report ready for case file.`
           riskLevel: 'MEDIUM'
         },
         'household-tasks': {
-          name: 'Household Tasks',
+          name: 'Household Tasks (Legacy)',
           gates: ['payment'],
           requiredPacks: ['TASK'],
           riskLevel: 'LOW'
+        },
+        'veteran-life-ops': {
+          name: 'Veteran Life Ops',
+          gates: ['action-selection', 'appointment-change', 'prescription-refill', 'payment-approval'],
+          requiredPacks: ['SESSION', 'ACTION'],
+          riskLevel: 'HIGH'
         }
       },
 
@@ -5731,28 +5737,71 @@ OUTPUT: Complete formatted report ready for case file.`
       }
     });
 
-    // Household Module
+    // Veteran Life Ops Module (formerly Household)
+    // Mission-aligned support for Veterans beyond claims
     GIAModuleSystem.register({
-      id: 'household',
-      name: 'Household Tasks',
-      version: '1.0.0',
-      description: 'Managed household automation with financial governance',
+      id: 'veteran-life-ops',
+      name: 'Veteran Life Ops',
+      version: '2.0.0',
+      description: 'Governed life operations support for Veterans - appointments, forms, prescriptions, benefits',
 
       tools: [
-        { action: 'list_tasks', description: 'List pending tasks', risk: 'LOW' },
-        { action: 'check_balance', description: 'Check account balance', risk: 'LOW' },
-        { action: 'bill_pay', description: 'Pay bill', risk: 'CRITICAL', requiresGate: true, financialCeiling: 500 },
-        { action: 'order', description: 'Place order', risk: 'HIGH', requiresGate: true, financialCeiling: 200 }
+        // Appointments & Scheduling
+        { action: 'list_appointments', description: 'List VA appointments', risk: 'LOW' },
+        { action: 'schedule_appointment', description: 'Schedule VA appointment', risk: 'MEDIUM', requiresGate: true },
+        { action: 'cancel_appointment', description: 'Cancel appointment', risk: 'MEDIUM', requiresGate: true },
+
+        // Forms & Documents
+        { action: 'list_forms_due', description: 'List forms/documents due', risk: 'LOW' },
+        { action: 'track_submission', description: 'Track form submission status', risk: 'LOW' },
+        { action: 'intake_document', description: 'Intake supporting document', risk: 'LOW', piiCheck: true },
+
+        // Prescriptions & Medical
+        { action: 'list_prescriptions', description: 'List active prescriptions', risk: 'LOW' },
+        { action: 'refill_prescription', description: 'Request prescription refill', risk: 'MEDIUM', requiresGate: true },
+        { action: 'order_medical_supplies', description: 'Order medical supplies', risk: 'HIGH', requiresGate: true, financialCeiling: 200 },
+
+        // Benefits & Finance
+        { action: 'check_benefits_status', description: 'Check benefits status', risk: 'LOW' },
+        { action: 'list_bills', description: 'List pending bills', risk: 'LOW' },
+        { action: 'bill_reminder', description: 'Set bill reminder', risk: 'LOW' },
+        { action: 'bill_pay', description: 'Pay bill (GATE REQUIRED)', risk: 'CRITICAL', requiresGate: true, financialCeiling: 500 },
+
+        // Housing & Support
+        { action: 'relocation_checklist', description: 'Generate relocation checklist', risk: 'LOW' },
+        { action: 'housing_support', description: 'Housing support resources', risk: 'LOW' }
       ],
 
-      gates: ['payment-approval', 'order-approval'],
-      riskLevel: 'CRITICAL',
-      piiPolicy: 'GATE',
+      gates: ['appointment-change', 'prescription-refill', 'medical-order', 'payment-approval'],
+      riskLevel: 'HIGH',
+      piiPolicy: 'REDACT', // Redact PII by default, gate for sensitive ops
+      domainWhitelist: ['va.gov', 'myhealth.va.gov', 'ebenefits.va.gov', 'tricare.mil'],
       financialCeiling: 500,
-      tokenBudget: 20000,
+      tokenBudget: 30000,
+
+      onInit(instance) {
+        addLine('step', '>', 'Veteran Life Ops module initialized');
+        addLine('output', ' ', '<span class="hl-dim">Domains: va.gov, myhealth.va.gov, ebenefits.va.gov</span>');
+      },
 
       async execute(instance, params) {
-        return await runLiveHousehold();
+        // Map to existing workflow or create new one
+        return await runLiveVeteranOps(params);
+      }
+    });
+
+    // Alias for backward compatibility
+    GIAModuleSystem.register({
+      id: 'household',
+      name: 'Household Tasks (Legacy)',
+      version: '1.0.0',
+      description: 'Redirects to Veteran Life Ops',
+      tools: [],
+      gates: [],
+      riskLevel: 'HIGH',
+      async execute(instance, params) {
+        addLine('warning', '~', 'Household module deprecated → using Veteran Life Ops');
+        return await GIAModuleSystem.executeModule('veteran-life-ops', params);
       }
     });
 
@@ -5962,20 +6011,73 @@ OUTPUT: Complete formatted report ready for case file.`
           description: 'Export audit log'
         },
 
-        // Household Module
-        'household.bill_pay': {
-          module: 'household',
+        // Veteran Life Ops Module (formerly Household)
+        'veteran-life-ops.list_appointments': {
+          module: 'veteran-life-ops',
+          risk: 'LOW',
+          requiresGate: false,
+          allowedDomains: ['va.gov', 'myhealth.va.gov'],
+          description: 'List VA appointments'
+        },
+        'veteran-life-ops.schedule_appointment': {
+          module: 'veteran-life-ops',
+          risk: 'MEDIUM',
+          requiresGate: true,
+          allowedDomains: ['va.gov', 'myhealth.va.gov'],
+          description: 'Schedule VA appointment'
+        },
+        'veteran-life-ops.list_prescriptions': {
+          module: 'veteran-life-ops',
+          risk: 'LOW',
+          requiresGate: false,
+          piiRedact: true,
+          allowedDomains: ['myhealth.va.gov'],
+          description: 'List active prescriptions'
+        },
+        'veteran-life-ops.refill_prescription': {
+          module: 'veteran-life-ops',
+          risk: 'MEDIUM',
+          requiresGate: true,
+          allowedDomains: ['myhealth.va.gov'],
+          description: 'Request prescription refill'
+        },
+        'veteran-life-ops.check_benefits_status': {
+          module: 'veteran-life-ops',
+          risk: 'LOW',
+          requiresGate: false,
+          allowedDomains: ['va.gov', 'ebenefits.va.gov'],
+          description: 'Check benefits status'
+        },
+        'veteran-life-ops.bill_pay': {
+          module: 'veteran-life-ops',
           risk: 'CRITICAL',
           requiresGate: true,
           financialCeiling: 500,
-          description: 'Pay bill (financial transaction)'
+          description: 'Pay bill (GATE REQUIRED - financial transaction)'
         },
-        'household.order': {
-          module: 'household',
+        'veteran-life-ops.order_medical_supplies': {
+          module: 'veteran-life-ops',
           risk: 'HIGH',
           requiresGate: true,
           financialCeiling: 200,
-          description: 'Place order'
+          allowedDomains: ['myhealth.va.gov', 'prosthetics.va.gov'],
+          description: 'Order medical supplies'
+        },
+
+        // Legacy household aliases
+        'household.bill_pay': {
+          module: 'veteran-life-ops',
+          risk: 'CRITICAL',
+          requiresGate: true,
+          financialCeiling: 500,
+          description: '[Legacy] → veteran-life-ops.bill_pay'
+        },
+        'household.order': {
+          module: 'veteran-life-ops',
+          risk: 'HIGH',
+          requiresGate: true,
+          financialCeiling: 200,
+          description: '[Legacy] → veteran-life-ops.order_medical_supplies'
         }
       },
 
@@ -7992,6 +8094,9 @@ by a qualified VA claims representative or attorney.
           case 'household-tasks':
             await runLiveHousehold();
             break;
+          case 'veteran-life-ops':
+            await runLiveVeteranOps();
+            break;
           default:
             await runDemo();
         }
@@ -9074,7 +9179,153 @@ ${hasApiKey ? 'Real adversarial probes executed via Claude API.' : 'Enable API k
      * Live Household Tasks
      * CRITICAL: Handles real financial transactions - MUST be governed
      */
+    /**
+     * Veteran Life Ops
+     * Mission-aligned support for Veterans beyond claims
+     * Appointments, prescriptions, forms, benefits, life admin
+     */
+    async function runLiveVeteranOps(params = {}) {
+      // ============================================
+      // INITIALIZE WITH GIA GOVERNANCE
+      // ============================================
+      const ctx = GIAWorkflow.init('veteran-life-ops');
+      const hasApiKey = ClaudeAPI.hasApiKey();
+
+      GIASounds.workflowStart();
+
+      addLine('system', '*', '<span class="hl-accent">VETERAN LIFE OPS</span>');
+      addLine('output', ' ', `<span class="hl-dim">Run ID: ${ctx.runId}</span>`);
+      addLine('step', '>', 'initializing VETERAN-OPS-AGENT...');
+      await GIAWorkflow.sleep(400);
+
+      if (hasApiKey) {
+        addLine('success', '+', 'agent online · <span class="hl-green">LIVE MODE</span>');
+      } else {
+        addLine('success', '+', 'agent online · <span class="hl-yellow">DEMO MODE</span>');
+      }
+
+      addLine('output', ' ', 'domains: va.gov, myhealth.va.gov, ebenefits.va.gov');
+      addLine('output', ' ', 'mode: GOVERNED · all actions require approval');
+      addSpacer();
+
+      // Show any inherited constraints
+      const constraints = GIAWorkflow.getConstraints();
+      if (constraints.length > 0) {
+        addLine('warning', '!', `<span class="hl-yellow">${constraints.length} CONSTRAINT(S) ACTIVE</span>`);
+        constraints.forEach(c => addLine('output', ' ', `• ${escapeHtml(c)}`));
+        addSpacer();
+      }
+
+      // ============================================
+      // VETERAN LIFE OPS DASHBOARD
+      // ============================================
+      addLine('system', '*', '<span class="hl-accent">VETERAN STATUS OVERVIEW</span>');
+      addSpacer();
+
+      // Appointments
+      addLine('output', ' ', '<span class="hl-cyan">📅 UPCOMING APPOINTMENTS</span>');
+      addLine('output', '  ', '• Feb 12 — Primary Care (VA Medical Center)');
+      addLine('output', '  ', '• Feb 18 — C&P Exam Follow-up');
+      addLine('output', '  ', '• Mar 05 — Mental Health Check-in');
+      addSpacer();
+
+      // Forms Due
+      addLine('output', ' ', '<span class="hl-cyan">📄 FORMS & DOCUMENTS DUE</span>');
+      addLine('output', '  ', '• <span class="hl-yellow">Due Feb 15</span> — PACT Act Screening Confirmation');
+      addLine('output', '  ', '• <span class="hl-dim">Due Mar 01</span> — Travel Reimbursement (3 trips)');
+      addSpacer();
+
+      // Prescriptions
+      addLine('output', ' ', '<span class="hl-cyan">💊 PRESCRIPTIONS</span>');
+      addLine('output', '  ', '• Medication A — <span class="hl-green">Active</span> (refills: 3)');
+      addLine('output', '  ', '• Medication B — <span class="hl-yellow">Refill Needed</span> (due Feb 10)');
+      addLine('output', '  ', '• Supplies — <span class="hl-green">Shipped</span> (tracking: 1Z999...)');
+      addSpacer();
+
+      // Benefits
+      addLine('output', ' ', '<span class="hl-cyan">🏛️ BENEFITS STATUS</span>');
+      addLine('output', '  ', '• Disability Rating: 70% (combined)');
+      addLine('output', '  ', '• Pending Claims: 1 (increase request)');
+      addLine('output', '  ', '• Last Payment: Feb 01 — $1,716.28');
+      addSpacer();
+
+      // ============================================
+      // ACTION MENU
+      // ============================================
+      addLine('system', '*', '<span class="hl-accent">AVAILABLE ACTIONS</span>');
+      addLine('output', ' ', '1. Schedule/manage appointments');
+      addLine('output', ' ', '2. Request prescription refill');
+      addLine('output', ' ', '3. Track form submissions');
+      addLine('output', ' ', '4. Check benefits status');
+      addLine('output', ' ', '5. Order medical supplies');
+      addLine('output', ' ', '6. Pay bills (requires approval)');
+      addSpacer();
+
+      // ============================================
+      // GATE: ACTION SELECTION
+      // ============================================
+      try {
+        await GIAWorkflow.gate('action-selection',
+          'Review Veteran status above. Select an action number (1-6) or describe what you need.'
+        );
+        addSpacer();
+      } catch (err) {
+        await GIAWorkflow.complete('aborted');
+        return;
+      }
+
+      // Evidence - governed session
+      await GIAWorkflow.createPack(
+        'VETERAN-OPS',
+        '/session/overview',
+        { mode: hasApiKey ? 'LIVE' : 'DEMO', timestamp: new Date().toISOString() },
+        {
+          appointments: 3,
+          formsDue: 2,
+          prescriptions: 3,
+          pendingClaims: 1
+        }
+      );
+
+      addLine('success', '+', 'session evidence pack sealed');
+      addSpacer();
+
+      // Instructions for next steps
+      addLine('system', '*', '<span class="hl-dim">Enter action number or describe your request</span>');
+      addLine('system', '*', '<span class="hl-dim">Example: "refill medication B" or "schedule appointment"</span>');
+
+      // ============================================
+      // COMPLETION (GOVERNED)
+      // ============================================
+      await GIAWorkflow.complete('success');
+    }
+
+    // Make globally available
+    window.runLiveVeteranOps = runLiveVeteranOps;
+
+    /**
+     * Legacy Household Tasks (redirects to Veteran Life Ops)
+     */
     async function runLiveHousehold() {
+      // ============================================
+      // INITIALIZE WITH GIA GOVERNANCE
+      // ============================================
+      const ctx = GIAWorkflow.init('household-tasks');
+
+      GIASounds.workflowStart();
+
+      addLine('warning', '~', '<span class="hl-yellow">HOUSEHOLD module deprecated</span>');
+      addLine('output', ' ', 'Redirecting to Veteran Life Ops...');
+      addSpacer();
+
+      // Redirect to new module
+      return await runLiveVeteranOps();
+    }
+
+    /**
+     * Original Household Tasks (kept for reference, deprecated)
+     */
+    async function runLiveHouseholdLegacy() {
       // ============================================
       // INITIALIZE WITH GIA GOVERNANCE
       // ============================================
