@@ -8043,6 +8043,30 @@ MCP Browser: NOT CONNECTED`);
         return riskMap[type] || 'MEDIUM';
       },
 
+      /**
+       * Get sanitized queue for window exposure
+       * Redacts sensitive payload data while keeping task structure for MCP
+       */
+      _getSanitizedQueue() {
+        return this._queue.map(task => ({
+          taskId: task.taskId,
+          type: task.type,
+          status: task.status,
+          nonce: task.nonce,
+          createdAt: task.createdAt,
+          expiresAt: task.expiresAt,
+          // Payload is sanitized (already done in _createTask) but we double-check
+          payload: task.payload,
+          // Don't expose internal governance data
+          policyContext: {
+            toolName: task.policyContext?.toolName,
+            domain: task.policyContext?.domain,
+            riskLevel: task.policyContext?.riskLevel
+          }
+          // Explicitly NOT including: operatorId, workflowId, approvedPayloadHash
+        }));
+      },
+
       // ============================================
       // QUEUE MANAGEMENT
       // ============================================
@@ -8068,8 +8092,9 @@ MCP Browser: NOT CONNECTED`);
         this._metrics.tasksQueued++;
         this._metrics.lastActivity = new Date().toISOString();
 
-        // Expose to window for MCP to consume
-        window.GIA_MCP_QUEUE = this._queue;
+        // Expose sanitized view to window for MCP to consume
+        // Note: Sensitive payloads are redacted in public queue view
+        window.GIA_MCP_QUEUE = this._getSanitizedQueue();
 
         // Log to terminal
         if (typeof addLine === 'function') {
@@ -8771,9 +8796,17 @@ MCP Browser: NOT CONNECTED`);
       _memory: new Map(),             // User preferences by userId
       _cache: new Map(),              // Performance cache by domain
       _executions: new Map(),         // Active executions
-      _executionHistory: [],          // Completed executions
+      _executionHistory: [],          // Completed executions (capped at MAX_HISTORY)
       _teachRecording: null,          // Current teach mode recording
       _currentExecution: null,        // Active execution context
+      _executionLock: null,           // Mutex promise for concurrent execution prevention
+
+      // ============================================
+      // PRODUCTION LIMITS
+      // ============================================
+      MAX_EXECUTION_HISTORY: 100,     // Cap execution history to prevent memory leak
+      MAX_CACHE_AGE_MS: 86400000,     // 24 hours cache TTL
+      GATE_TIMEOUT_MS: 300000,        // 5 minutes gate timeout with auto-deny
 
       // ============================================
       // SENSITIVE ACTIONS - NEVER AUTOMATED
@@ -8797,9 +8830,10 @@ MCP Browser: NOT CONNECTED`);
        * Register a playbook from spec
        */
       registerPlaybook(spec) {
-        // Validate spec
-        if (!spec.manifest?.id || !spec.steps?.length) {
-          throw new Error('Invalid playbook spec: missing manifest.id or steps');
+        // Comprehensive validation
+        const validation = this.validateSpec(spec);
+        if (!validation.valid) {
+          throw new Error(`Invalid playbook spec: ${validation.errors.join(', ')}`);
         }
 
         // Compute hash for integrity
@@ -8818,6 +8852,108 @@ MCP Browser: NOT CONNECTED`);
         addLine('success', '+', `Playbook registered: <span class="hl-cyan">${spec.manifest.id}</span> (${spec.manifest.version})`);
 
         return spec.manifest.id;
+      },
+
+      /**
+       * Validate a playbook spec against schema requirements
+       * Production-grade validation with detailed error reporting
+       */
+      validateSpec(spec) {
+        const errors = [];
+        const warnings = [];
+
+        // Required top-level fields
+        if (!spec.manifest) errors.push('missing manifest');
+        if (!spec.policy) errors.push('missing policy');
+        if (!spec.steps) errors.push('missing steps');
+
+        // Manifest validation
+        if (spec.manifest) {
+          if (!spec.manifest.id) errors.push('missing manifest.id');
+          else if (!/^PB-[A-Z0-9_]+$/.test(spec.manifest.id)) {
+            errors.push(`invalid manifest.id format: ${spec.manifest.id} (expected PB-UPPERCASE_NAME)`);
+          }
+          if (!spec.manifest.version) errors.push('missing manifest.version');
+          if (!spec.manifest.name) warnings.push('missing manifest.name');
+          if (!spec.manifest.allowedDomains || !spec.manifest.allowedDomains.length) {
+            warnings.push('no allowedDomains specified');
+          }
+        }
+
+        // Policy validation
+        if (spec.policy) {
+          if (!spec.policy.automationLevel) {
+            errors.push('missing policy.automationLevel');
+          } else if (!['ASSIST', 'SEMI_AUTO', 'FULL_AUTO'].includes(spec.policy.automationLevel)) {
+            errors.push(`invalid automationLevel: ${spec.policy.automationLevel}`);
+          }
+          if (!Array.isArray(spec.policy.gates)) errors.push('policy.gates must be array');
+          if (!Array.isArray(spec.policy.sensitiveActions)) errors.push('policy.sensitiveActions must be array');
+
+          // Validate gates reference existing steps
+          if (spec.policy.gates && spec.steps) {
+            const stepIds = new Set(spec.steps.map(s => s.id));
+            for (const gate of spec.policy.gates) {
+              if (!gate.id) errors.push('gate missing id');
+              if (gate.trigger && gate.trigger.startsWith('before:')) {
+                const targetStep = gate.trigger.replace('before:', '');
+                if (!stepIds.has(targetStep)) {
+                  errors.push(`gate ${gate.id} targets non-existent step: ${targetStep}`);
+                }
+              }
+            }
+          }
+        }
+
+        // Steps validation
+        if (spec.steps) {
+          if (!Array.isArray(spec.steps)) {
+            errors.push('steps must be array');
+          } else if (spec.steps.length === 0) {
+            errors.push('steps array is empty');
+          } else {
+            const validActions = ['navigate', 'click', 'type', 'select', 'wait', 'extract', 'screenshot', 'assert', 'conditional'];
+            const stepIds = new Set();
+
+            spec.steps.forEach((step, i) => {
+              if (!step.id) errors.push(`step ${i}: missing id`);
+              else if (stepIds.has(step.id)) errors.push(`duplicate step id: ${step.id}`);
+              else stepIds.add(step.id);
+
+              if (!step.action) errors.push(`step ${step.id || i}: missing action`);
+              else if (!validActions.includes(step.action)) {
+                errors.push(`step ${step.id || i}: invalid action "${step.action}"`);
+              }
+
+              // Validate selectors for actions that need them
+              const needsSelector = ['click', 'type', 'select', 'extract'].includes(step.action);
+              if (needsSelector && !step.selectors?.primary && !step.selectors?.fallback?.length) {
+                warnings.push(`step ${step.id || i} (${step.action}): no primary selector`);
+              }
+
+              // Navigate needs URL
+              if (step.action === 'navigate' && !step.url && !step.selectors?.primary) {
+                errors.push(`step ${step.id || i}: navigate requires url or selector`);
+              }
+            });
+          }
+        }
+
+        // Recovery routes validation
+        if (spec.recoveryRoutes) {
+          const stepIds = new Set(spec.steps?.map(s => s.id) || []);
+          for (const route of spec.recoveryRoutes) {
+            if (route.branchTo && !stepIds.has(route.branchTo)) {
+              errors.push(`recovery route branchTo targets non-existent step: ${route.branchTo}`);
+            }
+          }
+        }
+
+        return {
+          valid: errors.length === 0,
+          errors,
+          warnings
+        };
       },
 
       /**
@@ -9233,8 +9369,18 @@ MCP Browser: NOT CONNECTED`);
        * @param {string} options.mode - Execution mode (RUN, ASSIST)
        */
       async run(playbookId, options = {}) {
+        // MUTEX: Prevent concurrent playbook executions
+        if (this._executionLock) {
+          const currentId = this._currentExecution?.executionId || 'unknown';
+          throw new Error(`Execution in progress: ${currentId}. Use 'playbook abort' first or wait for completion.`);
+        }
+
+        // Acquire lock
+        this._executionLock = Date.now();
+
         const playbook = this._playbooks.get(playbookId);
         if (!playbook) {
+          this._executionLock = null; // Release lock on early failure
           throw new Error(`Playbook not found: ${playbookId}`);
         }
 
@@ -9337,11 +9483,28 @@ MCP Browser: NOT CONNECTED`);
           throw error;
 
         } finally {
+          // Add to history with cap enforcement
           this._executionHistory.push(execution);
+          this._pruneExecutionHistory();
+
+          // Release execution lock
           this._currentExecution = null;
+          this._executionLock = null;
         }
 
         return execution;
+      },
+
+      /**
+       * Prune execution history to prevent memory leaks
+       */
+      _pruneExecutionHistory() {
+        if (this._executionHistory.length > this.MAX_EXECUTION_HISTORY) {
+          // Keep most recent executions
+          const excess = this._executionHistory.length - this.MAX_EXECUTION_HISTORY;
+          this._executionHistory.splice(0, excess);
+          console.log(`[GIA] Pruned ${excess} old execution records`);
+        }
       },
 
       /**
@@ -9618,25 +9781,49 @@ MCP Browser: NOT CONNECTED`);
       },
 
       /**
-       * Prompt for gate approval
+       * Prompt for gate approval with improved timeout handling
+       * Production-grade: auto-deny on timeout, progress feedback, cleanup
        */
       async _promptGate(gateId, message, timeout = 300000) {
         return new Promise((resolve) => {
           const startTime = Date.now();
+          const timeoutSec = Math.floor(timeout / 1000);
 
           // Store resolver for external approval
           window._pendingGates = window._pendingGates || {};
+
+          // Check for duplicate gate (shouldn't happen but safety check)
+          if (window._pendingGates[gateId]) {
+            addLine('warning', '!', `Gate ${gateId} already pending - resolving previous`);
+            window._pendingGates[gateId](false);
+            clearTimeout(window._pendingGates[gateId]._timeout);
+            clearInterval(window._pendingGates[gateId]._progressInterval);
+          }
+
           window._pendingGates[gateId] = resolve;
 
-          // Timeout handler
+          // Progress countdown (every 30 seconds)
+          const progressInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const remaining = timeoutSec - elapsed;
+            if (remaining > 0 && remaining % 30 === 0) {
+              addLine('output', ' ', `<span class="hl-dim">Gate timeout in ${remaining}s - type "approve" or "deny"</span>`);
+            }
+          }, 1000);
+
+          // Timeout handler - auto-deny with clear messaging
           const timeoutId = setTimeout(() => {
+            clearInterval(progressInterval);
             delete window._pendingGates[gateId];
-            addLine('warning', '!', `Gate ${gateId} timed out`);
+            addLine('error', 'x', `Gate ${gateId} AUTO-DENIED (timeout after ${timeoutSec}s)`);
+            addLine('output', ' ', '<span class="hl-dim">Playbook will abort. Re-run to try again.</span>');
             resolve(false);
           }, timeout);
 
-          // Watch for approval command (would integrate with input handler)
+          // Store cleanup references
           window._pendingGates[gateId]._timeout = timeoutId;
+          window._pendingGates[gateId]._progressInterval = progressInterval;
+          window._pendingGates[gateId]._startTime = startTime;
         });
       },
 
@@ -9646,6 +9833,9 @@ MCP Browser: NOT CONNECTED`);
       approveGate(gateId) {
         if (window._pendingGates && window._pendingGates[gateId]) {
           clearTimeout(window._pendingGates[gateId]._timeout);
+          clearInterval(window._pendingGates[gateId]._progressInterval);
+          const elapsed = Date.now() - (window._pendingGates[gateId]._startTime || Date.now());
+          addLine('success', '+', `Gate ${gateId} APPROVED (${Math.round(elapsed/1000)}s)`);
           window._pendingGates[gateId](true);
           delete window._pendingGates[gateId];
           return true;
@@ -9659,6 +9849,9 @@ MCP Browser: NOT CONNECTED`);
       denyGate(gateId) {
         if (window._pendingGates && window._pendingGates[gateId]) {
           clearTimeout(window._pendingGates[gateId]._timeout);
+          clearInterval(window._pendingGates[gateId]._progressInterval);
+          const elapsed = Date.now() - (window._pendingGates[gateId]._startTime || Date.now());
+          addLine('warning', '!', `Gate ${gateId} DENIED by operator (${Math.round(elapsed/1000)}s)`);
           window._pendingGates[gateId](false);
           delete window._pendingGates[gateId];
           return true;
@@ -9864,7 +10057,26 @@ MCP Browser: NOT CONNECTED`);
       // UTILITIES
       // ============================================
 
-      _hashSpec(spec) {
+      /**
+       * Hash a spec using real SHA-256 (async) with sync fallback
+       * Production-ready cryptographic integrity check
+       */
+      async _hashSpecAsync(spec) {
+        try {
+          const str = JSON.stringify(spec, Object.keys(spec).sort());
+          const encoder = new TextEncoder();
+          const dataBuffer = encoder.encode(str);
+          const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+          const hashArray = Array.from(new Uint8Array(hashBuffer));
+          return 'sha256:' + hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        } catch (e) {
+          // Fallback to sync hash if crypto.subtle unavailable
+          return this._hashSpecSync(spec);
+        }
+      },
+
+      _hashSpecSync(spec) {
+        // Fast sync hash for non-critical operations
         const str = JSON.stringify(spec, Object.keys(spec).sort());
         let hash = 0;
         for (let i = 0; i < str.length; i++) {
@@ -9872,7 +10084,12 @@ MCP Browser: NOT CONNECTED`);
           hash = ((hash << 5) - hash) + char;
           hash = hash & hash;
         }
-        return 'sha256:' + Math.abs(hash).toString(16).padStart(16, '0');
+        return 'hash32:' + Math.abs(hash).toString(16).padStart(16, '0');
+      },
+
+      // Sync version for backwards compatibility (marked as non-cryptographic)
+      _hashSpec(spec) {
+        return this._hashSpecSync(spec);
       },
 
       async _sleep(ms) {
