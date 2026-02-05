@@ -4156,7 +4156,12 @@ OUTPUT: Complete formatted report ready for case file.`
         addLine('output', ' ', '  playbook teach-gate <name> — mark gate during teach');
         addLine('output', ' ', '  playbook teach-stop — stop recording, compile playbook');
         addLine('output', ' ', '  playbook run <id> — execute a playbook');
+        addLine('output', ' ', '  playbook progress — show execution progress');
         addLine('output', ' ', '  playbook abort — abort current execution');
+        addLine('output', ' ', '  playbook export [id] — export playbook(s) to JSON');
+        addLine('output', ' ', '  playbook import — import from JSON file');
+        addLine('output', ' ', '  playbook validate <id> — validate playbook spec');
+        addLine('output', ' ', '  playbook quick "name" actions... — quick-create playbook');
         addLine('output', ' ', '  approve/deny — respond to gate prompts');
         addLine('output', ' ', '  done — complete assist mode step');
         addSpacer();
@@ -9942,11 +9947,424 @@ MCP Browser: NOT CONNECTED`);
           executionHistory: this._executionHistory.length,
           pendingGates: Object.keys(window._pendingGates || {})
         };
+      },
+
+      // ============================================
+      // MCP RECORDING BRIDGE
+      // Automatically records browser actions during teach mode
+      // ============================================
+
+      /**
+       * Hook into MCP results to auto-record actions during teach
+       */
+      _setupMCPRecordingBridge() {
+        const originalSubmitResult = GIAMCPRelay.submitResult.bind(GIAMCPRelay);
+
+        GIAMCPRelay.submitResult = (taskId, result, error) => {
+          // Call original
+          originalSubmitResult(taskId, result, error);
+
+          // Record if in teach mode
+          if (this._teachRecording && !error) {
+            const task = GIAMCPRelay.getTask(taskId);
+            if (task) {
+              this.recordAction({
+                type: task.type.replace('browser.', ''),
+                target: task.payload?.selector || task.payload?.url || task.payload?.target,
+                value: task.payload?.text || task.payload?.value,
+                url: window.BrowserAgent?._urlBar?.value,
+                tagName: result?.tagName,
+                textContent: result?.textContent,
+                attributes: result?.attributes,
+                position: result?.coordinates
+              });
+            }
+          }
+        };
+
+        console.log('[GIA Playbook] MCP recording bridge active');
+      },
+
+      // ============================================
+      // IMPORT / EXPORT
+      // ============================================
+
+      /**
+       * Export playbook to JSON
+       */
+      exportPlaybook(playbookId) {
+        const playbook = this._playbooks.get(playbookId);
+        if (!playbook) {
+          throw new Error(`Playbook not found: ${playbookId}`);
+        }
+
+        const exportData = {
+          _format: 'GIA_PLAYBOOK_EXPORT',
+          _version: '1.0',
+          _exportedAt: new Date().toISOString(),
+          _exportedBy: GIA?.config?.operatorToken || 'ANONYMOUS',
+          spec: playbook.spec,
+          stats: {
+            executionCount: playbook.executionCount,
+            successRate: playbook.successRate,
+            lastExecuted: playbook.lastExecuted
+          }
+        };
+
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${playbookId}.playbook.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        addLine('success', '+', `Exported: <span class="hl-cyan">${playbookId}.playbook.json</span>`);
+        return exportData;
+      },
+
+      /**
+       * Import playbook from JSON
+       */
+      importPlaybook(jsonData) {
+        let data;
+        if (typeof jsonData === 'string') {
+          data = JSON.parse(jsonData);
+        } else {
+          data = jsonData;
+        }
+
+        if (data._format !== 'GIA_PLAYBOOK_EXPORT') {
+          throw new Error('Invalid playbook format');
+        }
+
+        // Validate spec
+        if (!data.spec?.manifest?.id || !data.spec?.steps?.length) {
+          throw new Error('Invalid playbook spec: missing manifest.id or steps');
+        }
+
+        // Check for existing playbook
+        const existingId = data.spec.manifest.id;
+        if (this._playbooks.has(existingId)) {
+          const existing = this._playbooks.get(existingId);
+          // Bump version if importing over existing
+          const versionNum = parseInt(data.spec.manifest.version.replace('v', '')) || 1;
+          data.spec.manifest.version = `v${versionNum + 1}`;
+          addLine('warning', '!', `Playbook ${existingId} exists, importing as ${data.spec.manifest.version}`);
+        }
+
+        // Register the playbook
+        this.registerPlaybook(data.spec);
+
+        addLine('success', '+', `Imported: <span class="hl-cyan">${data.spec.manifest.id}</span> (${data.spec.manifest.version})`);
+        return data.spec.manifest.id;
+      },
+
+      /**
+       * Export all playbooks as a bundle
+       */
+      exportAllPlaybooks() {
+        const bundle = {
+          _format: 'GIA_PLAYBOOK_BUNDLE',
+          _version: '1.0',
+          _exportedAt: new Date().toISOString(),
+          _count: this._playbooks.size,
+          playbooks: []
+        };
+
+        this._playbooks.forEach((pb, id) => {
+          bundle.playbooks.push({
+            id: id,
+            spec: pb.spec,
+            stats: {
+              executionCount: pb.executionCount,
+              successRate: pb.successRate
+            }
+          });
+        });
+
+        const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `gia-playbooks-${Date.now()}.bundle.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        addLine('success', '+', `Exported ${bundle._count} playbooks to bundle`);
+        return bundle;
+      },
+
+      // ============================================
+      // ENHANCED SELECTOR RESILIENCE
+      // ============================================
+
+      /**
+       * Find element with multi-strategy selector resolution
+       */
+      async _findElement(selectors, maxAttempts = 3) {
+        const strategies = [
+          // Strategy 1: Primary selector
+          { type: 'primary', selector: selectors.primary },
+          // Strategy 2: Text match
+          { type: 'text', selector: selectors.textMatch ? `//*[contains(text(), '${selectors.textMatch}')]` : null },
+          // Strategy 3: Fallback selectors
+          ...(selectors.fallback || []).map(s => ({ type: 'fallback', selector: s })),
+          // Strategy 4: Role-based
+          { type: 'role', selector: selectors.role ? `[role="${selectors.role}"]` : null },
+          // Strategy 5: Relative anchor
+          { type: 'anchor', selector: selectors.relativeAnchor ? this._buildAnchorSelector(selectors.relativeAnchor) : null }
+        ].filter(s => s.selector);
+
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          for (const strategy of strategies) {
+            try {
+              const result = await GIAMCPRelay.queueTask('browser.find', { query: strategy.selector });
+              if (result?.data?.found) {
+                // Cache successful selector
+                const domain = this._getCurrentDomain();
+                this.cacheSelector(domain, `${strategy.type}:${strategy.selector}`, strategy.selector);
+
+                return {
+                  found: true,
+                  selector: strategy.selector,
+                  strategy: strategy.type,
+                  element: result.data
+                };
+              }
+            } catch (e) {
+              // Continue to next strategy
+            }
+          }
+
+          // Wait before retry
+          if (attempt < maxAttempts - 1) {
+            await this._sleep(1000 * (attempt + 1));
+          }
+        }
+
+        return { found: false, triedStrategies: strategies.map(s => s.type) };
+      },
+
+      /**
+       * Build selector from relative anchor
+       */
+      _buildAnchorSelector(anchor) {
+        const directions = {
+          'above': 'preceding-sibling::',
+          'below': 'following-sibling::',
+          'left': 'preceding::',
+          'right': 'following::',
+          'inside': './/'
+        };
+        const dir = directions[anchor.direction] || '//';
+        return `${anchor.anchor}/${dir}*`;
+      },
+
+      /**
+       * AI-assisted selector inference (uses page context)
+       */
+      async _inferSelector(description, pageContext = {}) {
+        // Build inference prompt
+        const prompt = `Find the best CSS selector for: "${description}"
+Context: ${JSON.stringify(pageContext)}
+Return only the selector, no explanation.`;
+
+        // This would integrate with Claude API for intelligent inference
+        // For now, return a reasonable guess
+        const guesses = [
+          `[data-testid*="${description.toLowerCase().replace(/\s+/g, '-')}"]`,
+          `button:contains("${description}")`,
+          `a:contains("${description}")`,
+          `[aria-label*="${description}"]`,
+          `.${description.toLowerCase().replace(/\s+/g, '-')}`
+        ];
+
+        return guesses;
+      },
+
+      // ============================================
+      // EXECUTION PROGRESS TRACKING
+      // ============================================
+
+      /**
+       * Get detailed execution progress
+       */
+      getProgress() {
+        if (!this._currentExecution) {
+          return { active: false };
+        }
+
+        const exec = this._currentExecution;
+        const completedSteps = exec.steps.filter(s => s.status === 'completed').length;
+        const failedSteps = exec.steps.filter(s => s.status === 'failed').length;
+        const pendingSteps = exec.steps.filter(s => s.status === 'pending').length;
+
+        return {
+          active: true,
+          executionId: exec.executionId,
+          playbookName: exec._spec.manifest.name,
+          state: exec.state,
+          progress: {
+            current: exec._currentStepIndex + 1,
+            total: exec.steps.length,
+            percent: Math.round((completedSteps / exec.steps.length) * 100)
+          },
+          steps: {
+            completed: completedSteps,
+            failed: failedSteps,
+            pending: pendingSteps,
+            executing: exec.steps.filter(s => s.status === 'executing').length
+          },
+          gates: {
+            total: exec._spec.policy.gates.length,
+            passed: exec.gates.filter(g => g.decision === 'approved').length,
+            pending: exec.gates.filter(g => g.decision === 'pending').length
+          },
+          elapsed: Date.now() - new Date(exec.startedAt).getTime(),
+          currentStep: exec.steps[exec._currentStepIndex] ? {
+            id: exec._spec.steps[exec._currentStepIndex].id,
+            action: exec._spec.steps[exec._currentStepIndex].action,
+            status: exec.steps[exec._currentStepIndex].status
+          } : null
+        };
+      },
+
+      /**
+       * Stream progress updates (for UI)
+       */
+      onProgressUpdate(callback) {
+        this._progressCallbacks = this._progressCallbacks || [];
+        this._progressCallbacks.push(callback);
+
+        return () => {
+          const idx = this._progressCallbacks.indexOf(callback);
+          if (idx > -1) this._progressCallbacks.splice(idx, 1);
+        };
+      },
+
+      _emitProgress() {
+        if (this._progressCallbacks?.length > 0) {
+          const progress = this.getProgress();
+          this._progressCallbacks.forEach(cb => cb(progress));
+        }
+      },
+
+      // ============================================
+      // PLAYBOOK VALIDATION
+      // ============================================
+
+      /**
+       * Validate a playbook spec before registration
+       */
+      validateSpec(spec) {
+        const errors = [];
+        const warnings = [];
+
+        // Required fields
+        if (!spec.manifest?.id) errors.push('Missing manifest.id');
+        if (!spec.manifest?.version) errors.push('Missing manifest.version');
+        if (!spec.steps?.length) errors.push('No steps defined');
+        if (!spec.manifest?.allowedDomains?.length) warnings.push('No allowedDomains specified');
+
+        // Validate steps
+        spec.steps?.forEach((step, i) => {
+          if (!step.id) errors.push(`Step ${i + 1}: missing id`);
+          if (!step.action) errors.push(`Step ${i + 1}: missing action`);
+          if (!step.selectors?.primary && step.action !== 'wait' && step.action !== 'navigate') {
+            warnings.push(`Step ${i + 1} (${step.id}): no primary selector`);
+          }
+        });
+
+        // Validate gates reference valid steps
+        spec.policy?.gates?.forEach(gate => {
+          const trigger = gate.trigger?.replace('before:', '');
+          if (trigger && !spec.steps.find(s => s.id === trigger)) {
+            errors.push(`Gate ${gate.id} references non-existent step: ${trigger}`);
+          }
+        });
+
+        // Check for sensitive actions without gates
+        const sensitiveSteps = spec.steps?.filter(s =>
+          s.selectors?.textMatch?.match(/submit|transfer|pay|delete/i) ||
+          s.value?.match(/submit|transfer|pay|delete/i)
+        );
+        if (sensitiveSteps?.length && !spec.policy?.gates?.length) {
+          warnings.push('Potentially sensitive actions detected but no gates defined');
+        }
+
+        return {
+          valid: errors.length === 0,
+          errors,
+          warnings
+        };
+      },
+
+      // ============================================
+      // QUICK PLAYBOOK CREATION
+      // ============================================
+
+      /**
+       * Create a simple playbook from a step list
+       */
+      quickCreate(name, steps, options = {}) {
+        const playbookId = `PB-${name.toUpperCase().replace(/\s+/g, '_')}`;
+
+        const spec = {
+          manifest: {
+            id: playbookId,
+            version: 'v1',
+            name: name,
+            description: options.description || `Quick-created playbook: ${name}`,
+            hash: null,
+            allowedDomains: options.domains || ['*'],
+            createdAt: new Date().toISOString(),
+            tags: options.tags || ['quick-created']
+          },
+          policy: {
+            automationLevel: options.automationLevel || 'SEMI_AUTO',
+            gates: options.gates || [],
+            sensitiveActions: options.sensitiveActions || [],
+            financialCeiling: options.financialCeiling || 0
+          },
+          steps: steps.map((step, i) => ({
+            id: step.id || `step_${i + 1}`,
+            action: step.action,
+            url: step.url,
+            selectors: step.selectors || { primary: step.selector },
+            value: step.value,
+            waitFor: step.waitFor,
+            evidence: step.evidence || { screenshot: false }
+          })),
+          guards: options.guards || [],
+          recoveryRoutes: options.recovery || [],
+          evidenceSchema: options.evidence || { captureScreenshots: 'gates_only' }
+        };
+
+        // Validate
+        const validation = this.validateSpec(spec);
+        if (!validation.valid) {
+          throw new Error(`Invalid spec: ${validation.errors.join(', ')}`);
+        }
+        if (validation.warnings.length > 0) {
+          validation.warnings.forEach(w => addLine('warning', '!', w));
+        }
+
+        // Register
+        this.registerPlaybook(spec);
+        return playbookId;
       }
     };
 
     // Make globally available
     window.GIAPlaybookEngine = GIAPlaybookEngine;
+
+    // Setup MCP recording bridge
+    GIAPlaybookEngine._setupMCPRecordingBridge();
 
     // ============================================
     // REGISTER EXAMPLE PLAYBOOKS
@@ -10393,6 +10811,161 @@ MCP Browser: NOT CONNECTED`);
           addLine('output', ' ', JSON.stringify(mem, null, 2));
         } else {
           addLine('output', ' ', 'Usage: playbook memory <set|get|list> [key] [value]');
+        }
+      },
+
+      export: (playbookId) => {
+        if (!playbookId) {
+          // Export all
+          try {
+            GIAPlaybookEngine.exportAllPlaybooks();
+          } catch (e) {
+            addLine('error', 'x', e.message);
+          }
+        } else {
+          try {
+            GIAPlaybookEngine.exportPlaybook(playbookId);
+          } catch (e) {
+            addLine('error', 'x', e.message);
+          }
+        }
+      },
+
+      import: () => {
+        // Create file input for import
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = async (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+
+          try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+
+            if (data._format === 'GIA_PLAYBOOK_BUNDLE') {
+              // Import bundle
+              data.playbooks.forEach(pb => {
+                GIAPlaybookEngine.importPlaybook({ _format: 'GIA_PLAYBOOK_EXPORT', spec: pb.spec });
+              });
+              addLine('success', '+', `Imported ${data.playbooks.length} playbooks from bundle`);
+            } else {
+              GIAPlaybookEngine.importPlaybook(data);
+            }
+          } catch (err) {
+            addLine('error', 'x', `Import failed: ${err.message}`);
+          }
+        };
+        input.click();
+        addLine('output', ' ', '<span class="hl-dim">Select a .json playbook file...</span>');
+      },
+
+      progress: () => {
+        const progress = GIAPlaybookEngine.getProgress();
+        if (!progress.active) {
+          addLine('output', ' ', '<span class="hl-dim">No active execution</span>');
+          return;
+        }
+
+        addLine('system', '*', '<span class="hl-accent">EXECUTION PROGRESS</span>');
+        addLine('output', ' ', `<span class="hl-dim">Playbook:</span> ${progress.playbookName}`);
+        addLine('output', ' ', `<span class="hl-dim">State:</span> ${progress.state}`);
+        addSpacer();
+
+        // Progress bar
+        const barWidth = 40;
+        const filled = Math.round((progress.progress.percent / 100) * barWidth);
+        const empty = barWidth - filled;
+        const bar = '█'.repeat(filled) + '░'.repeat(empty);
+        addLine('output', ' ', `[${bar}] ${progress.progress.percent}%`);
+        addLine('output', ' ', `<span class="hl-dim">Step ${progress.progress.current} of ${progress.progress.total}</span>`);
+        addSpacer();
+
+        addLine('output', ' ', `<span class="hl-green">Completed: ${progress.steps.completed}</span> | <span class="hl-red">Failed: ${progress.steps.failed}</span> | <span class="hl-dim">Pending: ${progress.steps.pending}</span>`);
+
+        if (progress.currentStep) {
+          addSpacer();
+          addLine('output', ' ', `<span class="hl-cyan">Current:</span> ${progress.currentStep.action} → ${progress.currentStep.id}`);
+        }
+
+        if (progress.gates.pending > 0) {
+          addLine('gate', '!', `<span class="hl-yellow">Gates pending: ${progress.gates.pending}</span>`);
+        }
+
+        addLine('output', ' ', `<span class="hl-dim">Elapsed: ${Math.round(progress.elapsed / 1000)}s</span>`);
+      },
+
+      validate: (playbookId) => {
+        const playbook = GIAPlaybookEngine.getPlaybook(playbookId);
+        if (!playbook) {
+          addLine('error', 'x', `Playbook not found: ${playbookId}`);
+          return;
+        }
+
+        const result = GIAPlaybookEngine.validateSpec(playbook.spec);
+        addLine('system', '*', `<span class="hl-accent">VALIDATION: ${playbookId}</span>`);
+
+        if (result.valid) {
+          addLine('success', '+', 'Playbook is valid');
+        } else {
+          addLine('error', 'x', 'Playbook has errors:');
+          result.errors.forEach(e => addLine('output', '  ', `• ${e}`));
+        }
+
+        if (result.warnings.length > 0) {
+          addLine('warning', '!', 'Warnings:');
+          result.warnings.forEach(w => addLine('output', '  ', `• ${w}`));
+        }
+      },
+
+      quick: (args) => {
+        if (!args) {
+          addLine('output', ' ', 'Usage: playbook quick "Name" navigate:url click:selector type:selector:value');
+          addLine('output', ' ', 'Example: playbook quick "Login" navigate:https://site.com type:#email:user@test.com click:#submit');
+          return;
+        }
+
+        // Parse quick-create syntax
+        const parts = args.match(/(?:[^\s"]+|"[^"]*")+/g);
+        if (parts.length < 2) {
+          addLine('error', 'x', 'Need at least name and one step');
+          return;
+        }
+
+        const name = parts[0].replace(/"/g, '');
+        const steps = [];
+
+        for (let i = 1; i < parts.length; i++) {
+          const [action, ...rest] = parts[i].split(':');
+          const step = { action };
+
+          switch (action) {
+            case 'navigate':
+              step.url = rest[0];
+              break;
+            case 'click':
+              step.selectors = { primary: rest[0] };
+              break;
+            case 'type':
+              step.selectors = { primary: rest[0] };
+              step.value = rest.slice(1).join(':');
+              break;
+            case 'wait':
+              step.waitFor = { timeout: parseInt(rest[0]) || 1000 };
+              break;
+            default:
+              step.selectors = { primary: rest[0] };
+          }
+
+          steps.push(step);
+        }
+
+        try {
+          const id = GIAPlaybookEngine.quickCreate(name, steps);
+          addLine('success', '+', `Created: <span class="hl-cyan">${id}</span> with ${steps.length} steps`);
+        } catch (e) {
+          addLine('error', 'x', e.message);
         }
       }
     };
