@@ -80,6 +80,38 @@ services:
       - no-new-privileges:true
 
   # ===========================================================================
+  # ACE Governance Frontend (Nginx + Vite build)
+  # ===========================================================================
+  ace-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        # Empty = same origin (nginx proxies /api/* to backend)
+        VITE_API_SERVER_URL: ""
+    container_name: ace-governance-frontend
+    restart: unless-stopped
+
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+
+    depends_on:
+      ace-server:
+        condition: service_healthy
+
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 32M
+
+    security_opt:
+      - no-new-privileges:true
+
+  # ===========================================================================
   # Optional: Redis for session/rate-limit storage (Phase 2)
   # ===========================================================================
   # redis:

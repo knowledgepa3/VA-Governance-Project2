@@ -69,7 +69,7 @@ app.use(cors({
 }));
 
 // Body parsing
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '10mb' })); // 10mb for multimodal payloads (base64 images)
 
 // Correlation ID middleware (MUST be first after body parsing)
 app.use(correlationMiddleware);

@@ -23,6 +23,7 @@ import {
 } from './types';
 
 import { AnthropicProvider } from './providers/anthropic';
+import { AnthropicProxyProvider } from './providers/anthropicProxy';
 import { BedrockProvider } from './providers/bedrock';
 import { AzureOpenAIProvider } from './providers/azure';
 import { MockProvider } from './providers/mock';
@@ -71,6 +72,9 @@ function detectProviderType(): LLMProviderType {
 
   if (providerOverride) {
     switch (providerOverride.toLowerCase()) {
+      case 'proxy':
+      case 'anthropic_proxy':
+        return LLMProviderType.ANTHROPIC_PROXY;
       case 'bedrock':
       case 'aws_bedrock':
         return LLMProviderType.AWS_BEDROCK;
@@ -84,6 +88,13 @@ function detectProviderType(): LLMProviderType {
       default:
         return LLMProviderType.ANTHROPIC_DIRECT;
     }
+  }
+
+  // Check for server proxy configuration — takes priority over direct API.
+  // When VITE_API_SERVER_URL is set, route through backend server to keep
+  // the API key server-side. This is the recommended production mode.
+  if (env('VITE_API_SERVER_URL') || env('API_SERVER_URL')) {
+    return LLMProviderType.ANTHROPIC_PROXY;
   }
 
   // Check for Bedrock configuration
@@ -131,6 +142,9 @@ function buildConfig(providerType: LLMProviderType): LLMProviderConfig {
     // Browser mode (needed for client-side Anthropic calls)
     dangerouslyAllowBrowser: isBrowser,
 
+    // Server proxy URL (for ANTHROPIC_PROXY provider)
+    serverUrl: env('VITE_API_SERVER_URL') || env('API_SERVER_URL'),
+
     // Logging
     enableLogging: env('LOG_LEVEL') === 'debug'
   };
@@ -143,6 +157,9 @@ function createProvider(providerType: LLMProviderType, config: LLMProviderConfig
   switch (providerType) {
     case LLMProviderType.ANTHROPIC_DIRECT:
       return new AnthropicProvider(config);
+
+    case LLMProviderType.ANTHROPIC_PROXY:
+      return new AnthropicProxyProvider(config);
 
     case LLMProviderType.AWS_BEDROCK:
       return new BedrockProvider(config);
@@ -198,10 +215,16 @@ export function getProviderByType(
  */
 export function getAvailableProviders(): { type: LLMProviderType; configured: boolean; displayName: string }[] {
   const hasAnthropicKey = !!(env('ANTHROPIC_API_KEY') || env('VITE_ANTHROPIC_API_KEY'));
+  const hasServerProxy = !!(env('VITE_API_SERVER_URL') || env('API_SERVER_URL'));
   const hasBedrockConfig = !!(env('AWS_BEDROCK_REGION') || env('AWS_REGION')?.includes('gov'));
   const hasAzureConfig = !!env('AZURE_OPENAI_ENDPOINT');
 
   return [
+    {
+      type: LLMProviderType.ANTHROPIC_PROXY,
+      configured: hasServerProxy,
+      displayName: 'Anthropic Claude (Server Proxy)'
+    },
     {
       type: LLMProviderType.ANTHROPIC_DIRECT,
       configured: hasAnthropicKey,

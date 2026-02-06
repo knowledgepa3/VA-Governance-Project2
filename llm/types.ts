@@ -24,6 +24,9 @@ export enum LLMProviderType {
   /** Azure OpenAI (GPT-4) - FedRAMP High via Azure Gov */
   AZURE_OPENAI = 'azure_openai',
 
+  /** Server-side proxy for Anthropic API — keeps API key on server */
+  ANTHROPIC_PROXY = 'anthropic_proxy',
+
   /** Mock provider for testing/demo without API calls */
   MOCK = 'mock'
 }
@@ -219,6 +222,9 @@ export interface LLMProviderConfig {
 
   /** Allow browser usage (for client-side calls) */
   dangerouslyAllowBrowser?: boolean;
+
+  /** Server proxy URL (for ANTHROPIC_PROXY provider) */
+  serverUrl?: string;
 }
 
 /**
