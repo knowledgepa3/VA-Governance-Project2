@@ -87,86 +87,118 @@ export class AnthropicProvider implements LLMProvider {
 
     const startTime = Date.now();
     const tier = options?.tier ?? this.config.defaultTier ?? ModelTier.ADVANCED;
-    const model = this.getModelForTier(tier);
+    // Explicit model override takes priority over tier-based selection
+    const model = options?.modelOverride || this.getModelForTier(tier);
     const maxTokens = options?.maxTokens ?? this.config.defaultMaxTokens ?? 4096;
 
-    try {
-      // Separate system message from conversation
-      const systemMsg = messages.find(m => m.role === 'system');
-      const systemPrompt = options?.systemPrompt ||
-        (systemMsg ? (typeof systemMsg.content === 'string' ? systemMsg.content : undefined) : undefined);
+    // Retry configuration for rate limit (429) and overloaded (529) errors
+    const MAX_RETRIES = 3;
+    const BASE_DELAY_MS = 15000; // 15s base — Anthropic rate limits are per-minute
 
-      const conversationMessages = messages
-        .filter(m => m.role !== 'system')
-        .map(m => ({
-          role: m.role as 'user' | 'assistant',
-          content: m.content
-        }));
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        // Separate system message from conversation
+        const systemMsg = messages.find(m => m.role === 'system');
+        const systemPrompt = options?.systemPrompt ||
+          (systemMsg ? (typeof systemMsg.content === 'string' ? systemMsg.content : undefined) : undefined);
 
-      const createParams: any = {
-        model,
-        max_tokens: maxTokens,
-        system: systemPrompt,
-        messages: conversationMessages,
-        temperature: options?.temperature,
-        stop_sequences: options?.stopSequences
-      };
+        const conversationMessages = messages
+          .filter(m => m.role !== 'system')
+          .map(m => ({
+            role: m.role as 'user' | 'assistant',
+            content: m.content
+          }));
 
-      // Pass through tools if provided
-      if (options?.tools && options.tools.length > 0) {
-        createParams.tools = options.tools;
-      }
+        const createParams: any = {
+          model,
+          max_tokens: maxTokens,
+          system: systemPrompt,
+          messages: conversationMessages,
+          temperature: options?.temperature,
+          stop_sequences: options?.stopSequences
+        };
 
-      const response = await this.client.messages.create(createParams);
+        // Pass through tools if provided
+        if (options?.tools && options.tools.length > 0) {
+          createParams.tools = options.tools;
+        }
 
-      const latencyMs = Date.now() - startTime;
+        if (attempt > 0) {
+          console.log(`[Anthropic] Retry attempt ${attempt}/${MAX_RETRIES} for model ${model}`);
+        }
 
-      // Extract text content
-      const textContent = response.content.find(c => c.type === 'text');
-      const content = textContent?.type === 'text' ? textContent.text : '';
+        const response = await this.client.messages.create(createParams);
 
-      // Map raw content blocks to our ContentBlock type
-      const contentBlocks = response.content.map((block: any) => {
-        if (block.type === 'text') return { type: 'text' as const, text: block.text };
-        if (block.type === 'tool_use') return { type: 'tool_use' as const, id: block.id, name: block.name, input: block.input };
-        return block;
-      });
+        const latencyMs = Date.now() - startTime;
 
-      return {
-        content,
-        contentBlocks,
-        model: response.model,
-        provider: this.providerType,
-        usage: {
-          inputTokens: response.usage.input_tokens,
-          outputTokens: response.usage.output_tokens,
-          totalTokens: response.usage.input_tokens + response.usage.output_tokens
-        },
-        stopReason: this.mapStopReason(response.stop_reason),
-        latencyMs
-      };
+        // Extract text content
+        const textContent = response.content.find(c => c.type === 'text');
+        const content = textContent?.type === 'text' ? textContent.text : '';
 
-    } catch (error) {
-      const latencyMs = Date.now() - startTime;
+        // Map raw content blocks to our ContentBlock type
+        const contentBlocks = response.content.map((block: any) => {
+          if (block.type === 'text') return { type: 'text' as const, text: block.text };
+          if (block.type === 'tool_use') return { type: 'tool_use' as const, id: block.id, name: block.name, input: block.input };
+          return block;
+        });
 
-      if (error instanceof Anthropic.APIError) {
+        return {
+          content,
+          contentBlocks,
+          model: response.model,
+          provider: this.providerType,
+          usage: {
+            inputTokens: response.usage.input_tokens,
+            outputTokens: response.usage.output_tokens,
+            totalTokens: response.usage.input_tokens + response.usage.output_tokens
+          },
+          stopReason: this.mapStopReason(response.stop_reason),
+          latencyMs
+        };
+
+      } catch (error) {
+        if (error instanceof Anthropic.APIError) {
+          const isRetryable = error.status === 429 || error.status === 503 || error.status === 529;
+
+          // Retry with exponential backoff for rate limit / overloaded errors
+          if (isRetryable && attempt < MAX_RETRIES) {
+            // Extract retry-after header if available, otherwise use exponential backoff
+            const retryAfterHeader = (error as any).headers?.['retry-after'];
+            const retryAfterMs = retryAfterHeader
+              ? parseInt(retryAfterHeader, 10) * 1000
+              : BASE_DELAY_MS * Math.pow(2, attempt); // 15s, 30s, 60s
+
+            console.warn(
+              `[Anthropic] Rate limit hit (${error.status}) for ${model}. ` +
+              `Waiting ${Math.round(retryAfterMs / 1000)}s before retry ${attempt + 1}/${MAX_RETRIES}...`
+            );
+
+            await new Promise(resolve => setTimeout(resolve, retryAfterMs));
+            continue; // Retry the loop
+          }
+
+          // Out of retries or non-retryable error
+          throw new LLMProviderError(
+            error.message,
+            this.providerType,
+            error.status?.toString() ?? 'UNKNOWN',
+            isRetryable,
+            error
+          );
+        }
+
         throw new LLMProviderError(
-          error.message,
+          error instanceof Error ? error.message : 'Unknown error',
           this.providerType,
-          error.status?.toString() ?? 'UNKNOWN',
-          error.status === 429 || error.status === 503, // Retryable errors
-          error
+          'UNKNOWN',
+          false,
+          error instanceof Error ? error : undefined
         );
       }
-
-      throw new LLMProviderError(
-        error instanceof Error ? error.message : 'Unknown error',
-        this.providerType,
-        'UNKNOWN',
-        false,
-        error instanceof Error ? error : undefined
-      );
     }
+
+    // Should never reach here, but TypeScript needs it
+    throw new LLMProviderError('Max retries exceeded', this.providerType, '429', true);
   }
 
   /**

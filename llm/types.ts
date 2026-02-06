@@ -100,6 +100,10 @@ export interface CompletionOptions {
   /** Tool definitions for function calling */
   tools?: ToolDefinition[];
 
+  /** Explicit model override — bypasses tier-based selection.
+   *  When set, the provider uses this exact model ID instead of tier mapping. */
+  modelOverride?: string;
+
   /** Metadata for audit logging */
   metadata?: {
     agentRole?: string;

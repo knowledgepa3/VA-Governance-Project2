@@ -414,9 +414,13 @@ const App: React.FC = () => {
     }
   };
 
+  const logActionCounter = useRef(0);
   const logAction = useCallback((agentId: AgentRole, type: string, input: any, output: any, classification: MAIClassification, status: 'SUCCESS' | 'FAILURE' = 'SUCCESS', review: AgentAction['humanReviewStatus'] = 'N/A', escalation: string = 'Integrity normal') => {
+    logActionCounter.current += 1;
+    // Extract real latency from agent output metadata if available
+    const realLatencyMs = output?._ace_metadata?.latencyMs || 0;
     const newLog: AgentAction = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: `log-${Date.now()}-${logActionCounter.current}`,
       timestamp: new Date().toISOString().replace('T', ' ').substr(0, 19),
       agentId,
       actionType: type,
@@ -425,7 +429,7 @@ const App: React.FC = () => {
       classification,
       humanReviewStatus: review,
       escalationTrigger: escalation,
-      duration: Math.floor(Math.random() * 30) + 5,
+      duration: realLatencyMs > 0 ? Math.round(realLatencyMs / 1000) : 0, // Real seconds, not random
       status
     };
     setState(prev => ({ ...prev, logs: [newLog, ...prev.logs] }));
@@ -1091,6 +1095,9 @@ const App: React.FC = () => {
 
       addActivity(AgentRole.SUPERVISOR, `[${role}] Sending to AI for analysis... (large documents may take 1-3 minutes)`, 'info');
 
+      // Track real execution time — not Math.random()
+      const agentExecutionStart = Date.now();
+
       // Start a progress animation while waiting for API
       const progressInterval = setInterval(() => {
         updateAgent(role, (prev: any) => ({
@@ -1116,18 +1123,55 @@ const App: React.FC = () => {
         result.integrity_alert === "ADVERSARIAL INPUT ATTEMPT NEUTRALIZED" ||
         result.qa_directive === "REJECT_AND_REMEDIATE";
 
-      // Generate supervisor score for this agent
-      const generateSupervisorScore = (hadIssue: boolean): SupervisorScore => {
-        const baseIntegrity = hadIssue ? 70 + Math.floor(Math.random() * 15) : 92 + Math.floor(Math.random() * 8);
-        const baseAccuracy = 88 + Math.floor(Math.random() * 12);
-        const baseCompliance = 90 + Math.floor(Math.random() * 10);
+      // Compute REAL supervisor score from actual execution data — no Math.random()
+      // Every metric traces to a measurable source:
+      //   integrity = JSON parse success + no compliance errors + no integrity holds
+      //   accuracy  = meaningful output present + field completeness
+      //   compliance = stage validation + token ceiling + cost governor all passed
+      //   latency   = real API latencyMs from governed kernel response
+      const computeSupervisorScore = (agentResult: any, hadIssue: boolean): SupervisorScore => {
+        const meta = agentResult?._ace_metadata;
+        const executionMs = Date.now() - agentExecutionStart;
+
+        // INTEGRITY: 100-point scale from real signals
+        let integrity = 0;
+        if (meta?.jsonParseSuccess !== false) integrity += 40;
+        if (!agentResult?.ace_compliance_status ||
+            agentResult.ace_compliance_status === 'OK' ||
+            agentResult.ace_compliance_status === 'PASSED') integrity += 30;
+        if (!hadIssue) integrity += 30;
+
+        // ACCURACY: Based on output structure completeness
+        let accuracy = 0;
+        const outputKeys = agentResult ? Object.keys(agentResult).filter(
+          (k: string) => !k.startsWith('_ace_') && k !== 'ace_compliance_status'
+        ) : [];
+        if (outputKeys.length > 0) accuracy += 50;
+        accuracy += Math.min(50, outputKeys.length * 5);
+
+        // COMPLIANCE: All governance checks passing
+        let compliance = 0;
+        if (agentResult?.ace_compliance_status !== 'STAGE_VIOLATION') compliance += 34;
+        if (agentResult?.ace_compliance_status !== 'TOKEN_CEILING_EXCEEDED') compliance += 33;
+        if (agentResult?.ace_compliance_status !== 'COST_LIMIT_EXCEEDED' &&
+            agentResult?.ace_compliance_status !== 'COST_LIMIT_WOULD_EXCEED') compliance += 33;
+
         return {
-          integrity: baseIntegrity,
-          accuracy: baseAccuracy,
-          compliance: baseCompliance,
-          latency: Math.floor(Math.random() * 800) + 200,
-          corrections: hadIssue ? Math.floor(Math.random() * 3) + 1 : 0,
+          integrity: Math.min(100, integrity),
+          accuracy: Math.min(100, accuracy),
+          compliance: Math.min(100, compliance),
+          latency: meta?.latencyMs || executionMs,
+          corrections: 0,
           lastCheck: new Date().toLocaleTimeString()
+        };
+      };
+
+      // Extract real token usage from API response metadata
+      const getRealTokenUsage = (agentResult: any) => {
+        const meta = agentResult?._ace_metadata;
+        return {
+          input: meta?.inputTokens || 0,
+          output: meta?.outputTokens || 0
         };
       };
 
@@ -1230,7 +1274,7 @@ const App: React.FC = () => {
           };
         }
 
-        const supervisorScore = generateSupervisorScore(true);
+        const supervisorScore = computeSupervisorScore(result, true);
         supervisorScore.integrity = repairResult.integrityScoreAfter;
         supervisorScore.corrections = repairResult.changes.length;
 
@@ -1241,17 +1285,17 @@ const App: React.FC = () => {
           progress: 100,
           output: result,
           supervisorScore,
-          tokenUsage: { input: Math.floor(Math.random() * 1500) + 500, output: Math.floor(Math.random() * 2000) + 800 }
+          tokenUsage: getRealTokenUsage(result)
         });
       } else {
-        const supervisorScore = generateSupervisorScore(false);
+        const supervisorScore = computeSupervisorScore(result, false);
         addActivity(AgentRole.SUPERVISOR, `Scoring ${role}: Integrity=${supervisorScore.integrity}%, Accuracy=${supervisorScore.accuracy}%, Compliance=${supervisorScore.compliance}%`, 'success');
         updateAgent(role, {
           status: AgentStatus.COMPLETE,
           progress: 100,
           output: result,
           supervisorScore,
-          tokenUsage: { input: Math.floor(Math.random() * 1500) + 500, output: Math.floor(Math.random() * 2000) + 800 }
+          tokenUsage: getRealTokenUsage(result)
         });
       }
 
@@ -1275,7 +1319,7 @@ const App: React.FC = () => {
           runJournal.quickApproveGate(step, role, config.classification, `${currentUser} (AUTO-RUN)`, 'Auto-approved in AUTO-RUN mode');
 
           if (step < ROLES_IN_ORDER.length) {
-            setTimeout(() => executeWorkflow(step + 1), 50);
+            setTimeout(() => executeWorkflow(step + 1), 2000);
           } else {
             addActivity(AgentRole.SUPERVISOR, "Governed session concluded (Auto-Run).", 'success');
             runJournal.completeRun('success');
@@ -1301,7 +1345,7 @@ const App: React.FC = () => {
         runJournal.recordStepComplete(step, { input: 0, output: 0 }, false, false);
 
         if (step < ROLES_IN_ORDER.length) {
-          setTimeout(() => executeWorkflow(step + 1), 50);
+          setTimeout(() => executeWorkflow(step + 1), 2000);
         } else {
           addActivity(AgentRole.SUPERVISOR, "Governed session concluded.", 'success');
           runJournal.completeRun('success');

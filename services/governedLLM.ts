@@ -72,6 +72,10 @@ export interface GovernedLLMRequest {
 
   /** Tool definitions for function calling */
   tools?: ToolDefinition[];
+
+  /** Explicit model override — bypasses tier-based selection.
+   *  Used by claudeService intelligent model routing (Opus/Sonnet/Haiku per agent role). */
+  modelOverride?: string;
 }
 
 export interface GovernedLLMResult {
@@ -351,6 +355,8 @@ export async function execute(request: GovernedLLMRequest): Promise<GovernedLLMR
       tier: request.tier || ModelTier.ADVANCED,
       temperature: request.temperature,
       tools: request.tools,
+      // Pass explicit model override from intelligent routing (Opus/Sonnet/Haiku)
+      modelOverride: request.modelOverride,
       metadata: {
         agentRole: request.role,
         sessionId: correlationId,

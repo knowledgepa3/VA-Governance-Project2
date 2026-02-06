@@ -6,6 +6,7 @@ import { config as appConfig } from './config.browser';
 import { findRelevantPastPerformance, ACE_PAST_PERFORMANCE, PastPerformanceEntry } from './pastPerformanceDatabase';
 import { costTracker } from './components/CostGovernorPanel';
 import { caseCapsule, CACHEABLE_COMPONENTS } from './services/caseCapsule';
+import { redactPIIFromObject } from './services/piiRedactor';
 
 // Rate limiting, retries, and client initialization are now handled by the governed kernel.
 // All LLM calls route through governedLLM.execute() which enforces:
@@ -415,7 +416,7 @@ Data quality observations (set resilient=true, note for downstream review):
 
 DEFAULT DISPOSITION: If content is routine VA claims data, agent output, metadata, or demo data, return resilient=true with integrity_score=100 and recommended_action=PASS. Err on the side of allowing legitimate data through.`,
       userMessage: `Pre-flight input review. Assess structural integrity of the following data payload:
-${JSON.stringify(input).substring(0, 2500)}
+${JSON.stringify(input).substring(0, 1200)}
 
 Respond in JSON:
 {
@@ -427,7 +428,9 @@ Respond in JSON:
   "severity": "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | null,
   "recommended_action": "SANITIZE" | "RECONCILE" | "REJECT" | "PASS"
 }`,
-      maxTokens: 768
+      maxTokens: 512,
+      // Sentinel is a simple classification task — use Haiku for speed and token efficiency
+      modelOverride: 'claude-3-5-haiku-20241022'
     });
 
     return {
@@ -525,10 +528,11 @@ export async function runAgentStep(role: AgentRole, inputData: any, previousOutp
     AgentRole.GRANT_APPLICATION_ASSEMBLER  // Final assembly
   ];
 
-  // HAIKU: Simple intake, gateway, telemetry (fast, cheap)
-  // These roles do basic parsing/categorization without complex reasoning
+  // HAIKU: Intake, extraction, triage, telemetry (fast, cheap, lower token consumption)
+  // These roles do parsing, extraction, or categorization without complex legal reasoning
   const haikuRoles = [
     AgentRole.GATEWAY,             // Simple document intake
+    AgentRole.TIMELINE,            // Date/event extraction (structured task)
     AgentRole.TELEMETRY,           // Metrics summarization
     AgentRole.CYBER_TRIAGE,        // Initial triage (fast response needed)
     AgentRole.GRANT_OPPORTUNITY_ANALYZER, // NOFO parsing is structured extraction
@@ -538,16 +542,28 @@ export async function runAgentStep(role: AgentRole, inputData: any, previousOutp
   // SONNET: Everything else (balanced performance)
   // Evidence extraction, raters, specialized analysis, etc.
 
+  // Model selection — Opus is ideal but consumes significantly more tokens.
+  // For rate-limited tiers (50K input tokens/min), use Sonnet for Opus roles
+  // to stay within budget. Set VITE_ALLOW_OPUS=true to enable Opus models.
+  let allowOpus = false;
+  try {
+    allowOpus = (import.meta as any).env?.VITE_ALLOW_OPUS === 'true';
+  } catch { /* import.meta not available */ }
+  if (!allowOpus && typeof process !== 'undefined') {
+    allowOpus = process.env?.VITE_ALLOW_OPUS === 'true';
+  }
+
   let modelName: string;
-  if (opusRoles.includes(role)) {
+  if (opusRoles.includes(role) && allowOpus) {
     modelName = "claude-opus-4-20250514";
     console.log(`[${role}] Using OPUS for advanced reasoning`);
   } else if (haikuRoles.includes(role)) {
     modelName = "claude-3-5-haiku-20241022";
     console.log(`[${role}] Using HAIKU for fast processing`);
   } else {
+    // Sonnet handles both standard roles and Opus roles when Opus is disabled
     modelName = "claude-sonnet-4-20250514";
-    console.log(`[${role}] Using SONNET for balanced analysis`);
+    console.log(`[${role}] Using SONNET for ${opusRoles.includes(role) ? 'advanced reasoning (Opus disabled)' : 'balanced analysis'}`);
   }
 
   // Higher token limits for complex analysis and report generation agents
@@ -906,7 +922,7 @@ Analyze the demonstration data above according to your role.
       const isReportAgent = role === AgentRole.REPORT || role === AgentRole.FINANCIAL_REPORT || role === AgentRole.IR_REPORT_GENERATOR;
       // CP_EXAMINER and RATER_DECISION need more context from predecessor agents
       const isDeepAnalysisAgent = role === AgentRole.CP_EXAMINER || role === AgentRole.RATER_DECISION;
-      const contextLimit = isReportAgent ? 50000 : isDeepAnalysisAgent ? 8000 : (sourceMode === 'extracted' ? 2000 : 500);
+      const contextLimit = isReportAgent ? 32000 : isDeepAnalysisAgent ? 8000 : (sourceMode === 'extracted' ? 2000 : 500);
 
       const contextSummary = contextEntries
         .map(([k, v]) => {
@@ -1042,6 +1058,7 @@ ${isReportAgent ? '** FULL UPSTREAM DATA FOR REPORT COMPILATION **\nUse this dat
     console.log(`[${role}] Calling governed LLM kernel with ${messageContent.length} content blocks, maxTokens=${maxTokens}...`);
 
     // Route through governed kernel — rate limiting, audit, and mode enforcement handled there
+    // modelName is set by intelligent routing above (Opus for complex reasoning, Haiku for intake, Sonnet for balanced)
     const response = await governedExecute({
       role: role,
       purpose: 'agent-step',
@@ -1052,6 +1069,7 @@ ${isReportAgent ? '** FULL UPSTREAM DATA FOR REPORT COMPILATION **\nUse this dat
         content: messageContent
       }],
       maxTokens: maxTokens,
+      modelOverride: modelName,
       vision: messageContent.some((block: any) => block.type === 'image')
     });
 
@@ -1080,10 +1098,25 @@ ${isReportAgent ? '** FULL UPSTREAM DATA FOR REPORT COMPILATION **\nUse this dat
     const textContent = response.content;
     if (!textContent) return {};
 
+    // Build real metadata from the actual API response — no random values
+    const aceMetadata: { _ace_metadata: Record<string, any> } = {
+      _ace_metadata: {
+        inputTokens: response.usage?.inputTokens || 0,
+        outputTokens: response.usage?.outputTokens || 0,
+        totalTokens: (response.usage?.inputTokens || 0) + (response.usage?.outputTokens || 0),
+        latencyMs: response.latencyMs || 0,
+        model: response.model || modelName,
+        stopReason: response.stopReason || 'unknown',
+        jsonParseSuccess: false, // updated below on success
+        timestamp: new Date().toISOString()
+      }
+    };
+
     // Try to parse JSON with better error handling
     try {
       const cleaned = cleanJsonResponse(textContent);
       const parsedResult = JSON.parse(cleaned);
+      aceMetadata._ace_metadata.jsonParseSuccess = true;
 
       // Record agent summary in case capsule for future reference
       // This enables the "summarize → store → retrieve" pattern
@@ -1105,7 +1138,23 @@ ${isReportAgent ? '** FULL UPSTREAM DATA FOR REPORT COMPILATION **\nUse this dat
         }
       }
 
-      return parsedResult;
+      // Apply code-level PII redaction on agent output
+      // REPORT agents get partial redaction (VA needs last-4 SSN format)
+      // All other agents: log PII detection but don't redact pipeline data
+      // The UI layer should apply full redaction for display
+      const isOutputAgent = role === AgentRole.REPORT || role === AgentRole.FINANCIAL_REPORT ||
+        role === AgentRole.IR_REPORT_GENERATOR || role === AgentRole.PROPOSAL_ASSEMBLER;
+      if (isOutputAgent) {
+        const { result: redactedResult, report: piiReport } = redactPIIFromObject(parsedResult, 'partial');
+        if (piiReport.piiDetected) {
+          console.log(`[${role}] PII redactor: ${piiReport.totalRedactions} redaction(s) applied (${piiReport.ssnCount} SSN, ${piiReport.phoneCount} phone, ${piiReport.emailCount} email)`);
+          aceMetadata._ace_metadata.piiRedacted = true;
+          aceMetadata._ace_metadata.piiRedactionCount = piiReport.totalRedactions;
+        }
+        return { ...redactedResult, ...aceMetadata };
+      }
+
+      return { ...parsedResult, ...aceMetadata };
     } catch (parseError: any) {
       console.error(`[${role}] JSON parse error:`, parseError.message);
       console.log(`[${role}] Raw response length: ${textContent.length} chars`);
@@ -1157,9 +1206,11 @@ ${isReportAgent ? '** FULL UPSTREAM DATA FOR REPORT COMPILATION **\nUse this dat
           truncated += ']'.repeat(Math.max(0, openBrackets)) + '}'.repeat(Math.max(0, openBraces));
 
           const recovered = JSON.parse(truncated);
+          aceMetadata._ace_metadata.jsonParseSuccess = true;
           console.log(`[${role}] Truncation recovery successful — partial report salvaged (${textContent.length} chars)`);
           return {
             ...recovered,
+            ...aceMetadata,
             _ace_truncation_notice: `Report was truncated at ${textContent.length} characters due to output token limit. Some sections may be incomplete.`
           };
         }

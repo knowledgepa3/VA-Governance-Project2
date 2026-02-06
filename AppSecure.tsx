@@ -498,7 +498,7 @@ const AppSecure: React.FC = () => {
         }));
       } else {
         if (step < ROLES_IN_ORDER.length) {
-          setTimeout(() => executeWorkflow(step + 1), 50);
+          setTimeout(() => executeWorkflow(step + 1), 2000);
         } else {
           auditService.endSession('COMPLETED');
           addActivity(AgentRole.SUPERVISOR, "Governed session concluded.", 'success');
