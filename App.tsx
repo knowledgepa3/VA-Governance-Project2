@@ -82,7 +82,10 @@ import {
   Printer,
   Crosshair,
   Target,
-  Globe
+  Globe,
+  ClipboardCopy,
+  Send,
+  Loader2
 } from 'lucide-react';
 import { BrowserAutomationPanel } from './components/BrowserAutomationPanel';
 import { CasesDashboard } from './components/CasesDashboard';
@@ -133,6 +136,11 @@ const App: React.FC = () => {
   const [redTeamLogs, setRedTeamLogs] = useState<RedTeamActivityLog[]>([]);
   const [aalGatingMode, setAalGatingMode] = useState<AALGatingMode>(AALGatingMode.SOFT);
 
+  // Client Proposal State
+  const [proposalText, setProposalText] = useState<string | null>(null);
+  const [proposalGenerating, setProposalGenerating] = useState(false);
+  const [showProposal, setShowProposal] = useState(false);
+
   // Demo Canon State
   const [showDemoCanon, setShowDemoCanon] = useState(false);
   const [activeScenario, setActiveScenario] = useState<DemoScenario | null>(null);
@@ -169,6 +177,177 @@ const App: React.FC = () => {
     setUploadedFiles([]);
     setCyberIncidentData(null);
     addActivity(AgentRole.SUPERVISOR, `Workforce reconfigured: ${WORKFORCE_TEMPLATES[newTemplate].name}`, 'info');
+  };
+
+  // Generate client-facing engagement proposal from pipeline outputs
+  const handleGenerateProposal = async () => {
+    setProposalGenerating(true);
+    try {
+      // Gather all agent outputs for context
+      const agentOutputSummary = Object.entries(state.agents)
+        .filter(([_, agent]: [string, any]) => agent.status === AgentStatus.COMPLETE && agent.output)
+        .map(([role, agent]: [string, any]) => `--- ${role} OUTPUT ---\n${typeof agent.output === 'string' ? agent.output : JSON.stringify(agent.output, null, 2)}`)
+        .join('\n\n');
+
+      const proposalSystemPrompt = `You are VA-PROPOSAL, generating a professional client-facing engagement proposal for ACE Advising.
+
+CRITICAL RULES:
+- This is a SALES DOCUMENT, not a legal analysis
+- Show the client you UNDERSTAND their case — but do NOT give away the detailed analysis
+- Be confident and professional — you are the expert, they need your help
+- NEVER include specific diagnostic codes, CFR citations, rating percentages, or legal strategies
+- NEVER include enough detail for them to file on their own
+- Keep it concise — one page maximum when printed
+
+PROPOSAL FORMAT:
+
+---
+**ACE ADVISING**
+**VA Claims Support — Engagement Proposal**
+
+**Prepared for:** [Veteran Name or "Valued Client"]
+**Date:** [Current Date]
+
+---
+
+**CASE OVERVIEW**
+[2-3 sentences showing you understand their situation — service history, general nature of conditions, without specifics]
+
+**PRELIMINARY FINDINGS**
+After conducting an initial review of your records, our analysis has identified:
+- [Number] condition(s) with strong evidentiary support for service connection
+- [General statement about evidence quality — e.g., "solid medical documentation" or "some gaps that can be addressed"]
+- [If applicable: potential for increased rating or secondary conditions — be vague but compelling]
+- Notable opportunities that warrant professional claim development
+
+**SCOPE OF SERVICES**
+Our VA Claims Support Package ($499) includes:
+• Comprehensive evidence analysis and organization
+• Personalized lay statement development
+• C&P examination preparation and coaching
+• Rating optimization strategy
+• Nexus gap identification with recommendations
+• Complete Evidence Chain Validation report
+
+**TIMELINE**
+Estimated delivery: 5-7 business days from engagement
+
+**NEXT STEPS**
+1. Confirm engagement and submit retainer
+2. We conduct full deep-dive analysis
+3. Deliverables provided for your review
+4. Pre-submission consultation call
+
+---
+
+*ACE Advising — Empowering Veterans with Evidence-Based Claim Support*
+
+---
+
+OUTPUT: Clean, professional proposal ready to send to the client. One page. Confident tone. Show expertise without revealing the playbook.`;
+
+      const { config } = await import('./config.browser');
+      const apiKey = config.anthropicApiKey;
+
+      if (apiKey && config.hasAnthropicKey) {
+        // LIVE MODE — Call Claude API directly
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
+          body: JSON.stringify({
+            model: 'claude-3-5-haiku-20241022',
+            max_tokens: 1500,
+            system: proposalSystemPrompt,
+            messages: [{ role: 'user', content: `Generate a client engagement proposal based on the following analysis:\n\n${agentOutputSummary}\n\nToday's date: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}` }]
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setProposalText(data.content[0].text);
+        } else {
+          // Fallback to template
+          setProposalText(generateTemplateProposal(agentOutputSummary));
+        }
+      } else {
+        // DEMO MODE — Generate from template
+        setProposalText(generateTemplateProposal(agentOutputSummary));
+      }
+      setShowProposal(true);
+    } catch (err) {
+      console.error('Proposal generation failed:', err);
+      setProposalText(generateTemplateProposal(''));
+      setShowProposal(true);
+    } finally {
+      setProposalGenerating(false);
+    }
+  };
+
+  // Template fallback for proposal generation
+  const generateTemplateProposal = (agentOutput: string): string => {
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const conditionCount = (agentOutput.match(/condition|disability|diagnosis/gi) || []).length;
+    const count = Math.min(Math.max(conditionCount, 2), 6);
+
+    return `---
+
+**ACE ADVISING**
+**VA Claims Support — Engagement Proposal**
+
+**Prepared for:** Valued Client
+**Date:** ${today}
+
+---
+
+**CASE OVERVIEW**
+
+Thank you for entrusting us with your VA claims review. After conducting a preliminary analysis of your service and medical records, we have a clear understanding of your situation and see meaningful opportunities to strengthen your claim.
+
+**PRELIMINARY FINDINGS**
+
+Our initial evidence review has identified:
+
+• ${count} condition(s) with evidentiary support for service connection
+• Supporting medical and service documentation in your file
+• Potential avenues for rating optimization based on current medical evidence
+• Strategic opportunities that warrant professional claim development
+
+We are confident that a comprehensive analysis will position your claim for the strongest possible outcome.
+
+**SCOPE OF SERVICES**
+
+Our VA Claims Support Package ($499) includes:
+
+• Comprehensive evidence analysis and organization
+• Personalized lay statement development
+• C&P examination preparation and coaching
+• Rating optimization strategy
+• Nexus gap identification with recommendations
+• Complete Evidence Chain Validation report
+• Pre-submission review consultation
+
+**TIMELINE**
+
+Estimated delivery: 5-7 business days from engagement
+
+**NEXT STEPS**
+
+1. Confirm engagement and submit retainer
+2. We conduct full deep-dive analysis of all records
+3. Deliverables provided for your review
+4. Pre-submission consultation call to walk through strategy
+
+---
+
+*ACE Advising — Empowering Veterans with Evidence-Based Claim Support*
+*Questions? Reply to this message or call to discuss your case.*
+
+---`;
   };
 
   // Launch workforce with optional auto-start (Quick Deploy)
@@ -1654,9 +1833,24 @@ const App: React.FC = () => {
                   <div className="flex gap-3 items-center">
                     {/* Check for either VA Report, Financial Report, or Cyber IR Report completion based on template */}
                     {(state.template === WorkforceType.VA_CLAIMS && state.agents[AgentRole.REPORT].status === AgentStatus.COMPLETE) && (
+                      <>
                         <button onClick={() => setViewingReport(true)} className="flex items-center gap-2 px-5 py-2.5 bg-[#003366] text-white font-bold rounded-xl hover:bg-[#002244] transition-all shadow-lg hover:shadow-xl hover:scale-[1.02] group ring-2 ring-[#003366]/30 ring-offset-2">
                             <Award size={18} className="group-hover:rotate-12 transition-transform" /> View ECV Report
                         </button>
+                        <button
+                          onClick={() => proposalText ? setShowProposal(true) : handleGenerateProposal()}
+                          disabled={proposalGenerating}
+                          className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-lg hover:shadow-xl hover:scale-[1.02] group ring-2 ring-indigo-600/30 ring-offset-2 disabled:opacity-50 disabled:cursor-wait"
+                        >
+                          {proposalGenerating ? (
+                            <><Loader2 size={18} className="animate-spin" /> Generating...</>
+                          ) : proposalText ? (
+                            <><ClipboardCopy size={18} className="group-hover:scale-110 transition-transform" /> View Proposal</>
+                          ) : (
+                            <><Send size={18} className="group-hover:translate-x-0.5 transition-transform" /> Generate Proposal</>
+                          )}
+                        </button>
+                      </>
                     )}
                     {(state.template === WorkforceType.FINANCIAL_AUDIT && state.agents[AgentRole.FINANCIAL_REPORT].status === AgentStatus.COMPLETE) && (
                         <button onClick={() => setViewingReport(true)} className="flex items-center gap-2 px-5 py-2.5 bg-blue-900 text-white font-bold rounded-xl hover:bg-blue-950 transition-all shadow-lg hover:shadow-xl hover:scale-[1.02] group ring-2 ring-blue-900/30 ring-offset-2">
@@ -2447,6 +2641,63 @@ const App: React.FC = () => {
                </div>
              </div>
            </div>
+        </div>
+      )}
+
+      {/* Client Proposal Modal */}
+      {showProposal && proposalText && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-8 bg-slate-900/80 backdrop-blur-2xl animate-in fade-in duration-500">
+          <div className="bg-white w-full max-w-3xl max-h-[90vh] rounded-[32px] overflow-hidden flex flex-col shadow-2xl border border-indigo-200">
+            <div className="p-6 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-indigo-50 to-white">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-indigo-600 text-white rounded-2xl shadow-lg"><Send size={24} /></div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tighter uppercase">Client Engagement Proposal</h3>
+                  <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] uppercase">Ready to Copy & Send • ACE Advising</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(proposalText).then(() => {
+                      const btn = document.getElementById('copy-proposal-status');
+                      if (btn) { btn.textContent = '✓ Copied!'; setTimeout(() => { btn.textContent = 'Copy to Clipboard'; }, 2000); }
+                    });
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-[11px] font-black rounded-xl hover:bg-indigo-700 transition-all shadow-lg"
+                >
+                  <ClipboardCopy size={16} /> <span id="copy-proposal-status">Copy to Clipboard</span>
+                </button>
+                <button
+                  onClick={() => {
+                    const blob = new Blob([proposalText], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `ACE-Proposal-${Date.now()}.txt`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white text-[11px] font-black rounded-xl hover:bg-slate-700 transition-all shadow-lg"
+                >
+                  <Download size={16} /> Download
+                </button>
+                <button
+                  onClick={() => setShowProposal(false)}
+                  className="px-6 py-2 bg-slate-900 text-white text-[11px] font-black rounded-xl hover:bg-black transition-all shadow-lg"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto p-10 bg-slate-50">
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-10 max-w-2xl mx-auto" style={{ fontFamily: 'Georgia, serif' }}>
+                <pre className="whitespace-pre-wrap text-slate-800 text-sm leading-relaxed" style={{ fontFamily: 'Georgia, serif' }}>
+                  {proposalText.replace(/\*\*/g, '').replace(/^---+$/gm, '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')}
+                </pre>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
