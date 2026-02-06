@@ -33,20 +33,41 @@ import { MockProvider } from './providers/mock';
 let providerInstance: LLMProvider | null = null;
 
 /**
+ * Helper: read a Vite env var that works in BOTH Node.js and browser contexts.
+ *
+ * In Node.js (server / build scripts): process.env is available.
+ * In Vite browser bundle: process.env does NOT exist — only import.meta.env
+ * is populated (for VITE_* prefixed vars). We must check both.
+ */
+function env(key: string): string | undefined {
+  // 1. Node.js / server-side
+  if (typeof process !== 'undefined' && process.env?.[key]) {
+    return process.env[key];
+  }
+  // 2. Vite browser bundle (import.meta.env.VITE_*)
+  try {
+    const val = (import.meta as any).env?.[key];
+    if (val && val !== '' && val !== 'undefined') return val;
+  } catch {
+    // import.meta may not exist in some Node.js contexts
+  }
+  return undefined;
+}
+
+/**
  * Detect provider type from environment
  */
 function detectProviderType(): LLMProviderType {
   // Check for demo mode first
-  const demoMode = process.env.ACE_DEMO_MODE === 'true' ||
-    process.env.VITE_DEMO_MODE === 'true';
+  const demoMode = env('ACE_DEMO_MODE') === 'true' ||
+    env('VITE_DEMO_MODE') === 'true';
 
   if (demoMode) {
     return LLMProviderType.MOCK;
   }
 
   // Check for specific provider override
-  const providerOverride = process.env.LLM_PROVIDER ||
-    process.env.VITE_LLM_PROVIDER;
+  const providerOverride = env('LLM_PROVIDER') || env('VITE_LLM_PROVIDER');
 
   if (providerOverride) {
     switch (providerOverride.toLowerCase()) {
@@ -66,17 +87,17 @@ function detectProviderType(): LLMProviderType {
   }
 
   // Check for Bedrock configuration
-  if (process.env.AWS_BEDROCK_REGION || process.env.AWS_REGION?.includes('gov')) {
+  if (env('AWS_BEDROCK_REGION') || env('AWS_REGION')?.includes('gov')) {
     return LLMProviderType.AWS_BEDROCK;
   }
 
   // Check for Azure configuration
-  if (process.env.AZURE_OPENAI_ENDPOINT) {
+  if (env('AZURE_OPENAI_ENDPOINT')) {
     return LLMProviderType.AZURE_OPENAI;
   }
 
   // Default to direct Anthropic if API key present
-  if (process.env.ANTHROPIC_API_KEY || process.env.VITE_ANTHROPIC_API_KEY) {
+  if (env('ANTHROPIC_API_KEY') || env('VITE_ANTHROPIC_API_KEY')) {
     return LLMProviderType.ANTHROPIC_DIRECT;
   }
 
@@ -94,18 +115,14 @@ function buildConfig(providerType: LLMProviderType): LLMProviderConfig {
   return {
     type: providerType,
 
-    // API keys
-    apiKey: process.env.ANTHROPIC_API_KEY ||
-      process.env.VITE_ANTHROPIC_API_KEY ||
-      (isBrowser ? (import.meta as any).env?.VITE_ANTHROPIC_API_KEY : undefined),
+    // API keys — env() handles both Node.js and browser (import.meta.env)
+    apiKey: env('ANTHROPIC_API_KEY') || env('VITE_ANTHROPIC_API_KEY'),
 
     // AWS Bedrock
-    awsRegion: process.env.AWS_BEDROCK_REGION ||
-      process.env.AWS_REGION ||
-      'us-gov-west-1',
+    awsRegion: env('AWS_BEDROCK_REGION') || env('AWS_REGION') || 'us-gov-west-1',
 
     // Azure OpenAI
-    azureEndpoint: process.env.AZURE_OPENAI_ENDPOINT,
+    azureEndpoint: env('AZURE_OPENAI_ENDPOINT'),
 
     // Defaults
     defaultTier: ModelTier.ADVANCED,
@@ -115,7 +132,7 @@ function buildConfig(providerType: LLMProviderType): LLMProviderConfig {
     dangerouslyAllowBrowser: isBrowser,
 
     // Logging
-    enableLogging: process.env.LOG_LEVEL === 'debug'
+    enableLogging: env('LOG_LEVEL') === 'debug'
   };
 }
 
@@ -180,9 +197,9 @@ export function getProviderByType(
  * Check which providers are available/configured
  */
 export function getAvailableProviders(): { type: LLMProviderType; configured: boolean; displayName: string }[] {
-  const hasAnthropicKey = !!(process.env.ANTHROPIC_API_KEY || process.env.VITE_ANTHROPIC_API_KEY);
-  const hasBedrockConfig = !!(process.env.AWS_BEDROCK_REGION || process.env.AWS_REGION?.includes('gov'));
-  const hasAzureConfig = !!process.env.AZURE_OPENAI_ENDPOINT;
+  const hasAnthropicKey = !!(env('ANTHROPIC_API_KEY') || env('VITE_ANTHROPIC_API_KEY'));
+  const hasBedrockConfig = !!(env('AWS_BEDROCK_REGION') || env('AWS_REGION')?.includes('gov'));
+  const hasAzureConfig = !!env('AZURE_OPENAI_ENDPOINT');
 
   return [
     {

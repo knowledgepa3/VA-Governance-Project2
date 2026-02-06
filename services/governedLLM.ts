@@ -282,7 +282,7 @@ export async function execute(request: GovernedLLMRequest): Promise<GovernedLLMR
 
   if (mode === ExecutionMode.LIVE && provider.providerType === LLMProviderType.MOCK) {
     const reason = 'POLICY_VIOLATION: MOCK_IN_LIVE_MODE — Mock provider is not allowed in LIVE mode';
-    log.critical(reason, { correlationId, role: request.role });
+    log.error(reason, { correlationId, role: request.role });
 
     await createAuditEntry({
       timestamp: new Date().toISOString(),
