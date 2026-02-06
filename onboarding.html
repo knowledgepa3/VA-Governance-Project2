@@ -766,8 +766,8 @@
         <li class="progress-step" data-step="5">
           <div class="step-indicator">5</div>
           <div class="step-content">
-            <h4>First Run</h4>
-            <p>Test your setup</p>
+            <h4>Review</h4>
+            <p>Confirm & launch</p>
           </div>
         </li>
       </ul>
@@ -818,21 +818,21 @@
         </div>
 
         <div class="option-grid">
-          <div class="option-card">
-            <input type="radio" name="domain" id="domain-bd" value="bd-capture" checked onchange="toggleCustomDomain()">
-            <label for="domain-bd">
-              <div class="option-icon">BD</div>
-              <div class="option-title">Business Development</div>
-              <div class="option-desc">RFP analysis, opportunity capture, proposal support</div>
+          <div class="option-card" style="border: 2px solid var(--primary); background: rgba(74, 158, 255, 0.05);">
+            <input type="radio" name="domain" id="domain-va" value="va-claims" checked onchange="toggleCustomDomain()">
+            <label for="domain-va">
+              <div class="option-icon" style="background: linear-gradient(135deg, #003366, #0066cc);">VA</div>
+              <div class="option-title">VA Claims Support</div>
+              <div class="option-desc">Evidence analysis, lay statements, C&P prep, rating optimization</div>
             </label>
           </div>
 
           <div class="option-card">
-            <input type="radio" name="domain" id="domain-research" value="research" onchange="toggleCustomDomain()">
-            <label for="domain-research">
-              <div class="option-icon">R&A</div>
-              <div class="option-title">Research & Analysis</div>
-              <div class="option-desc">Market research, competitive intel, due diligence</div>
+            <input type="radio" name="domain" id="domain-bd" value="bd-capture" onchange="toggleCustomDomain()">
+            <label for="domain-bd">
+              <div class="option-icon">BD</div>
+              <div class="option-title">Business Development</div>
+              <div class="option-desc">RFP analysis, opportunity capture, proposal support</div>
             </label>
           </div>
 
@@ -855,11 +855,11 @@
           </div>
 
           <div class="option-card">
-            <input type="radio" name="domain" id="domain-hr" value="hr" onchange="toggleCustomDomain()">
-            <label for="domain-hr">
-              <div class="option-icon">HR</div>
-              <div class="option-title">HR & Recruiting</div>
-              <div class="option-desc">Resume screening, policy research, onboarding</div>
+            <input type="radio" name="domain" id="domain-research" value="research" onchange="toggleCustomDomain()">
+            <label for="domain-research">
+              <div class="option-icon">R&A</div>
+              <div class="option-title">Research & Analysis</div>
+              <div class="option-desc">Market research, competitive intel, due diligence</div>
             </label>
           </div>
 
@@ -1000,11 +1000,11 @@
         </div>
       </div>
 
-      <!-- Step 5: First Run -->
+      <!-- Step 5: Review & Complete -->
       <div class="step-panel" data-panel="5">
         <div class="panel-header">
-          <h1>Ready for Your First Run</h1>
-          <p>Let's verify everything works with a quick test.</p>
+          <h1>Review & Complete</h1>
+          <p>Confirm your settings and launch your workspace.</p>
         </div>
 
         <div class="summary-card">
@@ -1031,16 +1031,16 @@
           </div>
         </div>
 
-        <div class="info-box">
-          <span class="info-box-icon">TEST</span>
+        <div class="info-box" style="border-left-color: var(--success);">
+          <span class="info-box-icon" style="color: var(--success);">GO</span>
           <div class="info-box-content">
-            We'll run a sample task to test your governance setup. This takes about 30 seconds.
+            Click <strong>Complete Setup</strong> to initialize your workspace. You'll be able to upload documents and run your first analysis immediately.
           </div>
         </div>
 
         <div class="btn-row">
           <button class="btn btn-secondary" onclick="prevStep()">← Back</button>
-          <button class="btn btn-success" onclick="completeSetup()">Complete Setup</button>
+          <button class="btn btn-success" onclick="completeSetup()" id="completeBtn">Complete Setup →</button>
         </div>
       </div>
 
@@ -1052,28 +1052,12 @@
           <h1 class="completion-title">GIA Initialized</h1>
           <p class="completion-subtitle">Your governed intelligence workspace is configured and ready.</p>
 
-          <div class="launch-options">
-            <a href="/bd.html" class="launch-card">
-              <div class="launch-card-icon">BD</div>
-              <div class="launch-card-title">BD Dashboard</div>
-              <div class="launch-card-desc">Start capturing opportunities</div>
-            </a>
-
-            <a href="/console.html" class="launch-card">
-              <div class="launch-card-icon">RUN</div>
-              <div class="launch-card-title">GIA Console</div>
-              <div class="launch-card-desc">Try a governed workflow</div>
-            </a>
-
-            <a href="/portal.html" class="launch-card">
-              <div class="launch-card-icon">ALL</div>
-              <div class="launch-card-title">Portal</div>
-              <div class="launch-card-desc">Access all workflows</div>
-            </a>
+          <div class="launch-options" id="launchOptions">
+            <!-- Dynamically populated based on domain selection -->
           </div>
 
           <p style="margin-top: 2rem; color: var(--gray-500); font-size: 0.9rem;">
-            Questions? Email <a href="mailto:support@ace-consulting.io" style="color: var(--primary);">support@ace-consulting.io</a>
+            Questions? Email <a href="mailto:support@aceadvising.com" style="color: var(--primary);">support@aceadvising.com</a>
           </p>
         </div>
       </div>
@@ -1113,12 +1097,48 @@
     }
 
     function nextStep() {
+      // Validate current step before advancing
+      if (currentStep === 1) {
+        const orgName = document.getElementById('orgName').value.trim();
+        const userName = document.getElementById('userName').value.trim();
+        const userEmail = document.getElementById('userEmail').value.trim();
+
+        if (!orgName || !userName || !userEmail) {
+          showValidationError('Please fill in all fields before continuing.');
+          return;
+        }
+        if (userEmail && !userEmail.includes('@')) {
+          showValidationError('Please enter a valid email address.');
+          return;
+        }
+        clearValidationError();
+      }
+
       if (currentStep < totalSteps) {
         currentStep++;
         updateProgressBar();
         showPanel(currentStep);
         updateSummary();
       }
+    }
+
+    function showValidationError(message) {
+      // Remove existing error
+      clearValidationError();
+      const errDiv = document.createElement('div');
+      errDiv.id = 'validationError';
+      errDiv.style.cssText = 'background: rgba(248, 81, 73, 0.1); border: 1px solid var(--err); color: var(--err); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.85rem;';
+      errDiv.textContent = message;
+      const activePanel = document.querySelector('.step-panel.active');
+      if (activePanel) {
+        const btnRow = activePanel.querySelector('.btn-row');
+        if (btnRow) btnRow.parentNode.insertBefore(errDiv, btnRow);
+      }
+    }
+
+    function clearValidationError() {
+      const existing = document.getElementById('validationError');
+      if (existing) existing.remove();
     }
 
     function prevStep() {
@@ -1186,17 +1206,17 @@
       document.getElementById('summaryEvidence').textContent = document.getElementById('evidenceValue').textContent;
     }
 
-    function completeSetup() {
+    async function completeSetup() {
       // Get domain value and custom domain text if applicable
       const domainInput = document.querySelector('input[name="domain"]:checked');
       const domainValue = domainInput?.value || 'unknown';
       const customDomainText = document.getElementById('customDomainInput')?.value || '';
 
-      // Save config to localStorage
+      // Build config
       const config = {
-        orgName: document.getElementById('orgName').value,
-        userName: document.getElementById('userName').value,
-        userEmail: document.getElementById('userEmail').value,
+        orgName: document.getElementById('orgName').value.trim(),
+        userName: document.getElementById('userName').value.trim(),
+        userEmail: document.getElementById('userEmail').value.trim(),
         domain: domainValue,
         domainCustomText: domainValue === 'custom' ? customDomainText : '',
         approval: document.getElementById('approvalSlider').value,
@@ -1206,10 +1226,102 @@
         setupDate: new Date().toISOString()
       };
 
+      // Save config to localStorage
       localStorage.setItem('gia_config', JSON.stringify(config));
+
+      // Try to persist to backend (non-blocking — don't fail onboarding if server is down)
+      try {
+        const token = localStorage.getItem('ace_token');
+        if (token) {
+          await fetch('/api/cases', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              claimType: domainValue === 'va-claims' ? 'VA Disability Claim' : domainValue,
+              conditionCount: 0,
+              priority: 'medium',
+              profileData: {
+                orgName: config.orgName,
+                contactName: config.userName,
+                contactEmail: config.userEmail,
+                domain: domainValue,
+                onboardedAt: config.setupDate
+              }
+            })
+          });
+          console.log('[Onboarding] Case persisted to backend');
+        }
+      } catch (err) {
+        console.warn('[Onboarding] Backend persist failed (non-critical):', err.message);
+      }
+
+      // Populate launch options based on domain
+      const launchOptions = document.getElementById('launchOptions');
+      if (domainValue === 'va-claims') {
+        launchOptions.innerHTML = `
+          <a href="/app" class="launch-card" style="border-color: var(--primary); background: rgba(74, 158, 255, 0.05);">
+            <div class="launch-card-icon" style="background: linear-gradient(135deg, #003366, #0066cc);">VA</div>
+            <div class="launch-card-title">Run VA Claims Analysis</div>
+            <div class="launch-card-desc">Upload records and run the full evidence pipeline</div>
+          </a>
+          <a href="/console" class="launch-card">
+            <div class="launch-card-icon">CLI</div>
+            <div class="launch-card-title">GIA Console</div>
+            <div class="launch-card-desc">Terminal-style workflow interface</div>
+          </a>
+          <a href="/" class="launch-card">
+            <div class="launch-card-icon">ALL</div>
+            <div class="launch-card-title">GIA Portal</div>
+            <div class="launch-card-desc">All workflows and compliance info</div>
+          </a>
+        `;
+      } else if (domainValue === 'bd-capture') {
+        launchOptions.innerHTML = `
+          <a href="/app" class="launch-card" style="border-color: var(--primary);">
+            <div class="launch-card-icon">BD</div>
+            <div class="launch-card-title">BD Dashboard</div>
+            <div class="launch-card-desc">Start capturing opportunities</div>
+          </a>
+          <a href="/console" class="launch-card">
+            <div class="launch-card-icon">CLI</div>
+            <div class="launch-card-title">GIA Console</div>
+            <div class="launch-card-desc">Terminal-style workflow interface</div>
+          </a>
+          <a href="/" class="launch-card">
+            <div class="launch-card-icon">ALL</div>
+            <div class="launch-card-title">GIA Portal</div>
+            <div class="launch-card-desc">All workflows and compliance info</div>
+          </a>
+        `;
+      } else {
+        launchOptions.innerHTML = `
+          <a href="/app" class="launch-card" style="border-color: var(--primary);">
+            <div class="launch-card-icon">RUN</div>
+            <div class="launch-card-title">Launch Workflows</div>
+            <div class="launch-card-desc">Access the full GIA workflow engine</div>
+          </a>
+          <a href="/console" class="launch-card">
+            <div class="launch-card-icon">CLI</div>
+            <div class="launch-card-title">GIA Console</div>
+            <div class="launch-card-desc">Terminal-style workflow interface</div>
+          </a>
+          <a href="/" class="launch-card">
+            <div class="launch-card-icon">ALL</div>
+            <div class="launch-card-title">GIA Portal</div>
+            <div class="launch-card-desc">All workflows and compliance info</div>
+          </a>
+        `;
+      }
 
       // Show completion screen
       showPanel('complete');
+
+      // Update header status
+      document.querySelector('.header-status').textContent = 'ONLINE';
+      document.querySelector('.header-status').style.color = 'var(--success)';
 
       // Update all steps to completed
       document.querySelectorAll('.progress-step').forEach(step => {
@@ -1219,13 +1331,26 @@
       });
     }
 
-    // Check if already onboarded
+    // Check if already onboarded — offer to go directly to workflows
     const savedConfig = localStorage.getItem('gia_config');
     if (savedConfig) {
       const config = JSON.parse(savedConfig);
       if (config.setupComplete) {
-        // Could auto-redirect or show "Welcome back"
-        console.log('User already onboarded:', config);
+        console.log('[Onboarding] User already onboarded:', config.orgName);
+        // Show a "Welcome back" banner at top
+        const banner = document.createElement('div');
+        banner.style.cssText = 'background: rgba(74, 158, 255, 0.1); border: 1px solid var(--primary); padding: 1rem 1.5rem; margin: 1rem 2rem; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;';
+        banner.innerHTML = `
+          <div>
+            <strong style="color: var(--primary);">Welcome back, ${config.userName || 'operator'}!</strong>
+            <span style="color: var(--gray-400); margin-left: 0.5rem;">Setup completed ${new Date(config.setupDate).toLocaleDateString()}</span>
+          </div>
+          <div style="display: flex; gap: 0.75rem;">
+            <a href="/app" style="background: var(--primary); color: white; padding: 0.5rem 1.25rem; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.85rem;">Go to Workflows →</a>
+            <button onclick="this.parentElement.parentElement.remove()" style="background: var(--gray-700); color: var(--gray-300); border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">Redo Setup</button>
+          </div>
+        `;
+        document.querySelector('.main-layout').prepend(banner);
       }
     }
   </script>
