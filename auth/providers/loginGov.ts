@@ -190,12 +190,10 @@ export class LoginGovProvider implements AuthProvider {
   }
 
   private generateNonce(): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let nonce = '';
-    for (let i = 0; i < 32; i++) {
-      nonce += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return nonce;
+    // Use cryptographically secure random values — not Math.random()
+    const array = new Uint8Array(24);
+    crypto.getRandomValues(array);
+    return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
   }
 }
 

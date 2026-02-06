@@ -256,11 +256,9 @@ export class MockAuthProvider implements AuthProvider {
   }
 
   private generateToken(): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let token = 'mock_';
-    for (let i = 0; i < 32; i++) {
-      token += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return token;
+    // Use cryptographically secure random values — not Math.random()
+    const array = new Uint8Array(24);
+    crypto.getRandomValues(array);
+    return 'mock_' + Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
   }
 }

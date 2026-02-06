@@ -675,7 +675,7 @@ export class BDWorkforce {
       opp.status = OpportunityStatus.REVIEWED;
       opp.winProbability = this.calculateSimpleFallbackScore(opp);
       opp.bidDecision = this.determineBidDecision(opp);
-      opp.competitorCount = Math.floor(Math.random() * 10) + 3;
+      opp.competitorCount = 0; // Unknown — analysis failed, not generating fake count
       opp.capabilityGaps = [];
       opp.teamingRequired = opp.winProbability! < 60;
     }
@@ -1077,21 +1077,18 @@ export class BDWorkforce {
   }
 
   private generateDemoPastAwards(opp: BDOpportunity): any[] {
-    const awards = [];
+    // DEMO DATA — clearly labeled, not pretending to be real SAM.gov award data.
+    // In production, this would be replaced by actual SAM.gov FPDS award queries.
     const companies = ['Booz Allen Hamilton', 'CACI International', 'Leidos', 'ManTech', 'SAIC', 'Perspecta'];
-
-    for (let i = 0; i < 15; i++) {
-      awards.push({
-        recipient: companies[Math.floor(Math.random() * companies.length)],
-        recipient_name: companies[Math.floor(Math.random() * companies.length)],
-        award_amount: Math.round((500000 + Math.random() * 5000000) * 100) / 100,
-        award_date: new Date(Date.now() - Math.random() * 3 * 365 * 24 * 60 * 60 * 1000).toISOString(),
-        description: `${opp.agency} IT Support Services`,
-        naics_code: opp.naicsCode || '541512'
-      });
-    }
-
-    return awards;
+    return companies.map((company, i) => ({
+      recipient: company,
+      recipient_name: company,
+      award_amount: (i + 1) * 750000, // Deterministic, not random
+      award_date: new Date(Date.now() - (i + 1) * 180 * 24 * 60 * 60 * 1000).toISOString(), // Spaced 6mo apart
+      description: `${opp.agency} IT Support Services`,
+      naics_code: opp.naicsCode || '541512',
+      _demo_data: true // Flag so downstream consumers know this is demo
+    }));
   }
 
   private generateDemoTeamingRec(opp: BDOpportunity): any {

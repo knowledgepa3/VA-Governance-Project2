@@ -486,18 +486,19 @@ class CostTrackingService {
     }
   }
 
-  // For testing/demo - add mock data
+  // For UI testing only — generates deterministic demo records clearly labeled as simulated.
+  // NOT for production use. Records are tagged with [DEMO] in the caseId.
   addMockData() {
     const agents = ['intake-agent', 'evidence-agent', 'nexus-agent', 'qa-agent', 'report-agent'];
     const models = ['claude-sonnet-4-20250514', 'claude-haiku-3-5-20241022'];
 
     for (let i = 0; i < 50; i++) {
-      const daysAgo = Math.floor(Math.random() * 30);
+      const daysAgo = i % 30; // Deterministic spread over 30 days
       const date = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
-      const agent = agents[Math.floor(Math.random() * agents.length)];
-      const model = models[Math.floor(Math.random() * models.length)];
-      const inputTokens = Math.floor(Math.random() * 3000) + 500;
-      const outputTokens = Math.floor(Math.random() * 2000) + 200;
+      const agent = agents[i % agents.length]; // Round-robin, not random
+      const model = models[i % models.length];
+      const inputTokens = 500 + (i * 50); // Deterministic ramp
+      const outputTokens = 200 + (i * 35);
 
       this.usageHistory.push({
         timestamp: date.toISOString(),
@@ -506,7 +507,7 @@ class CostTrackingService {
         inputTokens,
         outputTokens,
         cost: this.calculateCost(model, inputTokens, outputTokens),
-        caseId: `CASE-${Math.floor(Math.random() * 100)}`
+        caseId: `[DEMO]-CASE-${i + 1}` // Clearly labeled as demo data
       });
     }
     this.persist();
@@ -648,11 +649,11 @@ export function CostGovernorPanel({ expanded = true }: CostGovernorPanelProps) {
               Refresh
             </button>
             <button
-              onClick={handleAddMockData}
-              className="flex items-center gap-1 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-all ml-auto"
+              onClick={() => { if (window.confirm('[DEMO] This inserts simulated cost records for UI testing. These are NOT real usage metrics. Continue?')) handleAddMockData(); }}
+              className="flex items-center gap-1 px-3 py-1.5 bg-yellow-100 text-yellow-700 rounded-lg text-sm font-medium hover:bg-yellow-200 transition-all ml-auto border border-yellow-300"
             >
               <Zap className="w-4 h-4" />
-              Add Demo Data
+              [DEMO] Add Test Data
             </button>
           </div>
 
