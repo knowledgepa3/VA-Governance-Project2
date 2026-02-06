@@ -189,7 +189,19 @@ app.post('/api/auth/login',
   }
 );
 
-// Apply tenant isolation to all API routes
+// Auth + Tenant isolation on all /api routes (except /api/auth/*)
+// Auth must run BEFORE tenant isolation so JWT tenantId is available
+app.use('/api', (req, res, next) => {
+  // Skip auth for login/register endpoints and error reporting
+  if (req.path.startsWith('/auth/') || req.path === '/errors/report') {
+    return next();
+  }
+  // Skip auth for AI health check (used by proxy provider)
+  if (req.path === '/ai/health') {
+    return next();
+  }
+  requireAuth(req, res, next);
+});
 app.use('/api', tenantIsolationMiddleware);
 
 // Claude API proxy
