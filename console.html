@@ -3193,6 +3193,71 @@ REPORT STRUCTURE:
    - Recommendation to consult accredited representative
 
 OUTPUT: Complete formatted report ready for case file.`
+        },
+
+        PROPOSAL: {
+          name: 'PROPOSAL',
+          displayName: 'Client Proposal Generator',
+          description: 'Generate client-facing engagement proposal',
+          model: 'haiku',
+          maxTokens: 1500,
+          isGate: false,
+          systemPrompt: `You are VA-PROPOSAL, generating a professional client-facing engagement proposal for ACE Advising.
+
+CRITICAL RULES:
+- This is a SALES DOCUMENT, not a legal analysis
+- Show the client you UNDERSTAND their case — but do NOT give away the detailed analysis
+- Be confident and professional — you are the expert, they need your help
+- NEVER include specific diagnostic codes, CFR citations, rating percentages, or legal strategies
+- NEVER include enough detail for them to file on their own
+- Keep it concise — one page maximum when printed
+
+PROPOSAL FORMAT:
+
+---
+**ACE ADVISING**
+**VA Claims Support — Engagement Proposal**
+
+**Prepared for:** [Veteran Name or "Valued Client"]
+**Date:** [Current Date]
+
+---
+
+**CASE OVERVIEW**
+[2-3 sentences showing you understand their situation — service history, general nature of conditions, without specifics]
+
+**PRELIMINARY FINDINGS**
+After conducting an initial review of your records, our analysis has identified:
+- [Number] condition(s) with strong evidentiary support for service connection
+- [General statement about evidence quality — e.g., "solid medical documentation" or "some gaps that can be addressed"]
+- [If applicable: potential for increased rating or secondary conditions — be vague but compelling]
+- Notable opportunities that warrant professional claim development
+
+**SCOPE OF SERVICES**
+Our VA Claims Support Package ($499) includes:
+• Comprehensive evidence analysis and organization
+• Personalized lay statement development
+• C&P examination preparation and coaching
+• Rating optimization strategy
+• Nexus gap identification with recommendations
+• Complete Evidence Chain Validation report
+
+**TIMELINE**
+Estimated delivery: 5-7 business days from engagement
+
+**NEXT STEPS**
+1. Confirm engagement and submit retainer
+2. We conduct full deep-dive analysis
+3. Deliverables provided for your review
+4. Pre-submission consultation call
+
+---
+
+*ACE Advising — Empowering Veterans with Evidence-Based Claim Support*
+
+---
+
+OUTPUT: Clean, professional proposal ready to send to the client. One page. Confident tone. Show expertise without revealing the playbook.`
         }
       },
 
@@ -13098,7 +13163,13 @@ Tokens: ${lastAnalysisResult.tokens || 'N/A'}
 
 DISCLAIMER: This is AI-assisted analysis. All findings require verification
 by a qualified VA claims representative or attorney.
-`;
+${lastAnalysisResult.proposal ? `
+
+========================================
+CLIENT ENGAGEMENT PROPOSAL
+========================================
+${lastAnalysisResult.proposal}
+` : ''}`;
 
       const blob = new Blob([content], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
@@ -14309,6 +14380,164 @@ This identification is for report matching purposes only.`);
         }
 
         addSpacer();
+
+        // ============================================
+        // PROPOSAL GENERATOR — Optional post-report action
+        // Generates client-facing engagement proposal
+        // ============================================
+        const proposalBtnId = `proposal-btn-${Date.now()}`;
+        const proposalDiv = document.createElement('div');
+        proposalDiv.className = 'gate-prompt';
+        proposalDiv.id = proposalBtnId;
+        proposalDiv.style.cssText = 'border-color: var(--accent); background: rgba(99, 102, 241, 0.05);';
+        proposalDiv.innerHTML = `
+          <div class="gate-header">
+            <span class="gate-icon">📋</span>
+            <span class="gate-title">CLIENT PROPOSAL</span>
+          </div>
+          <div class="gate-content">
+            <p>Generate a professional client-facing engagement proposal?</p>
+            <p class="hl-dim" style="font-size: 0.85em;">
+              Creates a clean proposal showing you understand their case — without giving away your detailed analysis.
+              Ready to copy and send via email or CRM.
+            </p>
+          </div>
+          <div class="gate-actions">
+            <button class="gate-btn gate-btn-approve" id="${proposalBtnId}-gen" style="background: var(--accent);">
+              Generate $499 Proposal
+            </button>
+            <button class="gate-btn gate-btn-abort" id="${proposalBtnId}-skip">
+              Skip
+            </button>
+          </div>
+        `;
+        terminal.appendChild(proposalDiv);
+        scrollToBottom();
+
+        // Wait for user choice
+        const generateProposal = await new Promise((resolve) => {
+          document.getElementById(`${proposalBtnId}-gen`).onclick = () => {
+            document.getElementById(proposalBtnId)?.remove();
+            resolve(true);
+          };
+          document.getElementById(`${proposalBtnId}-skip`).onclick = () => {
+            document.getElementById(proposalBtnId)?.remove();
+            resolve(false);
+          };
+        });
+
+        if (generateProposal) {
+          addLine('system', '*', '<span class="hl-cyan">GENERATING CLIENT PROPOSAL</span>');
+          addSpacer();
+
+          let proposalText = '';
+
+          if (hasApiKey) {
+            // LIVE MODE — Call PROPOSAL agent with pipeline outputs
+            addLine('step', '>', '<span class="hl-green">LIVE</span> running PROPOSAL agent (haiku)...');
+            const proposalStart = Date.now();
+
+            try {
+              // Build veteran context for proposal
+              const proposalExtra = veteranPII
+                ? `=== CLIENT INFO ===\nName: ${veteranPII.name}\n=== END CLIENT INFO ===`
+                : null;
+
+              const proposalResult = await VAAgentPipeline.runAgent(
+                'PROPOSAL',
+                '', // No raw docs needed — it works from agent outputs
+                agentOutputs,
+                proposalExtra
+              );
+
+              if (proposalResult.success) {
+                GIASounds.dataReceived();
+                const duration = ((Date.now() - proposalStart) / 1000).toFixed(1);
+                proposalText = proposalResult.output;
+                addLine('success', '+', `Proposal generated (${duration}s)`);
+                if (proposalResult.usage) {
+                  addLine('output', ' ', `<span class="hl-dim">tokens: ${proposalResult.usage.input_tokens} in / ${proposalResult.usage.output_tokens} out</span>`);
+                }
+              } else {
+                addLine('error', 'x', `Proposal failed: ${proposalResult.error}`);
+                addLine('warning', '~', 'Using template fallback...');
+                proposalText = generateFallbackProposal(veteranPII, agentOutputs);
+              }
+            } catch (err) {
+              addLine('error', 'x', `Proposal error: ${err.message}`);
+              proposalText = generateFallbackProposal(veteranPII, agentOutputs);
+            }
+          } else {
+            // DEMO MODE
+            addLine('step', '>', '<span class="hl-yellow">DEMO</span> generating proposal...');
+            await sleep(800);
+            proposalText = generateFallbackProposal(veteranPII, agentOutputs);
+            addLine('success', '+', 'Proposal generated (demo)');
+          }
+
+          addSpacer();
+
+          // Display proposal in a clean, copyable block
+          if (proposalText) {
+            addLine('system', '*', '<span class="hl-accent">CLIENT ENGAGEMENT PROPOSAL</span>');
+            addSpacer();
+
+            // Render proposal lines
+            const proposalLines = proposalText.split('\n');
+            for (const line of proposalLines) {
+              if (line.trim()) {
+                if (line.match(/^---+$/)) {
+                  addLine('system', ' ', '<span class="hl-dim">────────────────────────────────────────</span>');
+                } else if (line.match(/^\*\*.*\*\*$/) || line.match(/^#{1,3}\s/)) {
+                  const clean = line.replace(/\*\*/g, '').replace(/^#+\s*/, '').trim();
+                  addLine('system', '*', `<span class="hl-cyan" style="font-weight:bold;">${escapeHtml(clean)}</span>`);
+                } else if (line.startsWith('•') || line.startsWith('- ')) {
+                  addLine('output', '  ', escapeHtml(line));
+                } else if (line.match(/^\d+\./)) {
+                  addLine('output', '  ', escapeHtml(line));
+                } else if (line.startsWith('*') && line.endsWith('*')) {
+                  addLine('output', ' ', `<span class="hl-dim">${escapeHtml(line.replace(/\*/g, ''))}</span>`);
+                } else {
+                  addLine('output', ' ', escapeHtml(line));
+                }
+              }
+            }
+
+            addSpacer();
+
+            // Add copy-to-clipboard button
+            const copyBtnId = `copy-proposal-${Date.now()}`;
+            const copyDiv = document.createElement('div');
+            copyDiv.style.cssText = 'padding: 8px 16px; display: flex; gap: 12px; align-items: center;';
+            copyDiv.innerHTML = `
+              <button id="${copyBtnId}" style="
+                background: var(--accent); color: white; border: none; padding: 8px 20px;
+                border-radius: 4px; cursor: pointer; font-family: var(--font-mono);
+                font-size: 0.85em; font-weight: 600;
+              ">📋 COPY PROPOSAL TO CLIPBOARD</button>
+              <span id="${copyBtnId}-status" class="hl-dim" style="font-size: 0.85em;"></span>
+            `;
+            terminal.appendChild(copyDiv);
+            scrollToBottom();
+
+            document.getElementById(copyBtnId).onclick = () => {
+              navigator.clipboard.writeText(proposalText).then(() => {
+                document.getElementById(`${copyBtnId}-status`).innerHTML =
+                  '<span class="hl-green">✓ Copied! Paste into email or CRM.</span>';
+                GIASounds.click();
+              }).catch(() => {
+                document.getElementById(`${copyBtnId}-status`).innerHTML =
+                  '<span class="hl-yellow">~ Select text manually to copy</span>';
+              });
+            };
+
+            // Store proposal in results for export
+            lastAnalysisResult.proposal = proposalText;
+          }
+
+          addSpacer();
+        }
+
         addLine('system', '*', '<span class="hl-dim">type "export" to save full pipeline results</span>');
 
         // Add follow-up capability
@@ -14322,6 +14551,85 @@ This identification is for report matching purposes only.`);
         // Pipeline was aborted - governed cleanup
         await GIAWorkflow.complete('aborted');
       }
+    }
+
+    // Generate fallback/demo proposal from pipeline outputs
+    function generateFallbackProposal(pii, outputs) {
+      const clientName = pii ? pii.name : 'Valued Client';
+      const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+      // Extract condition count from EVIDENCE/RATER output if available
+      let conditionHint = 'multiple condition(s)';
+      let evidenceHint = 'supporting documentation';
+      if (outputs.RATER) {
+        const condMatches = outputs.RATER.match(/condition|disability|diagnosis/gi);
+        if (condMatches && condMatches.length > 0) {
+          const count = Math.min(condMatches.length, 5);
+          conditionHint = `${count} condition(s)`;
+        }
+      }
+      if (outputs.EVIDENCE) {
+        if (outputs.EVIDENCE.toLowerCase().includes('strong') || outputs.EVIDENCE.toLowerCase().includes('well-documented')) {
+          evidenceHint = 'solid medical and service documentation';
+        } else if (outputs.EVIDENCE.toLowerCase().includes('gap') || outputs.EVIDENCE.toLowerCase().includes('missing')) {
+          evidenceHint = 'existing documentation with addressable gaps';
+        }
+      }
+
+      return `---
+
+**ACE ADVISING**
+**VA Claims Support — Engagement Proposal**
+
+**Prepared for:** ${clientName}
+**Date:** ${today}
+
+---
+
+**CASE OVERVIEW**
+
+Thank you for entrusting us with your VA claims review. After conducting a preliminary analysis of your service and medical records, we have a clear understanding of your situation and see meaningful opportunities to strengthen your claim.
+
+**PRELIMINARY FINDINGS**
+
+Our initial evidence review has identified:
+
+• ${conditionHint} with evidentiary support for service connection
+• ${evidenceHint} currently in your file
+• Potential avenues for rating optimization based on current medical evidence
+• Strategic opportunities that warrant professional claim development
+
+We are confident that a comprehensive analysis will position your claim for the strongest possible outcome.
+
+**SCOPE OF SERVICES**
+
+Our VA Claims Support Package ($499) includes:
+
+• Comprehensive evidence analysis and organization
+• Personalized lay statement development
+• C&P examination preparation and coaching
+• Rating optimization strategy
+• Nexus gap identification with recommendations
+• Complete Evidence Chain Validation report
+• Pre-submission review consultation
+
+**TIMELINE**
+
+Estimated delivery: 5-7 business days from engagement
+
+**NEXT STEPS**
+
+1. Confirm engagement and submit retainer
+2. We conduct full deep-dive analysis of all records
+3. Deliverables provided for your review
+4. Pre-submission consultation call to walk through strategy
+
+---
+
+*ACE Advising — Empowering Veterans with Evidence-Based Claim Support*
+*Questions? Reply to this message or call to discuss your case.*
+
+---`;
     }
 
     // Helper to escape HTML entities for safe display
