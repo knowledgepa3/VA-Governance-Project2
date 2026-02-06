@@ -45,11 +45,34 @@ export enum ModelTier {
 export type MessageRole = 'system' | 'user' | 'assistant';
 
 /**
- * Single message in a conversation
+ * Content block for multimodal messages (text + images + tool use)
+ */
+export type ContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }
+  | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
+  | { type: 'tool_result'; tool_use_id: string; content: string };
+
+/**
+ * Single message in a conversation.
+ * content can be a plain string or an array of content blocks (for vision/multimodal/tool-use).
  */
 export interface LLMMessage {
   role: MessageRole;
-  content: string;
+  content: string | ContentBlock[];
+}
+
+/**
+ * Tool definition for function calling / tool use
+ */
+export interface ToolDefinition {
+  name: string;
+  description: string;
+  input_schema: {
+    type: 'object';
+    properties: Record<string, unknown>;
+    required?: string[];
+  };
 }
 
 /**
@@ -74,6 +97,9 @@ export interface CompletionOptions {
   /** Request timeout in milliseconds */
   timeoutMs?: number;
 
+  /** Tool definitions for function calling */
+  tools?: ToolDefinition[];
+
   /** Metadata for audit logging */
   metadata?: {
     agentRole?: string;
@@ -96,8 +122,14 @@ export interface TokenUsage {
  * Completion response from any provider
  */
 export interface CompletionResponse {
-  /** The generated text */
+  /** The generated text (extracted from first text block) */
   content: string;
+
+  /** Raw content blocks from the response (includes tool_use, text, etc.) */
+  contentBlocks?: ContentBlock[];
+
+  /** Stop reason — 'tool_use' indicates tool call pending */
+  stopReason?: 'end_turn' | 'max_tokens' | 'stop_sequence' | 'tool_use';
 
   /** Model identifier used */
   model: string;
@@ -107,9 +139,6 @@ export interface CompletionResponse {
 
   /** Token usage for cost tracking */
   usage?: TokenUsage;
-
-  /** Stop reason */
-  stopReason?: 'end_turn' | 'max_tokens' | 'stop_sequence';
 
   /** Request latency in milliseconds */
   latencyMs?: number;

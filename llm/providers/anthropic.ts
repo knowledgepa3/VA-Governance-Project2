@@ -92,8 +92,9 @@ export class AnthropicProvider implements LLMProvider {
 
     try {
       // Separate system message from conversation
+      const systemMsg = messages.find(m => m.role === 'system');
       const systemPrompt = options?.systemPrompt ||
-        messages.find(m => m.role === 'system')?.content;
+        (systemMsg ? (typeof systemMsg.content === 'string' ? systemMsg.content : undefined) : undefined);
 
       const conversationMessages = messages
         .filter(m => m.role !== 'system')
@@ -102,14 +103,21 @@ export class AnthropicProvider implements LLMProvider {
           content: m.content
         }));
 
-      const response = await this.client.messages.create({
+      const createParams: any = {
         model,
         max_tokens: maxTokens,
         system: systemPrompt,
         messages: conversationMessages,
         temperature: options?.temperature,
         stop_sequences: options?.stopSequences
-      });
+      };
+
+      // Pass through tools if provided
+      if (options?.tools && options.tools.length > 0) {
+        createParams.tools = options.tools;
+      }
+
+      const response = await this.client.messages.create(createParams);
 
       const latencyMs = Date.now() - startTime;
 
@@ -117,8 +125,16 @@ export class AnthropicProvider implements LLMProvider {
       const textContent = response.content.find(c => c.type === 'text');
       const content = textContent?.type === 'text' ? textContent.text : '';
 
+      // Map raw content blocks to our ContentBlock type
+      const contentBlocks = response.content.map((block: any) => {
+        if (block.type === 'text') return { type: 'text' as const, text: block.text };
+        if (block.type === 'tool_use') return { type: 'tool_use' as const, id: block.id, name: block.name, input: block.input };
+        return block;
+      });
+
       return {
         content,
+        contentBlocks,
         model: response.model,
         provider: this.providerType,
         usage: {
@@ -202,6 +218,8 @@ export class AnthropicProvider implements LLMProvider {
         return 'max_tokens';
       case 'stop_sequence':
         return 'stop_sequence';
+      case 'tool_use':
+        return 'tool_use';
       default:
         return 'end_turn';
     }

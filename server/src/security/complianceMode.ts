@@ -65,7 +65,7 @@ export interface ComplianceConfig {
   breakGlassAuditLevel: 'standard' | 'enhanced' | 'forensic';
 
   // Tenant isolation
-  enforceTenanIsolation: boolean;
+  enforceTenantIsolation: boolean;
   allowCrossTenantAccess: boolean;
 
   // Session
@@ -101,7 +101,7 @@ const COMPLIANCE_CONFIGS: Record<ComplianceLevel, ComplianceConfig> = {
     allowBreakGlass: true,
     breakGlassRequiresMFA: false,
     breakGlassAuditLevel: 'standard',
-    enforceTenanIsolation: false,
+    enforceTenantIsolation: false,
     allowCrossTenantAccess: true,
     sessionTimeoutMinutes: 480, // 8 hours
     maxConcurrentSessions: 10,
@@ -131,7 +131,7 @@ const COMPLIANCE_CONFIGS: Record<ComplianceLevel, ComplianceConfig> = {
     allowBreakGlass: true,
     breakGlassRequiresMFA: true,
     breakGlassAuditLevel: 'enhanced',
-    enforceTenanIsolation: true,
+    enforceTenantIsolation: true,
     allowCrossTenantAccess: false,
     sessionTimeoutMinutes: 120,
     maxConcurrentSessions: 3,
@@ -161,7 +161,7 @@ const COMPLIANCE_CONFIGS: Record<ComplianceLevel, ComplianceConfig> = {
     allowBreakGlass: true,
     breakGlassRequiresMFA: true,
     breakGlassAuditLevel: 'forensic',
-    enforceTenanIsolation: true,
+    enforceTenantIsolation: true,
     allowCrossTenantAccess: false,
     sessionTimeoutMinutes: 30,
     maxConcurrentSessions: 2,
@@ -191,7 +191,7 @@ const COMPLIANCE_CONFIGS: Record<ComplianceLevel, ComplianceConfig> = {
     allowBreakGlass: true,
     breakGlassRequiresMFA: true,
     breakGlassAuditLevel: 'forensic',
-    enforceTenanIsolation: true,
+    enforceTenantIsolation: true,
     allowCrossTenantAccess: false,
     sessionTimeoutMinutes: 15,
     maxConcurrentSessions: 1,
@@ -252,7 +252,7 @@ class ComplianceModeManager {
       'auditAllRequests',
       'strictPIIDetection',
       'blockUnredactedExport',
-      'enforceTenanIsolation'
+      'enforceTenantIsolation'
     ] as const;
 
     for (const flag of criticalFlags) {

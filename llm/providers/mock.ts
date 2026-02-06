@@ -45,14 +45,21 @@ export class MockProvider implements LLMProvider {
     await new Promise(resolve => setTimeout(resolve, this.latencyMs + Math.random() * 100));
 
     const lastMessage = messages[messages.length - 1];
-    const content = this.generateMockResponse(lastMessage?.content ?? '', options);
+    const lastContent = lastMessage?.content ?? '';
+    const promptText = typeof lastContent === 'string'
+      ? lastContent
+      : lastContent.map(b => b.type === 'text' ? (b as { type: 'text'; text: string }).text : `[${b.type}]`).join(' ');
+    const content = this.generateMockResponse(promptText, options);
+
+    // Flatten message content for token estimation
+    const allText = messages.map(m => typeof m.content === 'string' ? m.content : '[multimodal]').join(' ');
 
     return {
       content,
       model: this.getModelForTier(options?.tier ?? ModelTier.ADVANCED),
       provider: this.providerType,
       usage: {
-        inputTokens: this.estimateTokens(messages.map(m => m.content).join(' ')),
+        inputTokens: this.estimateTokens(allText),
         outputTokens: this.estimateTokens(content),
         totalTokens: 0 // Will be calculated
       },

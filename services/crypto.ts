@@ -5,13 +5,16 @@
  * Uses SHA-256 with hash chaining for integrity verification.
  */
 
-// Browser-compatible crypto API
+// Cross-environment crypto API (browser + Node.js)
 const getCrypto = (): Crypto => {
   if (typeof window !== 'undefined' && window.crypto) {
     return window.crypto;
   }
-  // Node.js environment fallback
-  throw new Error('Crypto API not available');
+  // Node.js 19+ exposes globalThis.crypto with SubtleCrypto
+  if (typeof globalThis !== 'undefined' && globalThis.crypto) {
+    return globalThis.crypto;
+  }
+  throw new Error('Crypto API not available — requires browser or Node.js 19+');
 };
 
 /**

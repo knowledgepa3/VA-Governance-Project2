@@ -11,7 +11,7 @@
  * - Evidence Capture → Real screenshots with hashes
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import { execute as governedExecute } from './governedLLM';
 import {
   InstructionPack,
   InstructionStep,
@@ -23,17 +23,6 @@ import {
   ExecutionContext
 } from './browserAutomationAgent';
 import { MAIClassification } from '../types';
-
-// Get API key for Claude integration
-const apiKey = process.env.ANTHROPIC_API_KEY ||
-               process.env.VITE_ANTHROPIC_API_KEY ||
-               (import.meta as any).env?.VITE_ANTHROPIC_API_KEY;
-
-// Create Anthropic client
-const anthropic = apiKey ? new Anthropic({
-  apiKey: apiKey,
-  dangerouslyAllowBrowser: true
-}) : null;
 
 // ============================================================================
 // MCP TOOL INTERFACES
@@ -378,20 +367,12 @@ export class BrowserMCPExecutor {
     instruction: string,
     pageContent: string
   ): Promise<{ action: string; target?: string; reasoning: string }> {
-    if (!anthropic) {
-      return {
-        action: 'continue',
-        reasoning: 'No AI available for analysis'
-      };
-    }
-
     try {
-      const response = await anthropic.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 500,
-        messages: [{
-          role: "user",
-          content: `You are analyzing a web page to help complete a task.
+      const result = await governedExecute({
+        role: 'BROWSER_MCP',
+        purpose: 'page-analysis',
+        systemPrompt: 'You are a browser automation assistant. Respond only with valid JSON.',
+        userMessage: `You are analyzing a web page to help complete a task.
 
 Task: ${instruction}
 
@@ -409,21 +390,16 @@ Rules:
 - Only suggest safe, read-only actions
 - Never suggest form submission or login
 - Say "blocked" if the page requires login or payment
-- Say "done" if the task appears complete`
-        }],
-        system: "You are a browser automation assistant. Respond only with valid JSON."
+- Say "done" if the task appears complete`,
+        maxTokens: 500
       });
 
-      const content = response.content[0];
-      if (content.type === 'text') {
-        const cleanJson = content.text.replace(/```json\n?/g, '').replace(/```/g, '').trim();
-        return JSON.parse(cleanJson);
-      }
+      const cleanJson = result.content.replace(/```json\n?/g, '').replace(/```/g, '').trim();
+      return JSON.parse(cleanJson);
     } catch (error) {
       console.error('[Claude] Analysis failed:', error);
+      return { action: 'continue', reasoning: 'Analysis failed' };
     }
-
-    return { action: 'continue', reasoning: 'Analysis failed' };
   }
 
   /**
@@ -455,14 +431,14 @@ Rules:
   }
 
   private generateHash(content: string): string {
-    // Simple hash for browser environment
-    let hash = 0;
+    let h0 = 0x811c9dc5;
+    let h1 = 0x811c9dc5;
     for (let i = 0; i < content.length; i++) {
-      const char = content.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
+      const c = content.charCodeAt(i);
+      h0 = (h0 ^ c) * 0x01000193 >>> 0;
+      h1 = (h1 ^ (c * 31)) * 0x01000193 >>> 0;
     }
-    return Math.abs(hash).toString(16).padStart(16, '0');
+    return `${h0.toString(16).padStart(8, '0')}${h1.toString(16).padStart(8, '0')}`;
   }
 
   private delay(ms: number): Promise<void> {

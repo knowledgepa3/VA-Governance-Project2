@@ -36,6 +36,13 @@ if (fs.existsSync(envPath)) {
   }
 }
 
+// Load .env.local AFTER .env — local overrides take highest priority
+// This matches Vite's env loading behavior (https://vite.dev/guide/env-and-mode)
+const envLocalPath = path.join(__dirname, '.env.local');
+if (fs.existsSync(envLocalPath)) {
+  dotenv.config({ path: envLocalPath, override: true });
+}
+
 // Restore CLI-provided values (they take final priority)
 for (const [key, value] of Object.entries(cliProvidedVars)) {
   process.env[key] = value;

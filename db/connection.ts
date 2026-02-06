@@ -35,7 +35,11 @@ export function loadDbConfig(): DbConfig {
     database: process.env.DB_NAME || 'ace_governance',
     user: process.env.DB_USER || 'ace',
     password: process.env.DB_PASSWORD || '',
-    ssl: sslMode === 'require' ? { rejectUnauthorized: false } :
+    // SECURITY: When SSL is required, verify certificates to prevent MITM.
+    // Set DB_SSL_REJECT_UNAUTHORIZED=false ONLY for self-signed certs in dev.
+    ssl: sslMode === 'require' ? {
+      rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false'
+    } :
          sslMode === 'disable' ? false :
          undefined,
     max: parseInt(process.env.DB_POOL_MAX || '10', 10),

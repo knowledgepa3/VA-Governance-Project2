@@ -11,7 +11,8 @@
  * NIST 800-53: IR-4 (Incident Handling), SI-3 (Malicious Code Protection)
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import { execute as governedExecute, executeJSON } from './governedLLM';
+import { ModelTier } from '../llm';
 import { AgentRole, WorkforceType } from '../types';
 import { config as appConfig } from '../config.browser';
 
@@ -131,11 +132,7 @@ const FIELD_SANITIZATION_RULES: Record<string, RegExp[]> = {
 // API CLIENT
 // ============================================================================
 
-const apiKey = process.env.ANTHROPIC_API_KEY || process.env.VITE_ANTHROPIC_API_KEY || (import.meta as any).env?.VITE_ANTHROPIC_API_KEY;
-const client = apiKey ? new Anthropic({
-  apiKey: apiKey,
-  dangerouslyAllowBrowser: true
-}) : null;
+// LLM access routed through Governed Execution Kernel — no direct SDK usage
 
 // ============================================================================
 // REPAIR AGENT CLASS
@@ -369,17 +366,21 @@ export class RepairAgent {
     context: { role: AgentRole; template?: WorkforceType }
   ): Promise<{ data: any; changes: RepairChange[] }> {
 
-    // Demo mode - simulate AI reconciliation
-    if (appConfig.demoMode || !client) {
-      await new Promise(r => setTimeout(r, 500));
-      return { data, changes: [] };
-    }
-
     try {
-      const response = await client.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 2048,
-        system: `You are the ACE REPAIR Agent. Your mission is to fix data inconsistencies and logic errors while preserving legitimate data.
+      const result = await executeJSON<{
+        repaired_data: any;
+        changes: Array<{
+          field: string;
+          original_value: any;
+          new_value: any;
+          reason: string;
+          source?: string;
+          confidence?: number;
+        }>;
+      }>({
+        role: 'REPAIR_AGENT',
+        purpose: 'ai-reconciliation',
+        systemPrompt: `You are the ACE REPAIR Agent. Your mission is to fix data inconsistencies and logic errors while preserving legitimate data.
 
 CONTEXT: ${context.template || 'VA_CLAIMS'} workflow, Agent: ${context.role}
 
@@ -406,24 +407,11 @@ Respond with JSON:
     }
   ]
 }`,
-        messages: [{
-          role: "user",
-          content: `Repair this data:\n${JSON.stringify(data, null, 2)}`
-        }]
+        userMessage: `Repair this data:\n${JSON.stringify(data, null, 2)}`,
+        maxTokens: 2048
       });
 
-      const textContent = response.content[0].type === 'text' ? response.content[0].text : '{}';
-
-      // Parse JSON from response
-      const jsonMatch = textContent.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        console.warn('[REPAIR] No JSON found in AI response');
-        return { data, changes: [] };
-      }
-
-      const result = JSON.parse(jsonMatch[0]);
-
-      const changes: RepairChange[] = (result.changes || []).map((c: any) => ({
+      const changes: RepairChange[] = (result.changes || []).map((c) => ({
         field: c.field,
         originalValue: c.original_value,
         newValue: c.new_value,
@@ -447,21 +435,17 @@ Respond with JSON:
    * Re-validate data after repair
    */
   private async revalidate(data: any): Promise<IntegrityCheckResult> {
-    // Demo mode
-    if (appConfig.demoMode || !client) {
-      await new Promise(r => setTimeout(r, 200));
-      return {
-        resilient: true,
-        integrity_score: 95 + Math.floor(Math.random() * 5),
-        anomaly_detected: null
-      };
-    }
-
     try {
-      const response = await client.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 512,
-        system: `You are the ACE BEHAVIORAL INTEGRITY SENTINEL performing POST-REPAIR validation.
+      const result = await executeJSON<{
+        resilient: boolean;
+        integrity_score: number;
+        anomaly_detected: string | null;
+        anomaly_type?: string;
+        remaining_issues?: string[];
+      }>({
+        role: 'BEHAVIORAL_INTEGRITY_SENTINEL',
+        purpose: 'post-repair-validation',
+        systemPrompt: `You are the ACE BEHAVIORAL INTEGRITY SENTINEL performing POST-REPAIR validation.
 
 Check if the data is now clean and consistent. Be thorough but not overly strict.
 
@@ -472,20 +456,10 @@ Respond with JSON:
   "anomaly_detected": string | null,
   "remaining_issues": string[] | null
 }`,
-        messages: [{
-          role: "user",
-          content: `Validate repaired data:\n${JSON.stringify(data).substring(0, 3000)}`
-        }]
+        userMessage: `Validate repaired data:\n${JSON.stringify(data).substring(0, 3000)}`,
+        maxTokens: 512
       });
 
-      const textContent = response.content[0].type === 'text' ? response.content[0].text : '{}';
-      const jsonMatch = textContent.match(/\{[\s\S]*\}/);
-
-      if (!jsonMatch) {
-        return { resilient: true, integrity_score: 90, anomaly_detected: null };
-      }
-
-      const result = JSON.parse(jsonMatch[0]);
       return {
         resilient: result.resilient ?? true,
         integrity_score: result.integrity_score ?? 90,

@@ -32,14 +32,20 @@
  * @module llm
  */
 
-// Types
+// Values (enums/classes — can be used at runtime)
 export {
   LLMProviderType,
   ModelTier,
+  LLMProviderError,
+} from './types';
+
+// Types (interfaces/type aliases — type-only re-exports for isolatedModules)
+export type {
   LLMProvider,
   LLMProviderConfig,
-  LLMProviderError,
   LLMMessage,
+  ContentBlock,
+  ToolDefinition,
   CompletionOptions,
   CompletionResponse,
   HealthCheckResult,

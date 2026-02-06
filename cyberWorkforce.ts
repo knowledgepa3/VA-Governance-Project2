@@ -16,7 +16,7 @@
  * - PRODUCTION MODE: Live Claude API analysis of incident data
  */
 
-import Anthropic from '@anthropic-ai/sdk';
+import { execute as governedExecute } from './services/governedLLM';
 import { config as appConfig } from './config';
 import {
   WorkforceType,
@@ -64,20 +64,13 @@ interface AgentResult {
  * Cyber Incident Response Workforce Orchestrator
  */
 export class CyberIRWorkforce {
-  private anthropic: Anthropic | null = null;
   private incidentData: typeof CYBER_IR_DEMO_DATA;
   private agentResults: Map<AgentRole, AgentResult> = new Map();
   private status: IncidentStatus = IncidentStatus.NEW;
 
   constructor() {
     this.incidentData = CYBER_IR_DEMO_DATA;
-
-    // Initialize Anthropic client only in production mode
-    if (!appConfig.demoMode && appConfig.hasAnthropicKey) {
-      this.anthropic = new Anthropic({
-        apiKey: appConfig.anthropicApiKey
-      });
-    }
+    // LLM access is through the governed kernel — no direct client needed
   }
 
   /**
@@ -124,18 +117,14 @@ export class CyberIRWorkforce {
    * PRODUCTION MODE: Run analysis with Claude API
    */
   private async runProductionAnalysis(template: typeof WORKFORCE_TEMPLATES[WorkforceType.CYBER_IR]): Promise<CyberIncidentReport> {
-    console.log('🔴 [PRODUCTION MODE] Running live Kill Chain Validation with Claude API...\n');
+    console.log('🔴 [PRODUCTION MODE] Running live Kill Chain Validation via governed kernel...\n');
 
-    if (!this.anthropic) {
-      throw new Error('Anthropic client not initialized. Check ANTHROPIC_API_KEY.');
-    }
-
-    // Process through each agent with real Claude API calls
+    // Process through each agent with governed LLM calls
     for (const role of template.roles) {
       await this.processProductionAgent(role);
     }
 
-    // Build and return the report from Claude analysis
+    // Build and return the report from analysis
     return this.buildReportFromAnalysis();
   }
 
@@ -194,30 +183,29 @@ export class CyberIRWorkforce {
       // Build the prompt for this agent role
       const prompt = this.buildAgentPrompt(role, roleConfig);
 
-      // Call Claude API
-      const response = await this.anthropic!.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4096,
-        system: roleConfig.systemPrompt,
-        messages: [{ role: 'user', content: prompt }]
+      // Call through governed kernel
+      const llmResponse = await governedExecute({
+        role: `CYBER_IR_${role}`,
+        purpose: 'incident-analysis',
+        systemPrompt: roleConfig.skills,
+        userMessage: prompt,
+        maxTokens: 4096
       });
 
-      // Extract text response
-      const textContent = response.content.find(c => c.type === 'text');
-      const analysisText = textContent ? textContent.text : '';
+      const analysisText = llmResponse.content;
 
       // Parse the response into structured data
-      const result = this.parseAgentResponse(role, analysisText);
+      const parsed = this.parseAgentResponse(role, analysisText);
 
       this.agentResults.set(role, {
         role,
         status: 'success',
-        summary: result.summary,
-        data: result,
+        summary: parsed.summary,
+        data: parsed,
         processingTime: Date.now() - startTime
       });
 
-      console.log(`   └─ ${result.summary}\n`);
+      console.log(`   └─ ${parsed.summary}\n`);
 
     } catch (error) {
       console.error(`   └─ Error: ${error instanceof Error ? error.message : 'Unknown error'}`);

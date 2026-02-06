@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GIA Onboarding | Get Started</title>
   <meta name="description" content="Set up your GIA governance platform in 5 minutes. Domain configuration, governance rules, and your first governed run.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- GIA Shared Theme (design tokens, animations, components) -->
+  <link rel="stylesheet" href="/shared/gia-theme.css">
   <style>
     * {
       margin: 0;
@@ -13,29 +17,39 @@
     }
 
     :root {
-      --primary: #6366f1;
-      --primary-dark: #4f46e5;
-      --secondary: #10b981;
-      --dark: #0f172a;
-      --gray-900: #1e293b;
-      --gray-800: #1e293b;
-      --gray-700: #334155;
-      --gray-600: #475569;
-      --gray-500: #64748b;
-      --gray-400: #94a3b8;
-      --gray-300: #cbd5e1;
-      --gray-100: #f1f5f9;
-      --white: #ffffff;
-      --success: #10b981;
-      --warning: #f59e0b;
+      /* JARVIS-inspired palette - dark with cyan/blue accents */
+      --primary: #4a9eff;
+      --primary-dark: #3a7ecc;
+      --primary-glow: rgba(74, 158, 255, 0.3);
+      --secondary: #6b8f71;
+      --accent-cyan: #00d4ff;
+      --accent-warm: #c9a227;
+      --dark: #0a0a0c;
+      --gray-900: #0d1117;
+      --gray-800: #161b22;
+      --gray-700: #21262d;
+      --gray-600: #30363d;
+      --gray-500: #484f58;
+      --gray-400: #8b949e;
+      --gray-300: #c9d1d9;
+      --gray-100: #f0f6fc;
+      --white: #f0f6fc;
+      --success: #6b8f71;
+      --warning: #d9af6a;
+      --err: #f85149;
+
+      /* JARVIS glow effects */
+      --glow-primary: 0 0 20px rgba(74, 158, 255, 0.4);
+      --glow-cyan: 0 0 15px rgba(0, 212, 255, 0.3);
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+      font-family: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
       background: var(--dark);
-      color: var(--white);
-      line-height: 1.6;
+      color: var(--gray-300);
+      line-height: 1.5;
       min-height: 100vh;
+      font-size: 0.9rem;
     }
 
     /* Header */
@@ -49,18 +63,62 @@
     }
 
     .logo {
-      font-size: 1.5rem;
-      font-weight: 800;
-      letter-spacing: -0.03em;
-      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: var(--primary);
+      text-transform: uppercase;
+    }
+
+    .logo-reactor {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: radial-gradient(circle at center, var(--primary) 0%, var(--dark) 70%);
+      border: 2px solid var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: arcReactorPulse 3s ease-in-out infinite;
+      position: relative;
+    }
+
+    .logo-reactor::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 10px var(--accent-cyan);
+    }
+
+    .logo-reactor::after {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border: 1px solid var(--primary);
+      border-radius: 50%;
+      opacity: 0.5;
     }
 
     .header-right {
       display: flex;
       align-items: center;
       gap: 1rem;
+    }
+
+    .header-status {
+      font-size: 0.65rem;
+      color: var(--accent-cyan);
+      letter-spacing: 0.1em;
+      padding: 0.25rem 0.5rem;
+      border: 1px solid var(--accent-cyan);
+      opacity: 0.7;
+      animation: borderGlow 2s ease-in-out infinite;
     }
 
     .help-link {
@@ -125,26 +183,35 @@
     }
 
     .step-indicator {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      border-radius: 2px;
       background: var(--gray-700);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.875rem;
+      font-size: 0.75rem;
       font-weight: 600;
       flex-shrink: 0;
-      transition: all 0.3s;
+      transition: all 0.15s;
     }
 
     .progress-step.active .step-indicator {
       background: var(--primary);
-      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+      color: var(--dark);
+      box-shadow: var(--glow-primary);
+      animation: arcReactorPulse 2s ease-in-out infinite;
     }
 
     .progress-step.completed .step-indicator {
       background: var(--secondary);
+      color: var(--white);
+      box-shadow: 0 0 10px rgba(107, 143, 113, 0.4);
+    }
+
+    .progress-step.completed .step-indicator::after {
+      content: '✓';
+      font-size: 0.7rem;
     }
 
     .step-content h4 {
@@ -185,19 +252,47 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
+    /* JARVIS Animations */
+    @keyframes arcReactorPulse {
+      0%, 100% { box-shadow: 0 0 10px var(--primary-glow), inset 0 0 10px var(--primary-glow); }
+      50% { box-shadow: 0 0 25px var(--primary-glow), inset 0 0 15px var(--primary-glow); }
+    }
+
+    @keyframes scanLine {
+      0% { transform: translateY(-100%); opacity: 0; }
+      50% { opacity: 1; }
+      100% { transform: translateY(100vh); opacity: 0; }
+    }
+
+    @keyframes borderGlow {
+      0%, 100% { border-color: var(--gray-700); }
+      50% { border-color: var(--primary); }
+    }
+
+    @keyframes textReveal {
+      from { opacity: 0; letter-spacing: 0.3em; }
+      to { opacity: 1; letter-spacing: 0.05em; }
+    }
+
+    @keyframes dataStream {
+      0% { background-position: 0% 0%; }
+      100% { background-position: 0% 100%; }
+    }
+
     .panel-header {
       margin-bottom: 2rem;
     }
 
     .panel-header h1 {
-      font-size: 2rem;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
+      font-size: 1.4rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      letter-spacing: -0.01em;
     }
 
     .panel-header p {
       color: var(--gray-400);
-      font-size: 1.1rem;
+      font-size: 0.9rem;
     }
 
     /* Form Elements */
@@ -221,13 +316,14 @@
 
     .form-input {
       width: 100%;
-      padding: 0.875rem 1rem;
+      padding: 0.6rem 0.75rem;
       background: var(--gray-800);
-      border: 2px solid var(--gray-700);
-      border-radius: 8px;
+      border: 1px solid var(--gray-700);
+      border-radius: 2px;
       color: var(--white);
-      font-size: 1rem;
-      transition: border-color 0.2s;
+      font-size: 0.85rem;
+      font-family: inherit;
+      transition: border-color 0.1s;
     }
 
     .form-input:focus {
@@ -257,26 +353,33 @@
 
     .option-card label {
       display: block;
-      padding: 1.25rem;
+      padding: 1rem;
       background: var(--gray-800);
-      border: 2px solid var(--gray-700);
-      border-radius: 12px;
+      border: 1px solid var(--gray-700);
+      border-radius: 2px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.1s;
     }
 
     .option-card input:checked + label {
       border-color: var(--primary);
-      background: rgba(99, 102, 241, 0.1);
+      border-left: 3px solid var(--primary);
+      box-shadow: var(--glow-primary), inset 0 0 30px rgba(74, 158, 255, 0.05);
+      background: linear-gradient(135deg, var(--gray-800) 0%, rgba(74, 158, 255, 0.05) 100%);
     }
 
     .option-card label:hover {
       border-color: var(--gray-500);
+      transform: translateY(-2px);
+      transition: all 0.15s ease;
     }
 
     .option-icon {
-      font-size: 2rem;
-      margin-bottom: 0.75rem;
+      font-size: 0.7rem;
+      margin-bottom: 0.5rem;
+      color: var(--gray-500);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     .option-title {
@@ -299,59 +402,73 @@
     }
 
     .btn {
-      padding: 0.875rem 1.75rem;
-      border-radius: 8px;
-      font-size: 1rem;
+      padding: 0.6rem 1.25rem;
+      border-radius: 2px;
+      font-size: 0.8rem;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s;
-      border: none;
+      transition: all 0.1s;
+      border: 1px solid var(--gray-700);
+      font-family: inherit;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
     .btn-primary {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-      color: white;
+      background: var(--primary);
+      color: var(--dark);
+      border-color: var(--primary);
+      box-shadow: 0 0 10px rgba(74, 158, 255, 0.2);
+      transition: all 0.2s ease;
     }
 
     .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+      background: var(--primary-dark);
+      box-shadow: var(--glow-primary);
+      transform: translateY(-1px);
     }
 
     .btn-secondary {
-      background: var(--gray-700);
+      background: transparent;
       color: var(--gray-300);
     }
 
     .btn-secondary:hover {
-      background: var(--gray-600);
+      background: var(--gray-700);
       color: var(--white);
     }
 
     .btn-success {
-      background: linear-gradient(135deg, var(--secondary) 0%, #059669 100%);
-      color: white;
+      background: var(--secondary);
+      color: var(--white);
+      border-color: var(--secondary);
     }
 
     /* Info Box */
     .info-box {
-      background: rgba(99, 102, 241, 0.1);
-      border: 1px solid rgba(99, 102, 241, 0.3);
-      border-radius: 8px;
-      padding: 1rem 1.25rem;
-      margin-bottom: 1.5rem;
+      background: var(--gray-800);
+      border: 1px solid var(--gray-700);
+      border-left: 3px solid var(--primary);
+      border-radius: 0;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.25rem;
       display: flex;
-      gap: 0.75rem;
+      gap: 0.5rem;
       align-items: flex-start;
     }
 
     .info-box-icon {
-      font-size: 1.25rem;
+      font-size: 0.7rem;
+      color: var(--gray-500);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      min-width: 40px;
     }
 
     .info-box-content {
-      font-size: 0.9rem;
+      font-size: 0.8rem;
       color: var(--gray-300);
+      line-height: 1.5;
     }
 
     /* Governance Sliders */
@@ -372,13 +489,14 @@
 
     .slider-value {
       color: var(--primary);
-      font-weight: 600;
+      font-weight: 500;
+      font-size: 0.8rem;
     }
 
     .slider {
       width: 100%;
-      height: 8px;
-      border-radius: 4px;
+      height: 4px;
+      border-radius: 0;
       background: var(--gray-700);
       appearance: none;
       outline: none;
@@ -386,9 +504,9 @@
 
     .slider::-webkit-slider-thumb {
       appearance: none;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
+      width: 14px;
+      height: 14px;
+      border-radius: 2px;
       background: var(--primary);
       cursor: pointer;
     }
@@ -401,35 +519,37 @@
     .checklist-item {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      padding: 1rem;
+      gap: 0.6rem;
+      padding: 0.75rem;
       background: var(--gray-800);
-      border-radius: 8px;
-      margin-bottom: 0.75rem;
+      border-radius: 0;
+      margin-bottom: 0.5rem;
+      border: 1px solid var(--gray-700);
     }
 
     .checklist-icon {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      border-radius: 2px;
       background: var(--gray-700);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.75rem;
+      font-size: 0.65rem;
     }
 
     .checklist-item.done .checklist-icon {
       background: var(--secondary);
+      color: var(--white);
     }
 
     /* Summary Card */
     .summary-card {
       background: var(--gray-800);
       border: 1px solid var(--gray-700);
-      border-radius: 12px;
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
+      border-radius: 0;
+      padding: 1rem;
+      margin-bottom: 1.25rem;
     }
 
     .summary-row {
@@ -451,27 +571,67 @@
       font-weight: 600;
     }
 
-    /* Completion Screen */
+    /* Completion Screen - JARVIS Style */
     .completion-screen {
       text-align: center;
       padding: 2rem;
     }
 
+    .completion-reactor {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 1.5rem;
+      border-radius: 50%;
+      background: radial-gradient(circle at center, var(--primary) 0%, transparent 70%);
+      border: 3px solid var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: arcReactorPulse 2s ease-in-out infinite;
+      position: relative;
+    }
+
+    .completion-reactor::before {
+      content: '';
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 30px var(--accent-cyan), 0 0 60px var(--primary);
+    }
+
+    .completion-reactor::after {
+      content: '';
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      border: 2px solid var(--primary);
+      border-radius: 50%;
+      opacity: 0.5;
+    }
+
     .completion-icon {
-      font-size: 5rem;
-      margin-bottom: 1.5rem;
+      font-size: 1rem;
+      margin-bottom: 1rem;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      animation: textReveal 0.5s ease-out;
     }
 
     .completion-title {
-      font-size: 2rem;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      color: var(--white);
+      animation: textReveal 0.5s ease-out 0.1s both;
     }
 
     .completion-subtitle {
       color: var(--gray-400);
-      font-size: 1.1rem;
-      margin-bottom: 2rem;
+      font-size: 0.9rem;
+      animation: textReveal 0.5s ease-out 0.2s both;
+      margin-bottom: 1.5rem;
     }
 
     .launch-options {
@@ -483,23 +643,26 @@
 
     .launch-card {
       background: var(--gray-800);
-      border: 2px solid var(--gray-700);
-      border-radius: 12px;
-      padding: 1.5rem 2rem;
+      border: 1px solid var(--gray-700);
+      border-radius: 2px;
+      padding: 1.25rem 1.5rem;
       text-decoration: none;
       color: var(--white);
-      transition: all 0.2s;
-      min-width: 200px;
+      transition: all 0.1s;
+      min-width: 180px;
     }
 
     .launch-card:hover {
       border-color: var(--primary);
-      transform: translateY(-4px);
+      border-left: 3px solid var(--primary);
     }
 
     .launch-card-icon {
-      font-size: 2rem;
-      margin-bottom: 0.75rem;
+      font-size: 0.65rem;
+      margin-bottom: 0.5rem;
+      color: var(--gray-500);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     .launch-card-title {
@@ -556,8 +719,12 @@
 </head>
 <body>
   <header class="header">
-    <div class="logo">GIA</div>
+    <div class="logo">
+      <div class="logo-reactor"></div>
+      <span>GIA</span>
+    </div>
     <div class="header-right">
+      <span class="header-status">INITIALIZING</span>
       <a href="mailto:support@ace-consulting.io" class="help-link">Need help?</a>
     </div>
   </header>
@@ -610,12 +777,12 @@
       <!-- Step 1: Welcome -->
       <div class="step-panel active" data-panel="1">
         <div class="panel-header">
-          <h1>👋 Welcome to GIA</h1>
+          <h1>Welcome to GIA</h1>
           <p>Let's set up your governed AI workspace in about 5 minutes.</p>
         </div>
 
         <div class="info-box">
-          <span class="info-box-icon">💡</span>
+          <span class="info-box-icon">NOTE</span>
           <div class="info-box-content">
             GIA is a governance layer that sits between you and AI tools. Every action is logged, classified, and controlled according to your rules.
           </div>
@@ -645,64 +812,71 @@
       <!-- Step 2: Domain Selection -->
       <div class="step-panel" data-panel="2">
         <div class="panel-header">
-          <h1>🎯 What's Your Domain?</h1>
+          <h1>What's Your Domain?</h1>
           <p>We'll configure governance rules optimized for your workflow type.</p>
         </div>
 
         <div class="option-grid">
           <div class="option-card">
-            <input type="radio" name="domain" id="domain-bd" value="bd-capture" checked>
+            <input type="radio" name="domain" id="domain-bd" value="bd-capture" checked onchange="toggleCustomDomain()">
             <label for="domain-bd">
-              <div class="option-icon">🎯</div>
+              <div class="option-icon">BD</div>
               <div class="option-title">Business Development</div>
               <div class="option-desc">RFP analysis, opportunity capture, proposal support</div>
             </label>
           </div>
 
           <div class="option-card">
-            <input type="radio" name="domain" id="domain-research" value="research">
+            <input type="radio" name="domain" id="domain-research" value="research" onchange="toggleCustomDomain()">
             <label for="domain-research">
-              <div class="option-icon">📊</div>
+              <div class="option-icon">R&A</div>
               <div class="option-title">Research & Analysis</div>
               <div class="option-desc">Market research, competitive intel, due diligence</div>
             </label>
           </div>
 
           <div class="option-card">
-            <input type="radio" name="domain" id="domain-legal" value="legal">
+            <input type="radio" name="domain" id="domain-legal" value="legal" onchange="toggleCustomDomain()">
             <label for="domain-legal">
-              <div class="option-icon">⚖️</div>
+              <div class="option-icon">LEG</div>
               <div class="option-title">Legal & Compliance</div>
               <div class="option-desc">Contract review, regulatory research, policy analysis</div>
             </label>
           </div>
 
           <div class="option-card">
-            <input type="radio" name="domain" id="domain-finance" value="finance">
+            <input type="radio" name="domain" id="domain-finance" value="finance" onchange="toggleCustomDomain()">
             <label for="domain-finance">
-              <div class="option-icon">💰</div>
+              <div class="option-icon">FIN</div>
               <div class="option-title">Finance & Accounting</div>
               <div class="option-desc">Financial analysis, reporting, audit support</div>
             </label>
           </div>
 
           <div class="option-card">
-            <input type="radio" name="domain" id="domain-hr" value="hr">
+            <input type="radio" name="domain" id="domain-hr" value="hr" onchange="toggleCustomDomain()">
             <label for="domain-hr">
-              <div class="option-icon">👥</div>
+              <div class="option-icon">HR</div>
               <div class="option-title">HR & Recruiting</div>
               <div class="option-desc">Resume screening, policy research, onboarding</div>
             </label>
           </div>
 
           <div class="option-card">
-            <input type="radio" name="domain" id="domain-custom" value="custom">
+            <input type="radio" name="domain" id="domain-custom" value="custom" onchange="toggleCustomDomain()">
             <label for="domain-custom">
-              <div class="option-icon">⚡</div>
+              <div class="option-icon">CUST</div>
               <div class="option-title">Custom Domain</div>
               <div class="option-desc">I'll describe my specific use case</div>
             </label>
           </div>
+        </div>
+
+        <!-- Custom Domain Input (hidden by default) -->
+        <div class="form-group" id="customDomainGroup" style="display: none; margin-top: 1.5rem;">
+          <label class="form-label" for="customDomainInput">Describe Your Domain</label>
+          <span class="form-sublabel">What type of workflows will you be governing?</span>
+          <input type="text" class="form-input" id="customDomainInput" placeholder="e.g., Marketing automation, Product management, Engineering ops...">
         </div>
 
         <div class="btn-row">
@@ -714,12 +888,12 @@
       <!-- Step 3: Governance Settings -->
       <div class="step-panel" data-panel="3">
         <div class="panel-header">
-          <h1>🔒 Governance Settings</h1>
+          <h1>Governance Settings</h1>
           <p>Control how much oversight you want on AI actions.</p>
         </div>
 
         <div class="info-box">
-          <span class="info-box-icon">ℹ️</span>
+          <span class="info-box-icon">MAI</span>
           <div class="info-box-content">
             <strong>MAI Classification:</strong> Every action is classified as Mandatory (requires approval), Advisory (logged with recommendations), or Informational (auto-executed, logged).
           </div>
@@ -777,7 +951,7 @@
       <!-- Step 4: Integration -->
       <div class="step-panel" data-panel="4">
         <div class="panel-header">
-          <h1>🔌 Connect Your Tools</h1>
+          <h1>Connect Your Tools</h1>
           <p>GIA works with tools you already use. Select what to connect.</p>
         </div>
 
@@ -812,8 +986,8 @@
           </li>
         </ul>
 
-        <div class="info-box" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3);">
-          <span class="info-box-icon">✨</span>
+        <div class="info-box" style="border-left-color: var(--secondary);">
+          <span class="info-box-icon">TIP</span>
           <div class="info-box-content">
             Don't worry — you can add more integrations later. Let's start simple.
           </div>
@@ -828,7 +1002,7 @@
       <!-- Step 5: First Run -->
       <div class="step-panel" data-panel="5">
         <div class="panel-header">
-          <h1>🚀 Ready for Your First Run</h1>
+          <h1>Ready for Your First Run</h1>
           <p>Let's verify everything works with a quick test.</p>
         </div>
 
@@ -857,7 +1031,7 @@
         </div>
 
         <div class="info-box">
-          <span class="info-box-icon">🎯</span>
+          <span class="info-box-icon">TEST</span>
           <div class="info-box-content">
             We'll run a sample task to test your governance setup. This takes about 30 seconds.
           </div>
@@ -865,33 +1039,34 @@
 
         <div class="btn-row">
           <button class="btn btn-secondary" onclick="prevStep()">← Back</button>
-          <button class="btn btn-success" onclick="completeSetup()">🎉 Complete Setup</button>
+          <button class="btn btn-success" onclick="completeSetup()">Complete Setup</button>
         </div>
       </div>
 
       <!-- Completion Screen -->
       <div class="step-panel" data-panel="complete">
         <div class="completion-screen">
-          <div class="completion-icon">🎉</div>
-          <h1 class="completion-title">You're All Set!</h1>
-          <p class="completion-subtitle">Your GIA workspace is configured and ready to go.</p>
+          <div class="completion-reactor"></div>
+          <div class="completion-icon">SYSTEM ONLINE</div>
+          <h1 class="completion-title">GIA Initialized</h1>
+          <p class="completion-subtitle">Your governed intelligence workspace is configured and ready.</p>
 
           <div class="launch-options">
             <a href="/bd.html" class="launch-card">
-              <div class="launch-card-icon">🎯</div>
+              <div class="launch-card-icon">BD</div>
               <div class="launch-card-title">BD Dashboard</div>
               <div class="launch-card-desc">Start capturing opportunities</div>
             </a>
 
-            <a href="/" class="launch-card">
-              <div class="launch-card-icon">✨</div>
-              <div class="launch-card-title">Request a Run</div>
+            <a href="/console.html" class="launch-card">
+              <div class="launch-card-icon">RUN</div>
+              <div class="launch-card-title">GIA Console</div>
               <div class="launch-card-desc">Try a governed workflow</div>
             </a>
 
-            <a href="/app" class="launch-card">
-              <div class="launch-card-icon">⚙️</div>
-              <div class="launch-card-title">Full Platform</div>
+            <a href="/portal.html" class="launch-card">
+              <div class="launch-card-icon">ALL</div>
+              <div class="launch-card-title">Portal</div>
               <div class="launch-card-desc">Access all workflows</div>
             </a>
           </div>
@@ -963,6 +1138,15 @@
       document.getElementById(`${type}Value`).textContent = values[type][value - 1];
     }
 
+    function toggleCustomDomain() {
+      const customRadio = document.getElementById('domain-custom');
+      const customGroup = document.getElementById('customDomainGroup');
+
+      if (customRadio && customGroup) {
+        customGroup.style.display = customRadio.checked ? 'block' : 'none';
+      }
+    }
+
     function updateSummary() {
       // Organization name
       const orgName = document.getElementById('orgName').value || '—';
@@ -971,7 +1155,23 @@
       // Domain
       const domainInput = document.querySelector('input[name="domain"]:checked');
       if (domainInput) {
-        const domainLabel = domainInput.nextElementSibling.querySelector('.option-title').textContent;
+        let domainLabel = 'Unknown';
+
+        // Handle custom domain case
+        if (domainInput.value === 'custom') {
+          const customInput = document.getElementById('customDomainInput');
+          domainLabel = (customInput && customInput.value.trim()) ? customInput.value.trim() : 'Custom Domain';
+        } else {
+          // Get label from the option-title element
+          const labelEl = domainInput.nextElementSibling;
+          if (labelEl) {
+            const titleEl = labelEl.querySelector('.option-title');
+            if (titleEl) {
+              domainLabel = titleEl.textContent;
+            }
+          }
+        }
+
         document.getElementById('summaryDomain').textContent = domainLabel;
       }
 
@@ -986,12 +1186,18 @@
     }
 
     function completeSetup() {
+      // Get domain value and custom domain text if applicable
+      const domainInput = document.querySelector('input[name="domain"]:checked');
+      const domainValue = domainInput?.value || 'unknown';
+      const customDomainText = document.getElementById('customDomainInput')?.value || '';
+
       // Save config to localStorage
       const config = {
         orgName: document.getElementById('orgName').value,
         userName: document.getElementById('userName').value,
         userEmail: document.getElementById('userEmail').value,
-        domain: document.querySelector('input[name="domain"]:checked')?.value,
+        domain: domainValue,
+        domainCustomText: domainValue === 'custom' ? customDomainText : '',
         approval: document.getElementById('approvalSlider').value,
         cost: document.getElementById('costSlider').value,
         evidence: document.getElementById('evidenceSlider').value,
@@ -1022,6 +1228,9 @@
       }
     }
   </script>
+
+  <!-- GIA Shared Core (sounds, API, evidence, utils) -->
+  <script src="/shared/gia-core.js"></script>
 </body>
 </html>
 <!-- deployed Wed, Feb  4, 2026  2:25:51 PM -->

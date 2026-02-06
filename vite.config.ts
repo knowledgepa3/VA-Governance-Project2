@@ -28,15 +28,14 @@ export default defineConfig(({ mode }) => {
     const envPath = path.resolve(process.cwd(), '.env');
     const env = readEnvFile(envPath);
 
-    console.log('Loading env vars from:', envPath);
-    console.log('ANTHROPIC_API_KEY present:', !!env.ANTHROPIC_API_KEY);
+    // SECURITY: API keys are read from .env via Vite's native VITE_ prefix mechanism.
+    // They are NOT injected via 'define' to avoid hardcoding keys into the bundle.
+    // In production, all LLM calls should route through the server proxy.
+    console.log('Loading env from:', envPath);
     console.log('VITE_ANTHROPIC_API_KEY present:', !!env.VITE_ANTHROPIC_API_KEY);
 
-    const apiKey = env.ANTHROPIC_API_KEY || env.VITE_ANTHROPIC_API_KEY || '';
-
-    // Read VA API key
+    // Read VA API key for dev proxy only (not bundled into client)
     const vaApiKey = env.VITE_VA_API_KEY || '';
-    console.log('VITE_VA_API_KEY present:', !!vaApiKey);
 
     return {
       server: {
@@ -55,11 +54,10 @@ export default defineConfig(({ mode }) => {
         }
       },
       plugins: [react()],
-      define: {
-        'process.env.ANTHROPIC_API_KEY': JSON.stringify(apiKey),
-        'process.env.VITE_ANTHROPIC_API_KEY': JSON.stringify(apiKey),
-        'import.meta.env.VITE_ANTHROPIC_API_KEY': JSON.stringify(apiKey)
-      },
+      // SECURITY: Do NOT use 'define' to inject API keys — they end up as string
+      // literals in the client bundle. Vite natively exposes VITE_* env vars
+      // through import.meta.env, which is sufficient for development.
+      // In production, the server proxy should handle all API calls.
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),

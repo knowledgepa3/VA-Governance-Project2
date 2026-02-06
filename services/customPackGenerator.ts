@@ -12,7 +12,7 @@
  * - HELD: Awaiting human approval (ADVISORY/MANDATORY gates)
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import { execute as governedExecute } from './governedLLM';
 import { config as appConfig } from '../config.browser';
 import {
   InstructionPack,
@@ -23,15 +23,6 @@ import {
   InstructionStep
 } from './browserAutomationAgent';
 import { MAIClassification } from '../types';
-
-// Get API key
-const apiKey = process.env.ANTHROPIC_API_KEY || process.env.VITE_ANTHROPIC_API_KEY || (import.meta as any).env?.VITE_ANTHROPIC_API_KEY;
-
-// Create client only if we have an API key
-const client = apiKey ? new Anthropic({
-  apiKey: apiKey,
-  dangerouslyAllowBrowser: true
-}) : null;
 
 // Audit result types for consistent vocabulary
 export type AuditResult = 'BLOCKED' | 'CONSTRAINED' | 'WARNED' | 'STOPPED' | 'HELD';
@@ -131,10 +122,7 @@ interface AIGeneratedPlan {
  * Use Claude to intelligently parse the user's prompt and generate a plan
  */
 async function generatePlanWithAI(prompt: string, providedDomains: string[]): Promise<AIGeneratedPlan> {
-  if (!client) {
-    // Fallback to basic parsing if no API key
-    return generateBasicPlan(prompt, providedDomains);
-  }
+  // Mode enforcement is handled by the governed kernel
 
   const systemPrompt = `You are a browser automation planning assistant. Given a user's request, generate a structured plan for browser automation.
 
@@ -181,23 +169,16 @@ ${providedDomains.length > 0 ? `Allowed domains: ${providedDomains.join(', ')}` 
 Generate a browser automation plan. Remember: V1 is READ-ONLY, no purchases or form submissions.`;
 
   try {
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 2000,
-      messages: [
-        { role: "user", content: userMessage }
-      ],
-      system: systemPrompt
+    const result = await governedExecute({
+      role: 'CUSTOM_PACK_GENERATOR',
+      purpose: 'generate-instruction-pack',
+      systemPrompt,
+      userMessage,
+      maxTokens: 2000
     });
 
-    const content = response.content[0];
-    if (content.type !== 'text') {
-      throw new Error('Unexpected response type');
-    }
-
     // Parse the JSON response
-    const jsonText = content.text.trim();
-    // Handle potential markdown code blocks
+    const jsonText = result.content.trim();
     const cleanJson = jsonText.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
     const plan: AIGeneratedPlan = JSON.parse(cleanJson);
 

@@ -4,11 +4,7 @@
  */
 
 import { chromium, Browser, Page } from 'playwright';
-import Anthropic from "@anthropic-ai/sdk";
-
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY
-});
+import { execute as governedExecute } from './services/governedLLM';
 
 export interface SAMGovOpportunityData {
   solicitation_number: string;
@@ -148,22 +144,24 @@ async function analyzePageForSearch(
   rfpNumber: string
 ): Promise<{ strategy: string; search_box_selector?: string }> {
   try {
-    const response = await client.messages.create({
-      model: "claude-3-5-sonnet-20241022",
-      max_tokens: 1024,
+    const result = await governedExecute({
+      role: 'SAM_GOV_SCRAPER',
+      purpose: 'page-search-analysis',
+      systemPrompt: '',
+      userMessage: '',
       messages: [{
-        role: "user",
+        role: 'user',
         content: [
           {
-            type: "image",
+            type: 'image',
             source: {
-              type: "base64",
-              media_type: "image/png",
+              type: 'base64',
+              media_type: 'image/png',
               data: screenshotBase64
             }
           },
           {
-            type: "text",
+            type: 'text',
             text: `Analyze this SAM.gov search page. I need to search for RFP number: ${rfpNumber}
 
 Identify:
@@ -179,14 +177,16 @@ Respond in JSON:
 Common selectors: input[type="text"], input[name="search"], .search-input, #searchBox`
           }
         ]
-      }]
+      }],
+      maxTokens: 1024,
+      vision: true
     });
 
-    const textContent = response.content[0].type === 'text' ? response.content[0].text : '{}';
+    const textContent = result.content;
     const cleaned = textContent.replace(/```json\n?|```/g, "").trim();
     return JSON.parse(cleaned);
   } catch (error) {
-    console.warn('[SAM.gov] Claude Vision analysis failed, using fallback strategy');
+    console.warn('[SAM.gov] Governed LLM vision analysis failed, using fallback strategy');
     return { strategy: 'direct URL search' };
   }
 }
@@ -200,22 +200,24 @@ async function extractOpportunityData(
   rfpNumber: string
 ): Promise<Omit<SAMGovOpportunityData, 'attachments' | 'raw_html'>> {
   try {
-    const response = await client.messages.create({
-      model: "claude-3-5-sonnet-20241022",
-      max_tokens: 4096,
+    const result = await governedExecute({
+      role: 'SAM_GOV_SCRAPER',
+      purpose: 'opportunity-data-extraction',
+      systemPrompt: '',
+      userMessage: '',
       messages: [{
-        role: "user",
+        role: 'user',
         content: [
           {
-            type: "image",
+            type: 'image',
             source: {
-              type: "base64",
-              media_type: "image/png",
+              type: 'base64',
+              media_type: 'image/png',
               data: screenshotBase64
             }
           },
           {
-            type: "text",
+            type: 'text',
             text: `Extract opportunity data for solicitation ${rfpNumber} from this SAM.gov page.
 
 Here's the page HTML for detailed extraction:
@@ -251,10 +253,12 @@ Be thorough. Extract all available fields. If a field is not found, use null.
 Respond with ONLY valid JSON.`
           }
         ]
-      }]
+      }],
+      maxTokens: 4096,
+      vision: true
     });
 
-    const textContent = response.content[0].type === 'text' ? response.content[0].text : '{}';
+    const textContent = result.content;
     const cleaned = textContent.replace(/```json\n?|```/g, "").trim();
     return JSON.parse(cleaned);
   } catch (error) {

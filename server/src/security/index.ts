@@ -18,7 +18,8 @@ import {
   KeyProvider
 } from './keyManager';
 
-export { km as keyManager, KeyPurpose, KeyMetadata, KeyProvider };
+export { km as keyManager, KeyPurpose };
+export type { KeyMetadata, KeyProvider };
 
 // Compliance Modes - import for local use and re-export
 import {
@@ -30,7 +31,8 @@ import {
   checkCompliance
 } from './complianceMode';
 
-export { cm as complianceMode, ComplianceLevel, ComplianceConfig, isProd as isProduction, isFedRAMP, checkCompliance };
+export { cm as complianceMode, ComplianceLevel, isProd as isProduction, isFedRAMP, checkCompliance };
+export type { ComplianceConfig };
 
 // Rate Limiting
 export {
@@ -51,9 +53,9 @@ export {
   getPendingReviews as getBreakGlassPendingReviews,
   breakGlassMiddleware,
   BreakGlassReason,
-  BreakGlassSession,
   canActivateBreakGlass
 } from './breakGlass';
+export type { BreakGlassSession } from './breakGlass';
 
 // Tenant Isolation
 export {
@@ -66,8 +68,8 @@ export {
   getTenantContext,
   getAllTenants,
   registerTenant,
-  TenantContext
 } from './tenantIsolation';
+export type { TenantContext } from './tenantIsolation';
 
 // Egress Controls
 export {
@@ -75,9 +77,8 @@ export {
   addToAllowlist,
   removeFromAllowlist,
   getTenantPolicy,
-  EgressDecision,
-  EgressPolicy
 } from './egressControl';
+export type { EgressDecision, EgressPolicy } from './egressControl';
 
 /**
  * Initialize all security modules
@@ -125,7 +126,7 @@ export async function securityHealthCheck(): Promise<{
     details.keyManager = await km.isHealthy();
     details.complianceLevel = cm.getLevel();
     details.rateLimiter = true; // Always healthy
-    details.tenantIsolation = cm.check('enforceTenanIsolation');
+    details.tenantIsolation = cm.check('enforceTenantIsolation');
 
     const healthy = Object.values(details).every(v => v !== false);
 

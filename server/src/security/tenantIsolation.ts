@@ -79,7 +79,7 @@ export function tenantIsolationMiddleware(
   const authReq = req as AuthenticatedRequest;
 
   // Skip if tenant isolation not enforced (dev mode)
-  if (!complianceMode.check('enforceTenanIsolation')) {
+  if (!complianceMode.check('enforceTenantIsolation')) {
     // Still set default tenant for consistency
     (req as any).tenantId = (req as any).tenantId || 'default';
     (req as any).tenantContext = getTenantContext('default');

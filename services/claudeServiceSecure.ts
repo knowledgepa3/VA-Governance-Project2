@@ -13,9 +13,7 @@
 import { AgentRole, MAIClassification } from '../types';
 import { AGENT_CONFIGS } from '../constants';
 import { logger } from './logger';
-import { configService } from './configService';
-import { rateLimiter, concurrentLimiter } from './rateLimiter';
-import { sessionService } from './sessionService';
+import { execute as governedExecute, executeJSON, GovernedLLMRequest } from './governedLLM';
 
 const log = logger.child('ClaudeService');
 
@@ -101,87 +99,33 @@ function parseAgentResponse(text: string): AgentStepResult {
 }
 
 /**
- * Make API call through backend proxy
- * In production, this calls your backend which holds the API key
- * In development, it can fall back to direct calls (with warning)
+ * Make LLM call through the Governed Execution Kernel.
+ *
+ * All rate limiting, concurrent limiting, input sanitization, audit logging,
+ * and mode enforcement are handled by the kernel. This function is a thin
+ * adapter that maps the old (model, maxTokens, systemPrompt, userMessage)
+ * signature to the governed request format.
  */
 async function makeClaudeRequest(
   model: string,
   maxTokens: number,
   systemPrompt: string,
-  userMessage: string
+  userMessage: string,
+  role: string = 'ClaudeServiceSecure',
+  purpose: string = 'agent-step'
 ): Promise<string> {
-  const config = configService.getSecurityConfig();
+  const result = await governedExecute({
+    role,
+    purpose,
+    systemPrompt,
+    userMessage,
+    maxTokens,
+    // Map model string to tier (governed kernel uses factory for actual model selection)
+    tier: model.includes('haiku') ? undefined : undefined, // Let factory decide
+    correlationId: logger.getCorrelationId(),
+  });
 
-  // Check rate limit
-  const rateLimitResult = rateLimiter.tryConsume('claude-api');
-  if (!rateLimitResult.allowed) {
-    throw new Error(`Rate limit exceeded. Retry after ${rateLimitResult.retryAfterMs}ms`);
-  }
-
-  // Check concurrent limit
-  if (!concurrentLimiter.tryAcquire('claude-api')) {
-    throw new Error('Too many concurrent requests. Please wait.');
-  }
-
-  try {
-    if (config.enableBrowserApiCalls) {
-      // Development mode - direct API calls (with warning)
-      log.warn('Using browser API calls - NOT SAFE FOR PRODUCTION');
-
-      // Dynamic import to avoid bundling in production
-      const Anthropic = (await import('@anthropic-ai/sdk')).default;
-      const client = new Anthropic({
-        apiKey: import.meta.env.VITE_ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY,
-        dangerouslyAllowBrowser: true
-      });
-
-      const response = await client.messages.create({
-        model,
-        max_tokens: maxTokens,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userMessage }]
-      });
-
-      const textContent = response.content[0];
-      if (textContent.type !== 'text') {
-        throw new Error('Unexpected response type');
-      }
-
-      return textContent.text;
-    } else {
-      // Production mode - use backend proxy
-      const session = sessionService.getCurrentSession();
-      if (!session) {
-        throw new Error('No active session');
-      }
-
-      const response = await fetch(`${config.apiProxyEndpoint}/claude/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.token}`,
-          'X-Correlation-ID': logger.getCorrelationId()
-        },
-        body: JSON.stringify({
-          model,
-          maxTokens,
-          systemPrompt,
-          userMessage
-        })
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`API request failed: ${response.status} - ${error}`);
-      }
-
-      const data = await response.json();
-      return data.content;
-    }
-  } finally {
-    concurrentLimiter.release('claude-api');
-  }
+  return result.content;
 }
 
 /**
@@ -232,7 +176,9 @@ Respond with ONLY the JSON object.`;
       'claude-3-5-sonnet-20241022',
       1024,
       systemPrompt,
-      userMessage
+      userMessage,
+      'BEHAVIORAL_INTEGRITY_SENTINEL',
+      'adversarial-input-detection'
     );
 
     const result = JSON.parse(cleanJsonResponse(responseText));
@@ -353,7 +299,9 @@ IMPORTANT: Respond with ONLY valid JSON, no additional text or explanation.`;
       modelName,
       maxTokens,
       systemPrompt,
-      userMessage
+      userMessage,
+      role,
+      'agent-step'
     );
 
     const result = parseAgentResponse(responseText);
@@ -399,7 +347,9 @@ Respond with ONLY the JSON object.`;
       'claude-3-5-haiku-20241022',
       1024,
       systemPrompt,
-      userMessage
+      userMessage,
+      'SUPERVISOR',
+      'output-validation'
     );
 
     const result = JSON.parse(cleanJsonResponse(responseText));
@@ -493,7 +443,9 @@ Respond with ONLY the JSON object.`;
       'claude-3-5-sonnet-20241022',
       2048,
       systemPrompt,
-      userMessage
+      userMessage,
+      'PII_PHI_DETECTOR',
+      'pii-detection'
     );
 
     const result = JSON.parse(cleanJsonResponse(responseText));

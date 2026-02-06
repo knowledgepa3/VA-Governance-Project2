@@ -36,7 +36,8 @@ import {
   Maximize2,
   X
 } from 'lucide-react';
-import Anthropic from '@anthropic-ai/sdk';
+import { execute as governedExecute } from '../services/governedLLM';
+import type { ContentBlock, ToolDefinition } from '../llm/types';
 import { ACE_AGENT_TOOLS, getToolByName, ToolResult } from '../services/aceAgentTools';
 import { CLAIM_TYPE_LABELS, ClaimType } from '../services/caseManager';
 
@@ -208,8 +209,8 @@ What would you like to do today?`,
       // Add current message
       conversationHistory.push({ role: 'user', content: userMessage });
 
-      // Convert tools to Claude format
-      const claudeTools = ACE_AGENT_TOOLS.map(tool => ({
+      // Convert tools to governed kernel format
+      const governedTools: ToolDefinition[] = ACE_AGENT_TOOLS.map(tool => ({
         name: tool.name,
         description: tool.description,
         input_schema: {
@@ -228,29 +229,25 @@ What would you like to do today?`,
         }
       }));
 
-      // Call Claude
-      const client = new Anthropic({
-        apiKey: import.meta.env.VITE_ANTHROPIC_API_KEY,
-        dangerouslyAllowBrowser: true
-      });
-
-      // Use Haiku for quick case management tasks (much cheaper)
-      // Complex research/browser automation goes through Claude Code (Pro Max)
-      let response = await client.messages.create({
-        model: 'claude-haiku-3-5-20241022',
-        max_tokens: 2048,
-        system: SYSTEM_PROMPT,
-        tools: claudeTools,
-        messages: conversationHistory
+      // Call through governed kernel (uses Haiku tier for fast case management)
+      let result = await governedExecute({
+        role: 'ACE_AGENT_CHAT',
+        purpose: 'case-management',
+        systemPrompt: SYSTEM_PROMPT,
+        userMessage: '',
+        messages: conversationHistory as any,
+        tools: governedTools,
+        maxTokens: 2048,
+        tier: 'fast' as any
       });
 
       // Handle tool calls in a loop
-      while (response.stop_reason === 'tool_use') {
-        const toolUseBlock = response.content.find(
-          (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use'
+      while (result.stopReason === 'tool_use') {
+        const toolUseBlock = result.contentBlocks?.find(
+          (block): block is ContentBlock & { type: 'tool_use' } => block.type === 'tool_use'
         );
 
-        if (!toolUseBlock) break;
+        if (!toolUseBlock || toolUseBlock.type !== 'tool_use') break;
 
         // Show tool call in UI
         const toolMsg: Message = {
@@ -289,36 +286,35 @@ What would you like to do today?`,
         // Continue conversation with tool result
         conversationHistory.push({
           role: 'assistant',
-          content: response.content as any
-        });
+          content: result.contentBlocks || result.content
+        } as any);
         conversationHistory.push({
           role: 'user',
           content: [{
             type: 'tool_result',
             tool_use_id: toolUseBlock.id,
             content: JSON.stringify(toolResult)
-          }] as any
-        });
+          }]
+        } as any);
 
-        response = await client.messages.create({
-          model: 'claude-haiku-3-5-20241022',
-          max_tokens: 2048,
-          system: SYSTEM_PROMPT,
-          tools: claudeTools,
-          messages: conversationHistory
+        result = await governedExecute({
+          role: 'ACE_AGENT_CHAT',
+          purpose: 'case-management-tool-followup',
+          systemPrompt: SYSTEM_PROMPT,
+          userMessage: '',
+          messages: conversationHistory as any,
+          tools: governedTools,
+          maxTokens: 2048,
+          tier: 'fast' as any
         });
       }
 
       // Extract text response
-      const textBlock = response.content.find(
-        (block): block is Anthropic.TextBlock => block.type === 'text'
-      );
-
-      if (textBlock) {
+      if (result.content) {
         const assistantMsg: Message = {
           id: `msg-${Date.now()}`,
           role: 'assistant',
-          content: textBlock.text,
+          content: result.content,
           timestamp: new Date().toISOString()
         };
         setMessages(prev => [...prev, assistantMsg]);

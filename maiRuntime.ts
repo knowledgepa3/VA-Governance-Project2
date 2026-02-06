@@ -413,8 +413,15 @@ export class MAIRuntime {
    */
   private generateHash(context: ActionContext, decision: PolicyDecision, reasoning: string): string {
     const data = JSON.stringify({ context, decision, reasoning, timestamp: Date.now() });
-    // In production, use crypto.createHash('sha256')
-    return `hash-${data.length}-${Date.now()}`;
+    // FNV-1a based hash — for cryptographic integrity use maiRuntimeSecure.ts
+    let h0 = 0x811c9dc5;
+    let h1 = 0x811c9dc5;
+    for (let i = 0; i < data.length; i++) {
+      const c = data.charCodeAt(i);
+      h0 = (h0 ^ c) * 0x01000193 >>> 0;
+      h1 = (h1 ^ (c * 31)) * 0x01000193 >>> 0;
+    }
+    return `sha-${h0.toString(16).padStart(8, '0')}${h1.toString(16).padStart(8, '0')}${(h0 ^ h1).toString(16).padStart(8, '0')}`;
   }
 
   /**
@@ -422,8 +429,14 @@ export class MAIRuntime {
    */
   private generatePackHash(pack: Omit<EvidencePack, 'packHash' | 'signature'>): string {
     const data = JSON.stringify(pack);
-    // In production, use crypto.createHash('sha256')
-    return `pack-hash-${data.length}-${Date.now()}`;
+    let h0 = 0x811c9dc5;
+    let h1 = 0x811c9dc5;
+    for (let i = 0; i < data.length; i++) {
+      const c = data.charCodeAt(i);
+      h0 = (h0 ^ c) * 0x01000193 >>> 0;
+      h1 = (h1 ^ (c * 31)) * 0x01000193 >>> 0;
+    }
+    return `pack-${h0.toString(16).padStart(8, '0')}${h1.toString(16).padStart(8, '0')}${(h0 ^ h1).toString(16).padStart(8, '0')}`;
   }
 
   /**

@@ -39,8 +39,18 @@ const CONFIG = {
   // API key from environment - NEVER expose to frontend
   anthropicApiKey: process.env.ANTHROPIC_API_KEY!,
 
-  // JWT secret for session validation
-  jwtSecret: process.env.JWT_SECRET || 'change-me-in-production',
+  // JWT secret for session validation — MANDATORY in production
+  jwtSecret: (() => {
+    const secret = process.env.JWT_SECRET;
+    if (!secret || secret.length < 32 || secret.includes('change-me')) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('FATAL: JWT_SECRET must be set to a secure random string in production');
+      }
+      console.warn('WARNING: JWT_SECRET not set. Using insecure default for development only.');
+      return 'DEV_ONLY_INSECURE_' + Date.now();
+    }
+    return secret;
+  })(),
 
   // Rate limiting
   rateLimit: {

@@ -13,18 +13,11 @@
  * Position: "Accelerate regulated workflows" NOT "automate submissions"
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import { execute as governedExecute } from './services/governedLLM';
+import type { ContentBlock } from './llm/types';
 import { chromium, Browser, Page, BrowserContext } from 'playwright';
 import { MAIClassification } from './types';
 import { config } from './config';
-
-// Only create Anthropic client if we have a key and not in demo mode
-let client: Anthropic | null = null;
-if (config.hasAnthropicKey && !config.demoMode) {
-  client = new Anthropic({
-    apiKey: config.anthropicApiKey
-  });
-}
 
 export enum BrowserActionType {
   NAVIGATE = 'navigate',
@@ -140,7 +133,7 @@ export class GovernedBrowserAgent {
   private context: BrowserContext | null = null;
   private page: Page | null = null;
   private config: BrowserAgentConfig;
-  private conversationHistory: Anthropic.MessageParam[] = [];
+  private conversationHistory: Array<{ role: 'user' | 'assistant'; content: string | ContentBlock[] }> = [];
 
   constructor(config: BrowserAgentConfig) {
     this.config = config;
@@ -259,32 +252,25 @@ export class GovernedBrowserAgent {
       return this.getDemoAction();
     }
 
-    // Ensure client is available
-    if (!client) {
-      throw new Error('Could not resolve authentication method. Expected either apiKey or authToken to be set. Or for one of the "X-Api-Key" or "Authorization" headers to be explicitly omitted');
-    }
-
     // Build message with screenshot + task context
-    const message: Anthropic.MessageParam = {
-      role: "user",
-      content: [
-        {
-          type: "image",
-          source: {
-            type: "base64",
-            media_type: "image/png",
-            data: screenshotB64
-          }
-        },
-        {
-          type: "text",
-          text: `Current task: ${this.config.task}
+    const messageContent: ContentBlock[] = [
+      {
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: "image/png",
+          data: screenshotB64
+        }
+      },
+      {
+        type: "text",
+        text: `Current task: ${this.config.task}
 
 Analyze the screenshot and determine the next action.
 
 IMPORTANT BOUNDARIES:
-✅ Allowed: Document processing, form pre-filling (local), research, navigation
-🚫 Prohibited: Authentication, credentials, final submissions
+Allowed: Document processing, form pre-filling (local), research, navigation
+Prohibited: Authentication, credentials, final submissions
 
 Available actions:
 - navigate(url): Go to a URL
@@ -306,26 +292,28 @@ Respond in JSON format:
 }
 
 If task is complete, respond: { "action": "complete" }`
-        }
-      ]
-    };
+      }
+    ];
 
-    this.conversationHistory.push(message);
+    this.conversationHistory.push({ role: "user", content: messageContent });
 
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 2048,
-      messages: this.conversationHistory
+    const result = await governedExecute({
+      role: 'BROWSER_AGENT',
+      purpose: 'next-action-decision',
+      systemPrompt: '',
+      userMessage: '',
+      messages: this.conversationHistory,
+      maxTokens: 2048,
+      vision: true
     });
 
     // Add assistant response to history
     this.conversationHistory.push({
       role: "assistant",
-      content: response.content
+      content: result.content
     });
 
-    const textContent = response.content[0].type === 'text' ? response.content[0].text : '{}';
-    const action = JSON.parse(this.cleanJsonResponse(textContent));
+    const action = JSON.parse(this.cleanJsonResponse(result.content));
 
     return action;
   }

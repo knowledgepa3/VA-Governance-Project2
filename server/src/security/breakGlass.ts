@@ -110,9 +110,19 @@ export async function activateBreakGlass(
       return { error: 'MFA verification required for break-glass activation' };
     }
 
-    // In production, verify MFA token here
-    // const mfaValid = await verifyMFAToken(userId, mfaToken);
-    const mfaValid = mfaToken === 'VALID_MFA_TOKEN'; // Placeholder
+    // MFA verification — requires integration with TOTP/WebAuthn provider.
+    // In production, this MUST validate against a real MFA backend.
+    // SECURITY: The placeholder is removed. Break-glass MFA always fails
+    // until a real MFA verifier is integrated.
+    const MFA_PROVIDER = process.env.MFA_PROVIDER; // e.g., 'totp', 'webauthn', 'duo'
+    if (!MFA_PROVIDER) {
+      log.error('Break-glass MFA required but MFA_PROVIDER is not configured');
+      return { error: 'MFA provider not configured. Cannot activate break-glass.' };
+    }
+
+    // TODO: Integrate with real MFA provider
+    // const mfaValid = await verifyMFAToken(MFA_PROVIDER, userId, mfaToken);
+    const mfaValid = false; // Hard-fail until MFA integration is complete
 
     if (!mfaValid) {
       log.warn('Break-glass MFA verification failed', { userId });

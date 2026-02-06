@@ -4,11 +4,7 @@
  */
 
 import { chromium, Browser, Page } from 'playwright';
-import Anthropic from "@anthropic-ai/sdk";
-
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY
-});
+import { execute as governedExecute } from './services/governedLLM';
 
 export interface PastAwardData {
   recipient_name: string;
@@ -217,22 +213,24 @@ async function getSearchGuidance(
   naicsCode: string
 ): Promise<{ approach: string; selectors?: any }> {
   try {
-    const response = await client.messages.create({
-      model: "claude-3-5-sonnet-20241022",
-      max_tokens: 1024,
+    const result = await governedExecute({
+      role: 'USA_SPENDING_SCRAPER',
+      purpose: 'search-guidance',
+      systemPrompt: '',
+      userMessage: '',
       messages: [{
-        role: "user",
+        role: 'user',
         content: [
           {
-            type: "image",
+            type: 'image',
             source: {
-              type: "base64",
-              media_type: "image/png",
+              type: 'base64',
+              media_type: 'image/png',
               data: screenshotBase64
             }
           },
           {
-            type: "text",
+            type: 'text',
             text: `Analyze this USASpending.gov search interface.
 
 I need to search for:
@@ -248,10 +246,12 @@ Describe the approach in JSON:
 }`
           }
         ]
-      }]
+      }],
+      maxTokens: 1024,
+      vision: true
     });
 
-    const textContent = response.content[0].type === 'text' ? response.content[0].text : '{}';
+    const textContent = result.content;
     const cleaned = textContent.replace(/```json\n?|```/g, "").trim();
     return JSON.parse(cleaned);
   } catch (error) {

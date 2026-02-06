@@ -26,18 +26,27 @@ export interface JWTConfig {
   refreshTokenTTL: number; // seconds
 }
 
+// SECURITY: JWT_SECRET is MANDATORY. No fallback allowed.
+const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret || jwtSecret.length < 32 || jwtSecret.includes('CHANGE_ME')) {
+  const msg = 'FATAL: JWT_SECRET is not set or is insecure. ' +
+    'Set JWT_SECRET to a random string of at least 64 characters. ' +
+    'Generate with: openssl rand -hex 64';
+  log.error(msg);
+
+  // In development, allow startup with a warning. In production, hard-fail.
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(msg);
+  }
+}
+
 const DEFAULT_CONFIG: JWTConfig = {
-  secret: process.env.JWT_SECRET || 'CHANGE_ME_IN_PRODUCTION',
+  secret: jwtSecret || 'DEV_ONLY_INSECURE_SECRET_' + Date.now(),
   issuer: process.env.JWT_ISSUER || 'ace-governance',
   audience: process.env.JWT_AUDIENCE || 'ace-api',
   accessTokenTTL: 3600,      // 1 hour
   refreshTokenTTL: 86400 * 7 // 7 days
 };
-
-// Warn if using default secret
-if (DEFAULT_CONFIG.secret === 'CHANGE_ME_IN_PRODUCTION') {
-  log.warn('JWT_SECRET not set - using insecure default. SET THIS IN PRODUCTION!');
-}
 
 /**
  * JWT Claims
