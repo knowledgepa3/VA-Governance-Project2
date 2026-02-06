@@ -4,14 +4,14 @@
  * ENTERPRISE-GRADE DATA SEPARATION:
  * This service implements a two-layer data model to protect PHI/PII:
  *
- * 1. CASE SHELL (persisted to localStorage) - Safe metadata only
+ * 1. CASE SHELL (persisted in PostgreSQL via /api/cases) - Safe metadata only
  *    - caseId, status, priority, timestamps
  *    - claimType (category, not identifying)
  *    - workflow stage, bundle run history
  *    - hashes/manifests (non-sensitive)
  *    - repository pointers (when enterprise mode enabled)
  *
- * 2. SENSITIVE PROFILE (session memory only) - PHI/PII
+ * 2. SENSITIVE PROFILE (AES-256-GCM encrypted in PostgreSQL) - PHI/PII
  *    - clientName, clientEmail, clientPhone
  *    - conditions (can be identifying)
  *    - servicePeriod, deployments (identifying)
@@ -19,18 +19,21 @@
  *    - communicationLog content
  *
  * STORAGE MODES:
- * - PROTOTYPE: Shell persisted, Profile session-only (clears on refresh)
- * - ENTERPRISE: Shell persisted, Profile in secure vault or BYOR repository
+ * - PROTOTYPE: Uses backend API with encrypted profile storage
+ * - ENTERPRISE: Same API + secure vault or BYOR repository (future)
  *
- * CASE FLOW:
- * 1. INTAKE    - Case created with shell + profile
- * 2. RESEARCH  - Bundle packs run, evidence gathered
- * 3. REVIEW    - Human reviews evidence before delivery
- * 4. COMPLETE  - Evidence delivered to client
+ * FALLBACK:
+ * If the server is unreachable, falls back to localStorage for shells
+ * (profiles remain session-only in fallback mode).
+ *
+ * PUBLIC API PRESERVED:
+ * All method signatures are identical to the original localStorage version.
+ * Components (CasesDashboard, NewCaseForm, etc.) require no changes.
  */
 
 import { BundlePack, BUNDLE_PACKS } from './bundlePacks';
 import { ExecutionResult, EvidenceRecord } from './browserAutomationAgent';
+import { caseApi, clearAuthToken } from './caseApi';
 
 // ============================================================================
 // STORAGE MODE CONFIGURATION
@@ -80,8 +83,7 @@ export type CaseStatus =
 export type CasePriority = 'low' | 'normal' | 'high' | 'urgent';
 
 /**
- * CASE SHELL - Safe to persist in localStorage
- * Contains only non-identifying metadata
+ * CASE SHELL - Persisted in PostgreSQL (non-sensitive metadata)
  */
 export interface CaseShell {
   id: string;
@@ -119,8 +121,7 @@ export interface CaseShell {
 }
 
 /**
- * SENSITIVE PROFILE - Session memory only (never persisted in prototype mode)
- * Contains all PHI/PII that requires protection
+ * SENSITIVE PROFILE - Encrypted in PostgreSQL (PHI/PII)
  */
 export interface SensitiveProfile {
   caseId: string;                 // Links to CaseShell
@@ -234,17 +235,17 @@ export const CLAIM_TYPE_BUNDLES: Record<ClaimType, string[]> = {
 };
 
 // ============================================================================
-// CASE MANAGER CLASS - ENTERPRISE-GRADE
+// CASE MANAGER CLASS - API-BACKED WITH LOCAL CACHE
 // ============================================================================
 
-const STORAGE_KEY = 'ace_case_shells';  // Only shells persisted
+const STORAGE_KEY = 'ace_case_shells';  // localStorage fallback
 const CONFIG_KEY = 'ace_case_config';
 
 class CaseManagerService {
-  // Persisted: case shells only
+  // Client-side cache (API is source of truth)
   private shells: Map<string, CaseShell> = new Map();
 
-  // Session memory: sensitive profiles (cleared on refresh in prototype mode)
+  // Session memory: sensitive profiles (fetched on-demand from API, cached locally)
   private profiles: Map<string, SensitiveProfile> = new Map();
 
   // Configuration
@@ -253,14 +254,64 @@ class CaseManagerService {
   // Listeners
   private listeners: Set<(cases: Case[]) => void> = new Set();
 
-  // Case counter for alias generation
+  // Case counter for alias generation (fallback only)
   private caseCounter: number = 0;
+
+  // API connectivity state
+  private apiAvailable: boolean = false;
+  private initialized: boolean = false;
 
   constructor() {
     this.loadConfig();
+    // Load from localStorage as initial cache (will be refreshed from API)
     this.loadShellsFromStorage();
+    // Kick off async API init (non-blocking)
+    this.init().catch(err => {
+      console.warn('[CaseManager] API init failed, running in offline mode:', err.message);
+    });
     console.log(`[CaseManager] Initialized in ${this.config.mode.toUpperCase()} mode`);
-    console.log(`[CaseManager] ⚠️ Sensitive profiles are SESSION-ONLY (cleared on refresh)`);
+  }
+
+  /**
+   * Initialize by syncing with server API.
+   * Called automatically in constructor, but can be called again to re-sync.
+   */
+  async init(): Promise<void> {
+    try {
+      const healthy = await caseApi.healthCheck();
+      if (!healthy) {
+        console.warn('[CaseManager] Server not reachable, using localStorage fallback');
+        this.apiAvailable = false;
+        return;
+      }
+
+      this.apiAvailable = true;
+
+      // Fetch all cases from API
+      const shells = await caseApi.listCases();
+      this.shells.clear();
+      shells.forEach(shell => {
+        shell.hasSessionProfile = this.profiles.has(shell.id);
+        this.shells.set(shell.id, shell);
+      });
+
+      // Update counter from server data
+      const maxNumber = shells.reduce((max, shell) => {
+        const match = shell.caseAlias.match(/CASE-\d{4}-(\d+)/);
+        return match ? Math.max(max, parseInt(match[1], 10)) : max;
+      }, 0);
+      this.caseCounter = maxNumber;
+
+      // Persist to localStorage as offline cache
+      this.saveShellsToStorage();
+
+      this.initialized = true;
+      this.notifyListeners();
+      console.log(`[CaseManager] Synced ${shells.length} cases from server`);
+    } catch (error: any) {
+      console.warn('[CaseManager] API sync failed:', error.message);
+      this.apiAvailable = false;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -301,7 +352,7 @@ class CaseManagerService {
   }
 
   // ---------------------------------------------------------------------------
-  // PERSISTENCE (SHELLS ONLY)
+  // PERSISTENCE (localStorage as offline cache)
   // ---------------------------------------------------------------------------
 
   private loadShellsFromStorage(): void {
@@ -310,23 +361,20 @@ class CaseManagerService {
       if (stored) {
         const shellsArray: CaseShell[] = JSON.parse(stored);
         shellsArray.forEach(shell => {
-          // Mark that profile is not loaded
           shell.hasSessionProfile = false;
           this.shells.set(shell.id, shell);
         });
 
-        // Update case counter
         const maxNumber = shellsArray.reduce((max, shell) => {
           const match = shell.caseAlias.match(/CASE-\d{4}-(\d+)/);
           return match ? Math.max(max, parseInt(match[1], 10)) : max;
         }, 0);
         this.caseCounter = maxNumber;
 
-        console.log(`[CaseManager] Loaded ${shellsArray.length} case shells from storage`);
-        console.log(`[CaseManager] ℹ️ Sensitive profiles must be re-entered (session-only)`);
+        console.log(`[CaseManager] Loaded ${shellsArray.length} case shells from cache`);
       }
     } catch (error) {
-      console.error('[CaseManager] Failed to load shells from storage:', error);
+      console.error('[CaseManager] Failed to load shells from cache:', error);
     }
   }
 
@@ -335,7 +383,7 @@ class CaseManagerService {
       const shellsArray = Array.from(this.shells.values());
       localStorage.setItem(STORAGE_KEY, JSON.stringify(shellsArray));
     } catch (error) {
-      console.error('[CaseManager] Failed to save shells to storage:', error);
+      console.error('[CaseManager] Failed to save shells to cache:', error);
     }
   }
 
@@ -345,7 +393,7 @@ class CaseManagerService {
   }
 
   // ---------------------------------------------------------------------------
-  // ALIAS GENERATION
+  // ALIAS GENERATION (fallback for offline mode)
   // ---------------------------------------------------------------------------
 
   private generateCaseAlias(): string {
@@ -384,7 +432,7 @@ class CaseManagerService {
     const now = new Date().toISOString();
     const alias = this.generateCaseAlias();
 
-    // Create SHELL (persisted)
+    // Create SHELL (local cache — will sync to API)
     const shell: CaseShell = {
       id,
       caseAlias: alias,
@@ -397,11 +445,11 @@ class CaseManagerService {
       evidenceHashes: [],
       createdAt: now,
       updatedAt: now,
-      communicationCount: 1,  // Initial system message
+      communicationCount: 1,
       hasSessionProfile: true
     };
 
-    // Create SENSITIVE PROFILE (session-only)
+    // Create SENSITIVE PROFILE (cached locally, persisted encrypted via API)
     const profile: SensitiveProfile = {
       caseId: id,
       clientName: input.clientName,
@@ -422,17 +470,57 @@ class CaseManagerService {
       isDirty: false
     };
 
-    // Store
+    // Store locally
     this.shells.set(id, shell);
     this.profiles.set(id, profile);
 
-    // Persist shell only
+    // Persist shell to localStorage cache
     this.saveShellsToStorage();
     this.notifyListeners();
 
-    console.log(`[CaseManager] Created case ${alias} (${id})`);
-    console.log(`[CaseManager] ⚠️ Sensitive profile is SESSION-ONLY - will be lost on refresh`);
+    // Fire-and-forget: sync to API
+    if (this.apiAvailable) {
+      caseApi.createCase({
+        claimType: input.claimType,
+        conditionCount: input.conditions?.length || 0,
+        priority: input.priority,
+        profileData: {
+          clientName: input.clientName,
+          clientEmail: input.clientEmail,
+          clientPhone: input.clientPhone,
+          conditions: input.conditions || [],
+          servicePeriod: input.servicePeriod,
+          deployments: input.deployments,
+          notes: input.notes || '',
+        },
+      }).then(serverShell => {
+        // Update local cache with server-assigned ID and alias
+        this.shells.delete(id);
+        this.profiles.delete(id);
 
+        const updatedShell: CaseShell = {
+          ...shell,
+          id: serverShell.id,
+          caseAlias: serverShell.caseAlias,
+          hasSessionProfile: true,
+        };
+        const updatedProfile: SensitiveProfile = {
+          ...profile,
+          caseId: serverShell.id,
+        };
+
+        this.shells.set(serverShell.id, updatedShell);
+        this.profiles.set(serverShell.id, updatedProfile);
+        this.saveShellsToStorage();
+        this.notifyListeners();
+
+        console.log(`[CaseManager] Synced case to server: ${serverShell.caseAlias} (${serverShell.id})`);
+      }).catch(err => {
+        console.error('[CaseManager] Failed to sync case to server:', err.message);
+      });
+    }
+
+    console.log(`[CaseManager] Created case ${alias} (${id})`);
     return this.combineShellAndProfile(shell, profile);
   }
 
@@ -536,7 +624,7 @@ class CaseManagerService {
     const updatedShell: CaseShell = { ...shell, ...shellUpdates };
     this.shells.set(id, updatedShell);
 
-    // Update profile fields (session only)
+    // Update profile fields (session cache)
     const profile = this.profiles.get(id);
     if (profile) {
       const profileUpdates: Partial<SensitiveProfile> = { isDirty: true };
@@ -557,9 +645,16 @@ class CaseManagerService {
       this.profiles.set(id, updatedProfile);
     }
 
-    // Persist shell only
+    // Persist shell to localStorage cache
     this.saveShellsToStorage();
     this.notifyListeners();
+
+    // Fire-and-forget: sync to API
+    if (this.apiAvailable) {
+      caseApi.updateCase(id, shellUpdates).catch(err => {
+        console.error('[CaseManager] Failed to sync update to server:', err.message);
+      });
+    }
 
     console.log(`[CaseManager] Updated case ${shell.caseAlias}`);
     return this.getCase(id);
@@ -584,7 +679,8 @@ class CaseManagerService {
   // ---------------------------------------------------------------------------
 
   /**
-   * Load a sensitive profile back into session (for cases where shell exists but profile was cleared)
+   * Load a sensitive profile back into session
+   * In API mode, also fetches from server if available
    */
   loadProfile(id: string, profile: Omit<SensitiveProfile, 'caseId' | 'loadedAt' | 'isDirty'>): boolean {
     const shell = this.shells.get(id);
@@ -607,6 +703,37 @@ class CaseManagerService {
 
     console.log(`[CaseManager] Loaded profile for case ${shell.caseAlias}`);
     return true;
+  }
+
+  /**
+   * Fetch profile from server API and load into session cache
+   */
+  async fetchProfile(id: string): Promise<boolean> {
+    if (!this.apiAvailable) return false;
+
+    const shell = this.shells.get(id);
+    if (!shell) return false;
+
+    try {
+      const profile = await caseApi.getProfile(id);
+      if (!profile) return false;
+
+      this.profiles.set(id, {
+        ...profile,
+        caseId: id,
+        loadedAt: new Date().toISOString(),
+        isDirty: false,
+      });
+      shell.hasSessionProfile = true;
+      this.shells.set(id, shell);
+      this.notifyListeners();
+
+      console.log(`[CaseManager] Fetched profile from server for case ${shell.caseAlias}`);
+      return true;
+    } catch (err: any) {
+      console.warn(`[CaseManager] Failed to fetch profile for ${id}:`, err.message);
+      return false;
+    }
   }
 
   /**
@@ -664,6 +791,13 @@ class CaseManagerService {
       updates.communicationLog = [...profile.communicationLog, newComm];
     }
 
+    // Also sync status to API
+    if (this.apiAvailable) {
+      caseApi.updateStatus(id, status).catch(err => {
+        console.error('[CaseManager] Failed to sync status to server:', err.message);
+      });
+    }
+
     return this.updateCase(id, updates);
   }
 
@@ -692,6 +826,13 @@ class CaseManagerService {
       bundleRuns: [...shell.bundleRuns, bundleRun]
     });
 
+    // Sync to API
+    if (this.apiAvailable) {
+      caseApi.startBundleRun(caseId, bundleId, bundle.name).catch(err => {
+        console.error('[CaseManager] Failed to sync bundle run to server:', err.message);
+      });
+    }
+
     console.log(`[CaseManager] Started bundle run ${bundleRun.id} for case ${shell.caseAlias}`);
     return bundleRun;
   }
@@ -717,6 +858,14 @@ class CaseManagerService {
       r.status === 'completed' || r.status === 'failed' || r.status === 'stopped'
     );
 
+    // Sync to API
+    if (this.apiAvailable) {
+      const status = result.success ? 'completed' : 'failed';
+      caseApi.completeBundleRun(caseId, runId, status, result, result.evidence.length).catch(err => {
+        console.error('[CaseManager] Failed to sync bundle completion to server:', err.message);
+      });
+    }
+
     return this.updateCase(caseId, {
       bundleRuns: updatedRuns,
       status: allComplete ? 'evidence-ready' : shell.status
@@ -740,6 +889,19 @@ class CaseManagerService {
       id: `comm-${Date.now()}`,
       timestamp: new Date().toISOString()
     };
+
+    // Sync to API
+    if (this.apiAvailable) {
+      caseApi.addCommunication(caseId, {
+        type: entry.type,
+        direction: entry.direction,
+        subject: entry.subject,
+        content: entry.content,
+        attachments: entry.attachments,
+      }).catch(err => {
+        console.error('[CaseManager] Failed to sync communication to server:', err.message);
+      });
+    }
 
     return this.updateCase(caseId, {
       communicationLog: [...profile.communicationLog, newEntry],
@@ -830,6 +992,25 @@ class CaseManagerService {
 
       return false;
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // API CONNECTIVITY
+  // ---------------------------------------------------------------------------
+
+  /** Check if the server API is currently available */
+  isApiAvailable(): boolean {
+    return this.apiAvailable;
+  }
+
+  /** Check if initial sync from server is complete */
+  isInitialized(): boolean {
+    return this.initialized;
+  }
+
+  /** Force re-sync from server */
+  async refresh(): Promise<void> {
+    await this.init();
   }
 }
 

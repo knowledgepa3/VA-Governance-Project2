@@ -94,18 +94,17 @@ export class AnthropicProxyProvider implements LLMProvider {
       return this.authToken;
     }
 
-    const operatorId = env('VITE_OPERATOR_ID') || 'ace-operator';
-    const operatorRole = env('VITE_OPERATOR_ROLE') || 'ISSO / ACE Architect';
-    const tenantId = env('VITE_TENANT_ID') || 'default';
+    // Auth: email/password (validated against PostgreSQL users table)
+    const operatorEmail = env('VITE_OPERATOR_EMAIL') || 'isso@example.com';
+    const operatorPassword = env('VITE_OPERATOR_PASSWORD') || 'demo';
 
     try {
       const res = await fetch(`${this.serverUrl}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: operatorId,
-          role: operatorRole,
-          tenantId
+          email: operatorEmail,
+          password: operatorPassword
         })
       });
 

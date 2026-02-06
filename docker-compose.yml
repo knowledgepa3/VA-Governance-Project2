@@ -49,6 +49,13 @@ services:
 
       # Anthropic API is loaded from env_file (.env)
 
+      # PostgreSQL connection
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-ace}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-ace_governance}
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
     volumes:
       # Persist audit logs
       - ace-audit-logs:/app/audit_logs
@@ -128,23 +135,48 @@ services:
   #         memory: 128M
 
   # ===========================================================================
-  # Optional: PostgreSQL for structured data (Phase 2)
+  # PostgreSQL — Case persistence, user auth, encrypted profiles
   # ===========================================================================
-  # postgres:
-  #   image: postgres:15-alpine
-  #   container_name: ace-postgres
-  #   restart: unless-stopped
-  #   environment:
-  #     - POSTGRES_USER=${POSTGRES_USER:-ace}
-  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
-  #     - POSTGRES_DB=${POSTGRES_DB:-ace_governance}
-  #   volumes:
-  #     - ace-postgres-data:/var/lib/postgresql/data
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         cpus: '1'
-  #         memory: 256M
+  postgres:
+    image: postgres:15-alpine
+    container_name: ace-postgres
+    restart: unless-stopped
+
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-ace}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - POSTGRES_DB=${POSTGRES_DB:-ace_governance}
+
+    volumes:
+      - ace-postgres-data:/var/lib/postgresql/data
+
+    # Tuned for 2GB droplet (256M container limit)
+    command: >
+      postgres
+        -c shared_buffers=64MB
+        -c max_connections=20
+        -c work_mem=2MB
+        -c maintenance_work_mem=32MB
+        -c effective_cache_size=128MB
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ace} -d ${POSTGRES_DB:-ace_governance}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+    security_opt:
+      - no-new-privileges:true
 
 # =============================================================================
 # Volumes
@@ -156,8 +188,8 @@ volumes:
     driver: local
   # ace-redis-data:
   #   driver: local
-  # ace-postgres-data:
-  #   driver: local
+  ace-postgres-data:
+    driver: local
 
 # =============================================================================
 # Networks

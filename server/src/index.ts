@@ -29,6 +29,9 @@ import { createRedactionRouter } from './gateway/redactionScanner';
 import { requireAuth, requireRole, AuthenticatedRequest } from './auth/middleware';
 import { signJwt } from './auth/jwt';
 import { generateUUID } from './utils/crypto';
+import { initialize as initDb, shutdown as shutdownDb } from './db/connection';
+import * as userRepository from './db/repositories/userRepository';
+import { createCasesRouter } from './routes/cases';
 
 // Security modules
 import {
@@ -93,44 +96,96 @@ app.get('/health', async (req, res) => {
   });
 });
 
-// Authentication endpoint (for demo - in production use OAuth/SSO)
+// Authentication endpoint — validates credentials against PostgreSQL
 app.post('/api/auth/login',
   authRateLimiter,  // Anti-brute-force
   async (req, res) => {
-    const { userId, role, tenantId } = req.body;
+    const { email, password, userId, role, tenantId } = req.body;
 
-    if (!userId || !role) {
-      res.status(400).json({ error: 'userId and role required' });
+    // ------------------------------------------------------------------
+    // Primary path: email + password (validated against users table)
+    // ------------------------------------------------------------------
+    if (email && password) {
+      try {
+        const user = await userRepository.verifyPassword(email, password);
+        if (!user) {
+          res.status(401).json({ error: 'Invalid credentials', code: 'INVALID_CREDENTIALS' });
+          return;
+        }
+
+        const sessionId = generateUUID();
+        const token = signJwt({
+          sub: user.id,
+          role: user.role,
+          sessionId,
+          tenantId: user.tenantId,
+          permissions: user.permissions
+        });
+
+        await secureAuditStore.append(
+          { sub: user.id, role: user.role, sessionId, tenantId: user.tenantId },
+          'AUTH_LOGIN',
+          { type: 'session', id: sessionId },
+          { tenantId: user.tenantId, authMethod: 'password' }
+        );
+
+        log.info('User logged in', { userId: user.id, email: user.email, role: user.role, sessionId });
+
+        res.json({
+          token,
+          sessionId,
+          tenantId: user.tenantId,
+          expiresIn: 3600,
+          user: {
+            id: user.id,
+            email: user.email,
+            displayName: user.displayName,
+            role: user.role,
+          }
+        });
+        return;
+      } catch (dbErr: any) {
+        log.error('Login error (DB)', {}, dbErr);
+        res.status(500).json({ error: 'Authentication service unavailable' });
+        return;
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // Legacy path: userId + role (backward compatible — deprecation warning)
+    // ------------------------------------------------------------------
+    if (userId && role) {
+      log.warn('Legacy login used (userId/role). Migrate to email/password.', { userId });
+
+      const effectiveTenantId = tenantId || 'default';
+      const sessionId = generateUUID();
+
+      const token = signJwt({
+        sub: userId,
+        role,
+        sessionId,
+        tenantId: effectiveTenantId
+      });
+
+      await secureAuditStore.append(
+        { sub: userId, role, sessionId, tenantId: effectiveTenantId },
+        'AUTH_LOGIN',
+        { type: 'session', id: sessionId },
+        { tenantId: effectiveTenantId, authMethod: 'legacy' }
+      );
+
+      log.info('User logged in (legacy)', { userId, role, sessionId });
+
+      res.json({
+        token,
+        sessionId,
+        tenantId: effectiveTenantId,
+        expiresIn: 3600
+      });
       return;
     }
 
-    // In production, tenant would come from IdP
-    const effectiveTenantId = tenantId || 'default';
-    const sessionId = generateUUID();
-
-    const token = signJwt({
-      sub: userId,
-      role,
-      sessionId,
-      tenantId: effectiveTenantId
-    });
-
-    // Audit the login
-    await secureAuditStore.append(
-      { sub: userId, role, sessionId, tenantId: effectiveTenantId },
-      'AUTH_LOGIN',
-      { type: 'session', id: sessionId },
-      { tenantId: effectiveTenantId }
-    );
-
-    log.info('User logged in', { userId, role, sessionId, tenantId: effectiveTenantId });
-
-    res.json({
-      token,
-      sessionId,
-      tenantId: effectiveTenantId,
-      expiresIn: 3600
-    });
+    res.status(400).json({ error: 'email and password required' });
   }
 );
 
@@ -145,6 +200,9 @@ app.use('/api/actions', createActionGatewayRouter());
 
 // Redaction Scanner (PII/PHI detection)
 app.use('/api/redaction', createRedactionRouter());
+
+// Case Management (CRUD with PostgreSQL persistence)
+app.use('/api/cases', createCasesRouter());
 
 // Audit endpoints
 app.get('/api/audit/entries',
@@ -399,7 +457,11 @@ app.use((req, res) => {
 // Start server
 async function start() {
   try {
-    // Initialize security modules first
+    // Initialize database connection and run migrations
+    await initDb();
+    log.info('Database initialized');
+
+    // Initialize security modules
     await initializeSecurity();
     log.info('Security modules initialized');
 
@@ -427,11 +489,13 @@ async function start() {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   log.info('Received SIGTERM, shutting down...');
+  await shutdownDb().catch(() => {});
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   log.info('Received SIGINT, shutting down...');
+  await shutdownDb().catch(() => {});
   process.exit(0);
 });
 
