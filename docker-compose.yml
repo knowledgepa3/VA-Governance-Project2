@@ -101,6 +101,15 @@ services:
 
     ports:
       - "${FRONTEND_PORT:-80}:80"
+      - "443:443"
+
+    volumes:
+      # Mount nginx config (so certbot paths are available)
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # Let's Encrypt certificates (shared with certbot)
+      - certbot-certs:/etc/letsencrypt:ro
+      # ACME challenge webroot (shared with certbot)
+      - certbot-www:/var/www/certbot:ro
 
     depends_on:
       ace-server:
@@ -178,6 +187,16 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  # ===========================================================================
+  # Certbot — Let's Encrypt certificate provisioning
+  # ===========================================================================
+  certbot:
+    image: certbot/certbot:latest
+    container_name: ace-certbot
+    volumes:
+      - certbot-certs:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+
 # =============================================================================
 # Volumes
 # =============================================================================
@@ -189,6 +208,10 @@ volumes:
   # ace-redis-data:
   #   driver: local
   ace-postgres-data:
+    driver: local
+  certbot-certs:
+    driver: local
+  certbot-www:
     driver: local
 
 # =============================================================================
