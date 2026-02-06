@@ -26,6 +26,12 @@ COPY src/ ./src/
 # Build TypeScript
 RUN npm run build
 
+# Copy SQL migration files into dist (TypeScript doesn't copy non-ts files)
+RUN if [ -d src/db/migrations ]; then \
+      mkdir -p dist/db/migrations && \
+      cp src/db/migrations/*.sql dist/db/migrations/; \
+    fi
+
 # Prune dev dependencies
 RUN npm prune --production
 
