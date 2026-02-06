@@ -42,7 +42,7 @@ export class MockProvider implements LLMProvider {
 
   async chat(messages: LLMMessage[], options?: CompletionOptions): Promise<CompletionResponse> {
     // Simulate network latency
-    await new Promise(resolve => setTimeout(resolve, this.latencyMs + Math.random() * 100));
+    await new Promise(resolve => setTimeout(resolve, this.latencyMs)); // Fixed delay — mock provider
 
     const lastMessage = messages[messages.length - 1];
     const lastContent = lastMessage?.content ?? '';
@@ -87,7 +87,7 @@ export class MockProvider implements LLMProvider {
     if (promptLower.includes('behavioral integrity') || promptLower.includes('integrity scan')) {
       return JSON.stringify({
         resilient: true,
-        integrity_score: 98 + Math.floor(Math.random() * 3),
+        integrity_score: 100, // Mock provider: fixed score, not random
         anomaly_detected: null
       });
     }
