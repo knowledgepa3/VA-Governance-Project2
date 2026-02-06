@@ -726,7 +726,7 @@
     <a href="/" class="logo">GIA <span class="logo-badge">PLATFORM</span></a>
     <nav class="nav-links">
       <a href="/">Home</a>
-      <a href="#demo">Request Demo</a>
+      <a href="/app">Workflows</a>
       <a href="#deliverables">What You Get</a>
       <a href="/console">Console</a>
     </nav>
@@ -839,7 +839,15 @@
               <span class="form-sublabel">What type of task do you want to run?</span>
               <div class="workflow-options">
                 <div class="workflow-option">
-                  <input type="radio" id="wf-bd" name="workflow" value="bd-capture" checked>
+                  <input type="radio" id="wf-va" name="workflow" value="va-claims" checked>
+                  <label for="wf-va">
+                    <div class="workflow-icon">📋</div>
+                    <div class="workflow-title">VA Claims Analysis</div>
+                    <div class="workflow-desc">Evidence extraction and report generation for disability claims</div>
+                  </label>
+                </div>
+                <div class="workflow-option">
+                  <input type="radio" id="wf-bd" name="workflow" value="bd-capture">
                   <label for="wf-bd">
                     <div class="workflow-icon">🎯</div>
                     <div class="workflow-title">Federal Opportunity Search</div>
@@ -852,14 +860,6 @@
                     <div class="workflow-icon">📊</div>
                     <div class="workflow-title">Research Brief</div>
                     <div class="workflow-desc">Get a sourced briefing on any topic with citations</div>
-                  </label>
-                </div>
-                <div class="workflow-option">
-                  <input type="radio" id="wf-price" name="workflow" value="price-compare">
-                  <label for="wf-price">
-                    <div class="workflow-icon">💰</div>
-                    <div class="workflow-title">Price Comparison</div>
-                    <div class="workflow-desc">Compare prices for a product across retailers</div>
                   </label>
                 </div>
                 <div class="workflow-option">
@@ -1107,9 +1107,9 @@
 
     // Dynamic placeholder based on workflow selection
     const placeholders = {
+      'va-claims': 'e.g., "I have a veteran with PTSD, sleep apnea, and knee injury — need evidence analysis and rating estimate"',
       'bd-capture': 'e.g., "Find AI/ML contracts for small businesses in healthcare" or "Search for cybersecurity RFPs over $500K"',
       'research-brief': 'e.g., "Brief me on NIST AI Risk Management Framework requirements" or "What are the latest trends in federal IT modernization?"',
-      'price-compare': 'e.g., "Find the best price for MacBook Pro 14-inch M3" or "Compare prices for Sony WH-1000XM5 headphones"',
       'custom': 'Describe what you want to accomplish — we\'ll figure out the best way to run it under governance'
     };
 
