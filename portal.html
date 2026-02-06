@@ -551,6 +551,114 @@
       margin-top: 0.5rem;
     }
 
+    /* Compliance Frameworks Section */
+    .compliance {
+      padding: 5rem 2rem;
+      background: var(--dark);
+    }
+
+    .compliance-content {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .compliance .section-header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .compliance .section-header h2 {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.75rem;
+    }
+
+    .compliance .section-header p {
+      color: var(--gray-400);
+      font-size: 1.05rem;
+    }
+
+    .frameworks-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .framework-card {
+      background: var(--gray-900);
+      border: 1px solid var(--gray-700);
+      border-radius: 12px;
+      padding: 1.5rem;
+      transition: all 0.3s;
+    }
+
+    .framework-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+    }
+
+    .framework-card .fw-tag {
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      display: inline-block;
+      margin-bottom: 0.75rem;
+    }
+
+    .fw-tag.federal {
+      background: rgba(99, 102, 241, 0.15);
+      color: var(--primary-light);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+    }
+
+    .fw-tag.security {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--secondary);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+
+    .fw-tag.executive {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+    }
+
+    .fw-tag.industry {
+      background: rgba(139, 92, 246, 0.15);
+      color: #a78bfa;
+      border: 1px solid rgba(139, 92, 246, 0.25);
+    }
+
+    .framework-card h4 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--white);
+      margin-bottom: 0.35rem;
+    }
+
+    .framework-card .fw-desc {
+      font-size: 0.8rem;
+      color: var(--gray-400);
+      line-height: 1.5;
+    }
+
+    .compliance-footer {
+      text-align: center;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--gray-800);
+      color: var(--gray-500);
+      font-size: 0.85rem;
+    }
+
+    .compliance-footer strong {
+      color: var(--gray-300);
+    }
+
     /* CTA Section */
     .cta {
       padding: 6rem 2rem;
@@ -683,6 +791,10 @@
       .cta-buttons {
         flex-direction: column;
       }
+
+      .frameworks-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -698,7 +810,7 @@
       <nav>
         <a href="#features">Features</a>
         <a href="#workflows">Workflows</a>
-        <a href="/bd">BD Dashboard</a>
+        <a href="#compliance">Compliance</a>
         <a href="/console">Console</a>
         <a href="/demo" class="nav-cta">Try Free Demo</a>
       </nav>
@@ -878,8 +990,8 @@
           <div class="trust-label">Auditable Actions</div>
         </div>
         <div class="trust-item">
-          <div class="trust-value">NIST</div>
-          <div class="trust-label">AI RMF Aligned</div>
+          <div class="trust-value">9+</div>
+          <div class="trust-label">Compliance Frameworks</div>
         </div>
         <div class="trust-item">
           <div class="trust-value">SOC 2</div>
@@ -888,6 +1000,67 @@
         <div class="trust-item">
           <div class="trust-value">24hr</div>
           <div class="trust-label">Demo Turnaround</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Compliance Frameworks -->
+    <section class="compliance" id="compliance">
+      <div class="compliance-content">
+        <div class="section-header">
+          <h2>Compliance Coverage</h2>
+          <p>Governance controls mapped to the frameworks that matter</p>
+        </div>
+        <div class="frameworks-grid">
+          <div class="framework-card">
+            <span class="fw-tag federal">Federal</span>
+            <h4>NIST AI RMF</h4>
+            <p class="fw-desc">AI Risk Management Framework. Govern, Map, Measure, Manage lifecycle built into every workflow.</p>
+          </div>
+          <div class="framework-card">
+            <span class="fw-tag federal">Federal</span>
+            <h4>NIST 800-53</h4>
+            <p class="fw-desc">Security and privacy controls. AC-2 account management, AC-3 access enforcement, AU-2 audit events.</p>
+          </div>
+          <div class="framework-card">
+            <span class="fw-tag executive">Executive</span>
+            <h4>EO 14110</h4>
+            <p class="fw-desc">Executive Order on Safe, Secure, and Trustworthy AI. Risk assessment and reporting compliance.</p>
+          </div>
+          <div class="framework-card">
+            <span class="fw-tag federal">Federal</span>
+            <h4>FedRAMP</h4>
+            <p class="fw-desc">Federal Risk and Authorization Management. Login.gov integration, IAL2/AAL2 identity assurance.</p>
+          </div>
+          <div class="framework-card">
+            <span class="fw-tag federal">Federal</span>
+            <h4>FISMA</h4>
+            <p class="fw-desc">Federal Information Security Modernization Act. Continuous monitoring and incident response.</p>
+          </div>
+          <div class="framework-card">
+            <span class="fw-tag security">Security</span>
+            <h4>SOC 2 Type II</h4>
+            <p class="fw-desc">Trust service criteria. Immutable audit trails, access controls, evidence chain validation.</p>
+          </div>
+          <div class="framework-card">
+            <span class="fw-tag security">Security</span>
+            <h4>CMMC 2.0</h4>
+            <p class="fw-desc">Cybersecurity Maturity Model Certification 2.0. DoD supply chain security and CUI protection controls.</p>
+          </div>
+          <div class="framework-card">
+            <span class="fw-tag industry">Industry</span>
+            <h4>ISO 27001</h4>
+            <p class="fw-desc">Information security management system. Systematic risk management and control framework.</p>
+          </div>
+          <div class="framework-card">
+            <span class="fw-tag industry">Industry</span>
+            <h4>HIPAA</h4>
+            <p class="fw-desc">Health Insurance Portability and Accountability. PII/PHI safeguards for healthcare workflows.</p>
+          </div>
+        </div>
+        <div class="compliance-footer">
+          <strong>Every action classified. Every decision logged. Every output traceable.</strong><br>
+          Governance controls are enforced at runtime — not bolted on after the fact.
         </div>
       </div>
     </section>
