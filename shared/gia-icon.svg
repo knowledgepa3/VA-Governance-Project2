@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 52" fill="none">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="50%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+  <!-- Shield -->
+  <path d="M4 8 L24 2 L44 8 L44 28 C44 38 34 46 24 50 C14 46 4 38 4 28 Z"
+        fill="none" stroke="url(#g)" stroke-width="2.5" filter="url(#glow)"/>
+  <path d="M6 9.5 L24 4 L42 9.5 L42 27.5 C42 36.5 33 43.5 24 47.5 C15 43.5 6 36.5 6 27.5 Z"
+        fill="url(#g)" opacity="0.1"/>
+  <!-- G -->
+  <text x="24" y="33" text-anchor="middle" font-family="Inter, -apple-system, sans-serif"
+        font-size="26" font-weight="900" fill="url(#g)">G</text>
+  <!-- Governance nodes -->
+  <circle cx="14" cy="18" r="2.5" fill="#6366f1" opacity="0.7"/>
+  <circle cx="24" cy="13.5" r="2.5" fill="#8b5cf6" opacity="0.7"/>
+  <circle cx="34" cy="18" r="2.5" fill="#10b981" opacity="0.7"/>
+  <line x1="14" y1="18" x2="24" y2="13.5" stroke="#8b5cf6" stroke-width="1" opacity="0.4"/>
+  <line x1="24" y1="13.5" x2="34" y2="18" stroke="#10b981" stroke-width="1" opacity="0.4"/>
+</svg>

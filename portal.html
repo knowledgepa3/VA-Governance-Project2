@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GIA Platform | Enterprise AI Governance</title>
   <meta name="description" content="Governed Intelligence Architecture - The control plane for enterprise AI. Audit trails, approval gates, and compliance built in.">
+  <link rel="icon" type="image/svg+xml" href="/shared/gia-icon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -94,15 +95,15 @@
     }
 
     .logo {
-      font-size: 1.75rem;
-      font-weight: 900;
-      letter-spacing: -0.03em;
-      background: var(--gradient-primary);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
       display: flex;
       align-items: center;
       gap: 0.5rem;
+      text-decoration: none;
+    }
+
+    .logo img {
+      height: 36px;
+      width: auto;
     }
 
     .logo-badge {
@@ -113,7 +114,6 @@
       border: 1px solid rgba(99, 102, 241, 0.3);
       border-radius: 4px;
       color: var(--primary-light);
-      -webkit-text-fill-color: var(--primary-light);
     }
 
     nav {
@@ -804,9 +804,10 @@
 
   <header>
     <div class="header-content">
-      <div class="logo">
-        GIA <span class="logo-badge">PLATFORM</span>
-      </div>
+      <a href="/" class="logo">
+        <img src="/shared/gia-logo.svg" alt="GIA - Governed Intelligence Architecture">
+        <span class="logo-badge">PLATFORM</span>
+      </a>
       <nav>
         <a href="#features">Features</a>
         <a href="#workflows">Workflows</a>
@@ -1080,7 +1081,7 @@
 
   <footer>
     <div class="footer-content">
-      <div class="footer-logo">GIA</div>
+      <div class="footer-logo"><img src="/shared/gia-icon.svg" alt="GIA" style="height: 32px; width: auto; margin-bottom: 0.5rem;"></div>
       <p class="footer-text">Governed Intelligence Architecture | Built by ACE Consulting</p>
       <div class="footer-links">
         <a href="/app">Workflows</a>

@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 60" fill="none">
+  <defs>
+    <!-- Primary gradient: indigo → violet → emerald (matches brand) -->
+    <linearGradient id="gia-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="50%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+    <!-- Subtle glow for the icon -->
+    <filter id="gia-glow">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <!-- Clip for the shield shape -->
+    <clipPath id="shield-clip">
+      <path d="M4 8 L24 2 L44 8 L44 28 C44 38 34 46 24 50 C14 46 4 38 4 28 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- ICON: Governance Shield with G letterform -->
+  <g transform="translate(4, 5)">
+    <!-- Shield outline -->
+    <path d="M4 8 L24 2 L44 8 L44 28 C44 38 34 46 24 50 C14 46 4 38 4 28 Z"
+          fill="none" stroke="url(#gia-grad)" stroke-width="2" filter="url(#gia-glow)"/>
+    <!-- Inner shield fill (very subtle) -->
+    <path d="M6 9.5 L24 4 L42 9.5 L42 27.5 C42 36.5 33 43.5 24 47.5 C15 43.5 6 36.5 6 27.5 Z"
+          fill="url(#gia-grad)" opacity="0.08"/>
+    <!-- G letterform inside shield -->
+    <text x="24" y="32" text-anchor="middle" font-family="Inter, -apple-system, sans-serif"
+          font-size="24" font-weight="800" fill="url(#gia-grad)" letter-spacing="-0.02em">G</text>
+    <!-- Small governance dots (3 nodes representing Govern, Map, Measure) -->
+    <circle cx="14" cy="18" r="2" fill="#6366f1" opacity="0.6"/>
+    <circle cx="24" cy="14" r="2" fill="#8b5cf6" opacity="0.6"/>
+    <circle cx="34" cy="18" r="2" fill="#10b981" opacity="0.6"/>
+    <!-- Connection lines between nodes -->
+    <line x1="14" y1="18" x2="24" y2="14" stroke="#8b5cf6" stroke-width="0.75" opacity="0.3"/>
+    <line x1="24" y1="14" x2="34" y2="18" stroke="#10b981" stroke-width="0.75" opacity="0.3"/>
+  </g>
+
+  <!-- WORDMARK: GIA -->
+  <g transform="translate(60, 5)">
+    <text y="36" font-family="Inter, -apple-system, sans-serif"
+          font-size="36" font-weight="900" fill="url(#gia-grad)" letter-spacing="-0.04em">GIA</text>
+  </g>
+
+  <!-- TAGLINE: Governed Intelligence Architecture -->
+  <text x="60" y="55" font-family="Inter, -apple-system, sans-serif"
+        font-size="8.5" font-weight="500" fill="#71717a" letter-spacing="0.12em">GOVERNED INTELLIGENCE ARCHITECTURE</text>
+</svg>
