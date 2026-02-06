@@ -313,7 +313,7 @@ export class RepairAgent {
           field: fieldPath,
           originalValue: original.substring(0, 100) + (original.length > 100 ? '...' : ''),
           newValue: sanitized.substring(0, 100) + (sanitized.length > 100 ? '...' : ''),
-          reason: `Adversarial pattern detected: ${pattern.toString().substring(0, 50)}`,
+          reason: `Input pattern flagged during integrity scan: ${pattern.toString().substring(0, 50)}`,
           source: 'REPAIR_SANITIZATION_RULES',
           confidence: 95
         });

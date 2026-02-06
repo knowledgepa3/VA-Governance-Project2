@@ -189,11 +189,14 @@ export const AGENT_STAGE_MAP: Record<string, WorkflowStage> = {
   [AgentRole.GATEWAY]: 'STAGE_A_INGEST',
 
   // Stage B - Work (capsule only!)
+  [AgentRole.TIMELINE]: 'STAGE_B_WORK',
   [AgentRole.EVIDENCE]: 'STAGE_B_WORK',
   [AgentRole.MEDICAL]: 'STAGE_B_WORK',
   [AgentRole.LEGAL]: 'STAGE_B_WORK',
   [AgentRole.NEXUS]: 'STAGE_B_WORK',
   [AgentRole.RATER]: 'STAGE_B_WORK',
+  [AgentRole.RATER_INITIAL]: 'STAGE_B_WORK',
+  [AgentRole.CP_EXAMINER]: 'STAGE_B_WORK',
   [AgentRole.RATER_DECISION]: 'STAGE_B_WORK',
 
   // Stage C - Output

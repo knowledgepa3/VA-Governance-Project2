@@ -24,9 +24,10 @@ function readEnvFile(envPath: string): Record<string, string> {
 }
 
 export default defineConfig(({ mode }) => {
-    // Read .env file directly
+    // Read .env file, then overlay .env.local (local overrides take priority)
     const envPath = path.resolve(process.cwd(), '.env');
-    const env = readEnvFile(envPath);
+    const envLocalPath = path.resolve(process.cwd(), '.env.local');
+    const env = { ...readEnvFile(envPath), ...readEnvFile(envLocalPath) };
 
     // SECURITY: API keys are read from .env via Vite's native VITE_ prefix mechanism.
     // They are NOT injected via 'define' to avoid hardcoding keys into the bundle.
@@ -54,10 +55,33 @@ export default defineConfig(({ mode }) => {
         }
       },
       plugins: [react()],
-      // SECURITY: Do NOT use 'define' to inject API keys — they end up as string
-      // literals in the client bundle. Vite natively exposes VITE_* env vars
-      // through import.meta.env, which is sufficient for development.
-      // In production, the server proxy should handle all API calls.
+      // Polyfill process.env for browser context — modules like auth/factory.ts
+      // and ErrorBoundary reference process.env directly. We expose only safe
+      // non-secret vars here; API keys come through import.meta.env.VITE_* natively.
+      define: {
+        'process.env.NODE_ENV': JSON.stringify(mode),
+        'process.env.VITE_MODE': JSON.stringify(mode),
+        'process.env.AUTH_PROVIDER': JSON.stringify(env.AUTH_PROVIDER || ''),
+        'process.env.VITE_AUTH_PROVIDER': JSON.stringify(env.VITE_AUTH_PROVIDER || ''),
+        'process.env.ALLOW_MOCK_AUTH': JSON.stringify(env.ALLOW_MOCK_AUTH || ''),
+        'process.env.AUTH0_DOMAIN': JSON.stringify(env.AUTH0_DOMAIN || ''),
+        'process.env.AUTH0_CLIENT_ID': JSON.stringify(env.AUTH0_CLIENT_ID || ''),
+        'process.env.AUTH0_CLIENT_SECRET': JSON.stringify(''),
+        'process.env.AUTH0_AUDIENCE': JSON.stringify(env.AUTH0_AUDIENCE || ''),
+        'process.env.LOGIN_GOV_CLIENT_ID': JSON.stringify(env.LOGIN_GOV_CLIENT_ID || ''),
+        'process.env.LOGIN_GOV_ISSUER': JSON.stringify(env.LOGIN_GOV_ISSUER || ''),
+        'process.env.LOGIN_GOV_PRIVATE_KEY': JSON.stringify(''),
+        'process.env.LOGIN_GOV_ACR_VALUES': JSON.stringify(env.LOGIN_GOV_ACR_VALUES || ''),
+        'process.env.AZURE_AD_TENANT_ID': JSON.stringify(env.AZURE_AD_TENANT_ID || ''),
+        'process.env.AZURE_AD_CLIENT_ID': JSON.stringify(env.AZURE_AD_CLIENT_ID || ''),
+        'process.env.AZURE_AD_CLIENT_SECRET': JSON.stringify(''),
+        'process.env.OKTA_DOMAIN': JSON.stringify(env.OKTA_DOMAIN || ''),
+        'process.env.OKTA_CLIENT_ID': JSON.stringify(env.OKTA_CLIENT_ID || ''),
+        'process.env.OKTA_CLIENT_SECRET': JSON.stringify(''),
+        'process.env.SESSION_EXPIRES_IN': JSON.stringify(env.SESSION_EXPIRES_IN || '86400'),
+        'process.env.SESSION_REFRESH_ENABLED': JSON.stringify(env.SESSION_REFRESH_ENABLED || 'true'),
+        'process.env.ALLOW_DEMO_IN_PRODUCTION': JSON.stringify(env.ALLOW_DEMO_IN_PRODUCTION || ''),
+      },
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),

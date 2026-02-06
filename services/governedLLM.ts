@@ -459,7 +459,11 @@ export async function execute(request: GovernedLLMRequest): Promise<GovernedLLMR
  */
 export async function executeJSON<T = unknown>(request: GovernedLLMRequest): Promise<T> {
   const result = await execute(request);
-  const cleaned = result.content.replace(/```json\n?|```/g, '').trim();
+  const cleaned = result.content
+    .replace(/^```\s*(?:json|JSON)?\s*[\r\n]*/gm, '')
+    .replace(/[\r\n]*```\s*$/gm, '')
+    .replace(/```\s*(?:json|JSON)?\s*/g, '')
+    .trim();
 
   try {
     return JSON.parse(cleaned) as T;

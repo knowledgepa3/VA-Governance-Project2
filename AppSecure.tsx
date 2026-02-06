@@ -375,39 +375,42 @@ const AppSecure: React.FC = () => {
 
       const isCriticalFailure =
         result.ace_compliance_status === "CRITICAL_FAILURE" ||
+        result.ace_compliance_status === "INTEGRITY_HOLD" ||
+        result.integrity_alert === "INPUT_INTEGRITY_REVIEW_REQUIRED" ||
         result.integrity_alert === "ADVERSARIAL INPUT ATTEMPT NEUTRALIZED" ||
         result.qa_directive === "REJECT_AND_REMEDIATE";
 
       if (isCriticalFailure) {
-        const isAdversarial = result.integrity_alert === "ADVERSARIAL INPUT ATTEMPT NEUTRALIZED";
-        const severityLevel = result.severity || (isAdversarial ? 'CRITICAL' : 'MEDIUM');
+        const isIntegrityHold = result.integrity_alert === "INPUT_INTEGRITY_REVIEW_REQUIRED" ||
+          result.integrity_alert === "ADVERSARIAL INPUT ATTEMPT NEUTRALIZED";
+        const severityLevel = result.severity || (isIntegrityHold ? 'HIGH' : 'MEDIUM');
 
-        const detectionMsg = isAdversarial
-          ? `Behavioral Integrity Exception: Adversarial Attempt Detected (${severityLevel})`
-          : `Logic Discrepancy Detected: ${result.anomaly_details || 'Unknown issue'} (${severityLevel})`;
+        const detectionMsg = isIntegrityHold
+          ? `Pre-flight integrity review: Input anomaly identified — classification ${severityLevel}. See audit log for details.`
+          : `Data quality finding: ${result.anomaly_details || 'Unspecified discrepancy'} (${severityLevel})`;
 
-        addActivity(AgentRole.SUPERVISOR, detectionMsg, isAdversarial ? 'error' : 'warning');
+        addActivity(AgentRole.SUPERVISOR, detectionMsg, isIntegrityHold ? 'error' : 'warning');
 
-        // For CRITICAL adversarial attacks, reject without repair
-        if (severityLevel === 'CRITICAL' && isAdversarial) {
-          addActivity(AgentRole.REPAIR, "CRITICAL threat - cannot repair. Rejecting input.", 'error');
+        // For CRITICAL integrity findings, hold for governance review
+        if (severityLevel === 'CRITICAL' && isIntegrityHold) {
+          addActivity(AgentRole.REPAIR, "Input held for governance review — automated remediation not applicable for this finding.", 'error');
           updateAgent(role, { status: AgentStatus.FAILED, progress: 0 });
           setState(prev => ({ ...prev, isProcessing: false }));
           return;
         }
 
-        // Initiate REAL repair
-        addActivity(AgentRole.REPAIR, "Initiating automated remediation...", 'warning');
+        // Initiate repair process for repairable findings
+        addActivity(AgentRole.REPAIR, "Data quality finding identified. Initiating automated reconciliation...", 'warning');
         updateAgent(role, { status: AgentStatus.REPAIRING, progress: 50 });
 
         const integrityForRepair = {
           resilient: false,
           integrity_score: result.resilience_score || 60,
-          anomaly_detected: result.anomaly_details || result.integrity_alert || 'Unknown anomaly',
+          anomaly_detected: result.anomaly_details || result.integrity_alert || 'Unspecified discrepancy',
           anomaly_type: result.anomaly_type,
           affected_fields: result.affected_fields,
           severity: severityLevel,
-          recommended_action: result.recommended_action || (isAdversarial ? 'SANITIZE' : 'RECONCILE')
+          recommended_action: result.recommended_action || (isIntegrityHold ? 'SANITIZE' : 'RECONCILE')
         };
 
         const repairResult: RepairResult = await repairAgent.repair(

@@ -992,6 +992,27 @@ const App: React.FC = () => {
         return acc;
       }, {} as any);
 
+      // Validate prerequisite agent completed (fail fast instead of hanging)
+      if (step > 1 && role !== AgentRole.TELEMETRY) {
+        const prerequisiteRole = ROLES_IN_ORDER[step - 2];
+        const prerequisiteOutput = stateRef.current.agents[prerequisiteRole]?.output;
+        const prerequisiteStatus = stateRef.current.agents[prerequisiteRole]?.status;
+
+        if (!prerequisiteOutput && prerequisiteStatus !== AgentStatus.COMPLETE) {
+          addActivity(AgentRole.SUPERVISOR, `[${role}] BLOCKED: Prerequisite agent ${prerequisiteRole} did not complete successfully. Cannot proceed.`, 'error');
+          updateAgent(role, {
+            status: AgentStatus.FAILED,
+            progress: 0,
+            output: {
+              ace_compliance_status: 'PREREQUISITE_FAILED',
+              error: `Agent ${prerequisiteRole} must complete before ${role} can execute`,
+              recommendation: 'Review and fix the failing upstream agent, then retry the workflow'
+            }
+          });
+          return;
+        }
+      }
+
       // Determine input data based on role and step
       let inputData: any;
       if (role === AgentRole.TELEMETRY) {
@@ -1034,16 +1055,26 @@ const App: React.FC = () => {
           addActivity(AgentRole.SUPERVISOR, `Using demo data - no file content available.`, 'info');
         }
       } else {
-        // For subsequent steps, pass the Gateway's extracted data as the primary input
-        // This avoids re-processing PDFs and saves tokens significantly
+        // For subsequent steps, pass the PREVIOUS AGENT's output - not raw Gateway evidence.
+        // Stage B agents are blocked from receiving raw evidence (STAGE_VIOLATION).
+        // Each agent builds on its predecessor's synthesized analysis.
+        const previousAgentRole = ROLES_IN_ORDER[step - 2];
+        const previousAgentOutput = stateRef.current.agents[previousAgentRole]?.output;
         const gatewayOutput = stateRef.current.agents[AgentRole.GATEWAY]?.output;
+
         inputData = {
-          // Pass the extracted evidence from Gateway
-          extractedEvidence: gatewayOutput,
-          // Include source mode indicator
-          sourceMode: gatewayOutput ? 'extracted' : 'context-only',
-          // Note: PDFs are NOT re-sent - agents work from Gateway's extraction
-          processingNote: 'Working from Gateway-extracted evidence. Raw documents not re-processed to optimize token usage.'
+          // Primary input: previous agent's synthesized output
+          previousAgentAnalysis: previousAgentOutput,
+          // Fallback: Gateway summary (metadata only, not raw file content)
+          gatewaySummary: gatewayOutput ? {
+            conditions: gatewayOutput.conditions || gatewayOutput.contentions,
+            veteranProfile: gatewayOutput.veteran_profile || gatewayOutput.veteranProfile,
+            documentCount: gatewayOutput.documents_processed || gatewayOutput.evidence_summary?.total_documents,
+            summary: gatewayOutput.executive_summary || gatewayOutput.summary
+          } : null,
+          // Source mode indicator for downstream stage validation
+          sourceMode: previousAgentOutput ? 'agent-synthesis' : (gatewayOutput ? 'gateway-summary' : 'context-only'),
+          processingNote: `Working from ${previousAgentRole} analysis. Raw documents not re-sent - agents build on predecessor output.`
         };
       }
 
@@ -1078,8 +1109,10 @@ const App: React.FC = () => {
       updateAgent(role, { progress: 80 });
       addActivity(AgentRole.SUPERVISOR, `[${role}] Analysis complete. Processing results...`, 'success');
       
-      const isCriticalFailure = 
-        result.ace_compliance_status === "CRITICAL_FAILURE" || 
+      const isCriticalFailure =
+        result.ace_compliance_status === "CRITICAL_FAILURE" ||
+        result.ace_compliance_status === "INTEGRITY_HOLD" ||
+        result.integrity_alert === "INPUT_INTEGRITY_REVIEW_REQUIRED" ||
         result.integrity_alert === "ADVERSARIAL INPUT ATTEMPT NEUTRALIZED" ||
         result.qa_directive === "REJECT_AND_REMEDIATE";
 
@@ -1099,40 +1132,41 @@ const App: React.FC = () => {
       };
 
       if (isCriticalFailure) {
-        const isAdversarial = result.integrity_alert === "ADVERSARIAL INPUT ATTEMPT NEUTRALIZED";
-        const severityLevel = result.severity || (isAdversarial ? 'CRITICAL' : 'MEDIUM');
+        const isIntegrityHold = result.integrity_alert === "INPUT_INTEGRITY_REVIEW_REQUIRED" ||
+          result.integrity_alert === "ADVERSARIAL INPUT ATTEMPT NEUTRALIZED";
+        const severityLevel = result.severity || (isIntegrityHold ? 'HIGH' : 'MEDIUM');
 
-        // Log the detection
-        const detectionMsg = isAdversarial
-          ? `Behavioral Integrity Exception: Adversarial Attempt Detected (${severityLevel})`
-          : `Logic Discrepancy Detected: ${result.anomaly_detected || 'Unknown issue'} (${severityLevel})`;
+        // Log the finding
+        const detectionMsg = isIntegrityHold
+          ? `Pre-flight integrity review: Input anomaly identified — classification ${severityLevel}. See audit log for details.`
+          : `Data quality finding: ${result.anomaly_detected || 'Unspecified discrepancy'} (${severityLevel})`;
 
-        addActivity(AgentRole.SUPERVISOR, detectionMsg, isAdversarial ? 'error' : 'warning');
+        addActivity(AgentRole.SUPERVISOR, detectionMsg, isIntegrityHold ? 'error' : 'warning');
 
-        // For CRITICAL adversarial attacks, reject without repair attempt
-        if (severityLevel === 'CRITICAL' && isAdversarial) {
-          addActivity(AgentRole.REPAIR, "CRITICAL threat detected - cannot repair. Rejecting input.", 'error');
+        // For HIGH/CRITICAL integrity findings, hold for governance review
+        if (severityLevel === 'CRITICAL' && isIntegrityHold) {
+          addActivity(AgentRole.REPAIR, "Input held for governance review — automated remediation not applicable for this finding.", 'error');
           updateAgent(role, { status: AgentStatus.FAILED, progress: 0 });
 
-          logAction(role, `Step ${step} REJECTED`, inputData, result, config.classification, 'REJECTED', 'N/A', 'Critical adversarial input blocked');
+          logAction(role, `Step ${step} HELD`, inputData, result, config.classification, 'GOVERNANCE_HOLD', 'N/A', 'Input integrity finding — routed to governance review');
 
           setState(prev => ({ ...prev, isProcessing: false }));
           return;
         }
 
-        // Initiate REAL repair process
-        addActivity(AgentRole.REPAIR, "Initiating automated remediation...", 'warning');
+        // Initiate repair process for repairable findings
+        addActivity(AgentRole.REPAIR, "Data quality finding identified. Initiating automated reconciliation...", 'warning');
         updateAgent(role, { status: AgentStatus.REPAIRING, progress: 50 });
 
         // Create integrity result for repair agent
         const integrityForRepair: EnhancedIntegrityResult = {
           resilient: false,
           integrity_score: result.resilience_score || 60,
-          anomaly_detected: result.anomaly_details || result.integrity_alert || 'Unknown anomaly',
+          anomaly_detected: result.anomaly_details || result.integrity_alert || 'Unspecified discrepancy',
           anomaly_type: result.anomaly_type,
           affected_fields: result.affected_fields,
           severity: severityLevel as any,
-          recommended_action: result.recommended_action || (isAdversarial ? 'SANITIZE' : 'RECONCILE')
+          recommended_action: result.recommended_action || (isIntegrityHold ? 'SANITIZE' : 'RECONCILE')
         };
 
         // Run the REAL repair agent
@@ -1160,7 +1194,7 @@ const App: React.FC = () => {
 
         if (repairResult.success) {
           // Re-run agent with repaired data
-          addActivity(AgentRole.REPAIR, "Repair successful. Re-processing with sanitized data...", 'success');
+          addActivity(AgentRole.REPAIR, "Reconciliation complete. Re-processing with validated data...", 'success');
           updateAgent(role, { progress: 70 });
 
           try {
@@ -1173,10 +1207,10 @@ const App: React.FC = () => {
               repair_telemetry: generateRepairTelemetry(repairResult)
             };
 
-            addActivity(AgentRole.REPAIR, "Integrity Restored. Data validated.", 'success');
+            addActivity(AgentRole.REPAIR, "Data integrity verified. Processing resumed.", 'success');
           } catch (rerunError) {
             console.error("Re-run after repair failed:", rerunError);
-            addActivity(AgentRole.REPAIR, "Re-processing failed after repair.", 'error');
+            addActivity(AgentRole.REPAIR, "Re-processing did not complete after reconciliation. See audit log.", 'error');
             result = {
               ...result,
               ace_compliance_status: "PASSED_WITH_WARNINGS",
