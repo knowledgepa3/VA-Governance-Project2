@@ -23,11 +23,11 @@ const BDApp: React.FC = () => {
       <header className="app-header">
         <div className="header-content">
           <div className="logo-section">
-            <h1 className="logo">ACE</h1>
-            <span className="logo-subtitle">Business Development</span>
+            <h1 className="logo">GIA</h1>
+            <span className="logo-subtitle">BD Pipeline</span>
           </div>
           <div className="header-nav">
-            <span className="version">v1.0.0-prototype</span>
+            <span className="version">Governed</span>
           </div>
         </div>
       </header>
@@ -38,8 +38,8 @@ const BDApp: React.FC = () => {
 
       <footer className="app-footer">
         <p>
-          ACE Governance Platform • Governed Workforce Runtime •
-          <a href="/docs/BD-Reference-Implementation.md" target="_blank"> Documentation</a>
+          GIA Platform &middot; Governed Intelligence Architecture &middot;
+          <a href="/"> Back to Platform</a>
         </p>
       </footer>
     </div>
