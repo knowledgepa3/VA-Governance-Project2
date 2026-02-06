@@ -39,15 +39,35 @@
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid var(--gray-700);
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(20px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
     }
 
     .logo {
       font-size: 1.5rem;
-      font-weight: 800;
+      font-weight: 900;
       letter-spacing: -0.03em;
-      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      background: linear-gradient(135deg, var(--primary) 0%, #8b5cf6 50%, var(--secondary) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .logo-badge {
+      font-size: 0.55rem;
+      font-weight: 600;
+      padding: 0.15rem 0.4rem;
+      background: rgba(99, 102, 241, 0.2);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: 3px;
+      color: var(--primary);
+      -webkit-text-fill-color: var(--primary);
     }
 
     .nav-links {
@@ -110,32 +130,138 @@
       margin: 0 auto 2rem;
     }
 
-    /* Platform Visual */
+    /* Platform Visual — Governance Flow Diagram */
     .platform-visual {
-      background: var(--gray-900);
-      border: 1px solid var(--gray-700);
-      border-radius: 16px;
-      padding: 2rem;
       margin: 3rem auto;
-      max-width: 700px;
+      max-width: 680px;
     }
 
-    .platform-diagram {
-      font-family: 'Monaco', 'Consolas', monospace;
+    .flow-diagram {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .flow-input {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .flow-input-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--gray-300);
+      white-space: nowrap;
+    }
+
+    .flow-arrow {
+      color: var(--secondary);
+      font-size: 1.25rem;
+    }
+
+    .flow-arrow-down {
+      color: var(--gray-500);
+      font-size: 1.5rem;
+      line-height: 1;
+      margin: 0.5rem 0;
+    }
+
+    .gia-box {
+      background: var(--gray-900);
+      border: 1px solid var(--secondary);
+      border-radius: 12px;
+      padding: 1.75rem 2.5rem;
+      text-align: center;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 0 30px rgba(16, 185, 129, 0.08);
+    }
+
+    .gia-box-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--secondary);
+      margin-bottom: 1rem;
+    }
+
+    .gia-box-features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem 2rem;
+      text-align: left;
+    }
+
+    .gia-box-features span {
       font-size: 0.8rem;
       color: var(--gray-300);
-      text-align: left;
-      white-space: pre;
-      overflow-x: auto;
     }
 
-    .platform-diagram .highlight {
+    .gia-box-features span::before {
+      content: "•";
       color: var(--secondary);
-      font-weight: bold;
+      margin-right: 0.5rem;
+      font-weight: 700;
     }
 
-    .platform-diagram .primary {
-      color: var(--primary);
+    .flow-outputs {
+      display: flex;
+      gap: 2rem;
+      justify-content: center;
+      margin-top: 0.5rem;
+    }
+
+    .flow-output-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .flow-output-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .flow-output-icon.ai { background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.3); }
+    .flow-output-icon.browser { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); }
+    .flow-output-icon.api { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); }
+
+    .flow-output-label {
+      font-size: 0.7rem;
+      color: var(--gray-500);
+      font-weight: 500;
+    }
+
+    .flow-results {
+      display: flex;
+      gap: 3rem;
+      justify-content: center;
+      margin-top: 0.5rem;
+    }
+
+    .flow-result {
+      text-align: center;
+    }
+
+    .flow-result-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--white);
+    }
+
+    .flow-result-sub {
+      font-size: 0.7rem;
+      color: var(--gray-500);
     }
 
     /* How It Works */
@@ -596,7 +722,7 @@
 
   <!-- Header -->
   <header class="header">
-    <div class="logo">GIA</div>
+    <a href="/" class="logo">GIA <span class="logo-badge">PLATFORM</span></a>
     <nav class="nav-links">
       <a href="/">Home</a>
       <a href="#demo">Request Demo</a>
@@ -612,24 +738,57 @@
     <p>Submit a task below. We run it under full governance and send you the results — complete with audit trail, screenshots, and execution recording.</p>
 
     <div class="platform-visual">
-      <div class="platform-diagram">
-                      ┌─────────────────────────────────┐
-    Your Request ──▶ │         <span class="highlight">GIA LAYER</span>              │
-                      │                                 │
-                      │  • MAI Classification          │
-                      │  • Domain Governance           │
-                      │  • Approval Gates              │
-                      │  • Cost Controls               │
-                      │  • Audit Trail                 │
-                      └───────────────┬───────────────┘
-                                      │
-                      ┌───────────────┼───────────────┐
-                      ▼               ▼               ▼
-                  <span class="primary">Claude</span>          <span class="primary">Browser</span>        <span class="primary">APIs</span>
-                                      │
-                      ┌───────────────┴───────────────┐
-                      ▼                               ▼
-              Evidence Pack               Governed Output
+      <div class="flow-diagram">
+        <!-- Input -->
+        <div class="flow-input">
+          <span class="flow-input-label">Your Request</span>
+          <span class="flow-arrow">&#10230;</span>
+        </div>
+
+        <!-- GIA Layer -->
+        <div class="gia-box">
+          <div class="gia-box-title">GIA Governance Layer</div>
+          <div class="gia-box-features">
+            <span>MAI Classification</span>
+            <span>Domain Governance</span>
+            <span>Approval Gates</span>
+            <span>Cost Controls</span>
+            <span>Audit Trail</span>
+            <span>Evidence Chain</span>
+          </div>
+        </div>
+
+        <div class="flow-arrow-down">&#9660;</div>
+
+        <!-- AI Outputs -->
+        <div class="flow-outputs">
+          <div class="flow-output-item">
+            <div class="flow-output-icon ai">&#129302;</div>
+            <span class="flow-output-label">Claude</span>
+          </div>
+          <div class="flow-output-item">
+            <div class="flow-output-icon browser">&#127760;</div>
+            <span class="flow-output-label">Browser</span>
+          </div>
+          <div class="flow-output-item">
+            <div class="flow-output-icon api">&#128279;</div>
+            <span class="flow-output-label">APIs</span>
+          </div>
+        </div>
+
+        <div class="flow-arrow-down">&#9660;</div>
+
+        <!-- Results -->
+        <div class="flow-results">
+          <div class="flow-result">
+            <div class="flow-result-label">Evidence Pack</div>
+            <div class="flow-result-sub">Audit-ready bundle</div>
+          </div>
+          <div class="flow-result">
+            <div class="flow-result-label">Governed Output</div>
+            <div class="flow-result-sub">Compliant results</div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
