@@ -482,7 +482,7 @@ export async function runAgentStep(role: AgentRole, inputData: any, previousOutp
   // Mode enforcement is also handled by the governed kernel, but we keep this
   // guard to avoid building expensive message content when in demo mode.
   if (appConfig.demoMode) {
-    await new Promise(r => setTimeout(r, 300 + Math.random() * 500));
+    await new Promise(r => setTimeout(r, 500)); // Fixed delay — not simulating variable processing
     console.warn(`[DEMO MODE] Agent ${role} returning mock response.`);
     return getDemoResponse(role, template, inputData);
   }

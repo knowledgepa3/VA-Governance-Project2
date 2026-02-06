@@ -144,8 +144,8 @@ export class CyberIRWorkforce {
 
     console.log(`${classIcon} ${role} - ${roleConfig.description}`);
 
-    // Simulate processing delay
-    await this.delay(300 + Math.random() * 200);
+    // Fixed processing delay — not simulating variable latency
+    await this.delay(400);
 
     // Generate simulated output based on role
     const result = this.generateDemoAgentOutput(role);

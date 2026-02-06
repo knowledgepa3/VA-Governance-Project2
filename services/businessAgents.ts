@@ -2030,11 +2030,15 @@ export interface AgentMetrics {
 }
 
 export function getAgentMetrics(): AgentMetrics[] {
+  // Returns default/zero metrics. In production, these would be computed
+  // from actual task execution history stored in the audit log.
+  // NOT generating fake numbers — consumers should check for 0 values
+  // and display "No data" or "Not yet computed" in the UI.
   return BUSINESS_AGENTS.map(agent => ({
     agentId: agent.id,
-    tasksCompleted: Math.floor(Math.random() * 50) + 10,
-    averageTaskTime: Math.floor(Math.random() * 30) + 5,
-    successRate: Math.floor(Math.random() * 15) + 85,
+    tasksCompleted: 0,
+    averageTaskTime: 0,
+    successRate: 0,
     lastActive: new Date().toISOString()
   }));
 }

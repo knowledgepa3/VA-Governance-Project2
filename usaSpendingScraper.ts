@@ -380,30 +380,32 @@ function generateMockPastAwards(agency: string, naicsCode: string): PastAwardDat
   const currentYear = new Date().getFullYear();
   const awards: PastAwardData[] = [];
 
-  // Generate 15-30 mock awards over 3 years
-  const numAwards = Math.floor(Math.random() * 15) + 15;
+  // Generate deterministic demo awards — clearly labeled, not pretending to be real USAspending data.
+  // In production, this would be replaced by actual USAspending.gov API queries.
+  const contractTypes = ['FFP', 'T&M', 'CPFF'];
+  const locations = ['Washington, DC', 'Arlington, VA', 'Multiple Locations'];
 
-  for (let i = 0; i < numAwards; i++) {
-    const company = mockCompanies[Math.floor(Math.random() * mockCompanies.length)];
-    const year = currentYear - Math.floor(Math.random() * 3);
-    const month = Math.floor(Math.random() * 12);
+  for (let i = 0; i < mockCompanies.length; i++) {
+    const company = mockCompanies[i];
+    const year = currentYear - (i % 3);
+    const month = (i * 2) % 12;
     const awardDate = new Date(year, month, 1);
 
-    const baseValue = 1000000 + Math.random() * 4000000;
+    const baseValue = 1000000 + (i * 500000); // Deterministic ramp
 
     awards.push({
       recipient_name: company,
-      award_amount: Math.round(baseValue),
+      award_amount: baseValue,
       award_date: awardDate.toISOString(),
-      award_id: `MOCK-${year}-${String(i).padStart(4, '0')}`,
-      contract_type: ['FFP', 'T&M', 'CPFF'][Math.floor(Math.random() * 3)],
+      award_id: `[DEMO]-${year}-${String(i).padStart(4, '0')}`,
+      contract_type: contractTypes[i % contractTypes.length],
       naics_code: naicsCode,
       naics_description: 'Computer Systems Design Services',
       awarding_agency: agency,
       awarding_sub_agency: 'Information Technology Division',
-      place_of_performance: ['Washington, DC', 'Arlington, VA', 'Multiple Locations'][Math.floor(Math.random() * 3)],
+      place_of_performance: locations[i % locations.length],
       period_of_performance: '12 months',
-      description: 'IT support and system administration services'
+      description: 'IT support and system administration services [DEMO DATA]'
     });
   }
 

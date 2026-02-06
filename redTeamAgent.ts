@@ -129,6 +129,7 @@ export class RedTeamAgent {
   private policyDecisions: PolicyDecisionRecord[] = [];
   private executionHalted: boolean = false;
   private haltReason?: string;
+  private actionCountByAgent: Record<string, number> = {};
   private onLog?: (log: RedTeamActivityLog) => void;
   private onFinding?: (finding: RedTeamFinding) => void;
   private onTestComplete?: (test: RedTeamTestCase) => void;
@@ -145,7 +146,9 @@ export class RedTeamAgent {
   }) {
     // Browser-safe: no Anthropic client initialization
     // Demo mode runs all tests with simulated responses
-    this.runId = `AAL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const runIdArray = new Uint8Array(5);
+    crypto.getRandomValues(runIdArray);
+    this.runId = `AAL-${Date.now()}-${Array.from(runIdArray, b => b.toString(16).padStart(2, '0')).join('')}`;
     this.seed = options?.seed ?? Date.now();
     this.rng = new SeededRandom(this.seed);
     this.onLog = options?.onLog;
@@ -542,8 +545,11 @@ export class RedTeamAgent {
     const authEvent = this.checkForAuthorityViolation(agentRole, action, input, output);
     if (authEvent) events.push(authEvent);
 
-    // Random challenge question (10% chance)
-    if (Math.random() < 0.1) {
+    // Challenge issuance — deterministic: issue on every 10th action per agent.
+    // In production, this would use a policy-driven schedule, not randomness.
+    this.actionCountByAgent = this.actionCountByAgent || {};
+    this.actionCountByAgent[agentRole] = (this.actionCountByAgent[agentRole] || 0) + 1;
+    if (this.actionCountByAgent[agentRole] % 10 === 0) {
       const challengeEvent = await this.issueChallenge(agentRole);
       if (challengeEvent) events.push(challengeEvent);
     }
@@ -641,7 +647,8 @@ export class RedTeamAgent {
   }
 
   private async issueChallenge(agentRole: AgentRole): Promise<InFlightMonitorEvent | null> {
-    const challenge = IN_FLIGHT_CHALLENGES[Math.floor(Math.random() * IN_FLIGHT_CHALLENGES.length)];
+    const challengeIndex = (this.actionCountByAgent[agentRole] || 0) % IN_FLIGHT_CHALLENGES.length;
+    const challenge = IN_FLIGHT_CHALLENGES[challengeIndex];
     this.log('info', RedTeamPhase.IN_FLIGHT, `Issuing challenge to ${agentRole}: ${challenge.challenge}`);
 
     // In demo mode or if challenge fails, return null
@@ -680,10 +687,11 @@ export class RedTeamAgent {
     workflowOutput: any,
     agentOutputs: Record<AgentRole, any>
   ): Promise<RedTeamFinding | null> {
-    // Browser-safe: always use demo mode simulation
-    // In production, this would call a backend API
-    // Randomly pass/fail with 90% pass rate for demo
-    if (Math.random() > 0.1) return null;
+    // Browser-safe: demo mode — no real post-flight auditing.
+    // In production, this would call a backend API to validate outputs.
+    // In demo mode, all rules pass. We do NOT simulate random failures
+    // because that would create fake findings in the audit trail.
+    return null;
 
     return {
       id: `PF-${rule.id}-${Date.now()}`,
@@ -724,9 +732,9 @@ export class RedTeamAgent {
   }> {
     const startTime = Date.now();
 
-    // Browser-safe: always use demo mode simulation
+    // Browser-safe: demo mode simulation
     // In production, this would call a backend API
-    await this.delay(Math.random() * 1000 + 500);
+    await this.delay(750); // Fixed delay — not simulating variable latency
 
     // Specific defenses for known attack vectors
     // These represent actual implemented controls in ACE
@@ -793,8 +801,10 @@ export class RedTeamAgent {
       };
     }
 
-    // For other tests, use probabilistic simulation (90% pass rate for implemented controls)
-    const passed = Math.random() > 0.10;
+    // For tests without hardcoded defense results: pass in demo mode.
+    // We do NOT simulate random failures — that would create fake findings.
+    // In production, each test would execute real prompt injection / boundary tests.
+    const passed = true; // Demo mode: no real test executed, so no fake failures
 
     return {
       passed,

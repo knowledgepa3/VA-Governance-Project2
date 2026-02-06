@@ -740,7 +740,7 @@ export function loadDemoArtifacts(scenario: DemoScenario): Array<{
     name: artifact.name,
     size: artifact.size,
     type: artifact.type,
-    lastModified: Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000 // Random date within last 30 days
+    lastModified: Date.now() - 7 * 24 * 60 * 60 * 1000 // Fixed: 7 days ago (demo scenario)
   }));
 }
 

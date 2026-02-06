@@ -716,8 +716,8 @@ export class BDWorkforce {
       score -= 15; // Too large, more competition
     }
 
-    // Add some randomness
-    score += (Math.random() * 30) - 15;
+    // No random variance — score is deterministic from input properties only.
+    // In production, this would incorporate real SAM.gov data, past performance, etc.
 
     return Math.max(0, Math.min(100, score));
   }
@@ -886,7 +886,7 @@ export class BDWorkforce {
 
     for (const opp of opportunities) {
       // Simulate processing delay
-      await this.delay(200 + Math.random() * 300);
+      await this.delay(350); // Fixed delay — not simulating variable processing time
       processed++;
 
       // Generate realistic demo results
@@ -1039,7 +1039,7 @@ export class BDWorkforce {
 
     return {
       market_concentration: opp.estimatedValue > 5000000 ? 'highly_competitive' : 'moderately_competitive',
-      incumbent_advantage: Math.random() > 0.5,
+      incumbent_advantage: false, // Unknown — real analysis requires FPDS data lookup
       likely_competitors: competitors.slice(0, opp.competitorCount || 5)
     };
   }
@@ -1051,15 +1051,15 @@ export class BDWorkforce {
       for (const gap of opp.capabilityGaps) {
         gaps.push({
           capability: gap,
-          severity: Math.random() > 0.7 ? 'critical' : 'moderate',
-          teaming_needed: Math.random() > 0.5,
-          can_acquire: Math.random() > 0.3
+          severity: 'moderate', // Default — real severity requires capability assessment
+          teaming_needed: true, // Conservative: assume teaming needed until confirmed
+          can_acquire: true // Assume acquirable until confirmed otherwise
         });
       }
     }
 
     return {
-      overall_fit_score: Math.round(70 + Math.random() * 20),
+      overall_fit_score: 0, // NOT COMPUTED — requires real capability mapping analysis
       required_capabilities: [
         'Program Management',
         'Technical Leadership',
@@ -1199,9 +1199,9 @@ export class BDWorkforce {
       baseScore += 8; // Set-aside advantage
     }
 
-    // Add some randomness for realism
-    const randomVariance = (Math.random() - 0.5) * 20;
-    const winProbability = Math.max(15, Math.min(95, baseScore + randomVariance));
+    // No random variance — score is deterministic from input properties.
+    // In production, this incorporates real SAM.gov competitive landscape data.
+    const winProbability = Math.max(15, Math.min(95, baseScore));
 
     // Determine bid decision
     let bidDecision: BidDecision;
@@ -1220,7 +1220,8 @@ export class BDWorkforce {
       bidDecision = BidDecision.NEEDS_REVIEW;
     }
 
-    // Simulate capability gaps
+    // Capability gaps — deterministic based on score threshold.
+    // In production, this would come from real capability mapping against solicitation requirements.
     const possibleGaps = [
       'Security clearance requirements',
       'Geographic presence in region',
@@ -1228,13 +1229,15 @@ export class BDWorkforce {
       'Specific technical certification',
       'Key personnel requirements'
     ];
-    const capabilityGaps = possibleGaps.filter(() => Math.random() < 0.25);
+    // Gaps are flagged when win probability is below 60% (indicates weakness)
+    const capabilityGaps = winProbability < 60 ? possibleGaps.slice(0, Math.max(1, Math.floor((60 - winProbability) / 10))) : [];
 
     // Teaming required if significant gaps
     const teamingRequired = capabilityGaps.length >= 2;
 
-    // Competitor count based on contract size
-    const competitorCount = Math.floor(3 + (opp.estimatedValue / 1000000) * 2 + Math.random() * 5);
+    // Competitor count — deterministic estimate from contract size only.
+    // In production, this would come from FPDS award history for the NAICS code.
+    const competitorCount = Math.floor(3 + (opp.estimatedValue / 1000000) * 2);
 
     return {
       winProbability,

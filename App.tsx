@@ -296,9 +296,11 @@ const App: React.FC = () => {
     }, 1000);
   };
 
+  const activityCounter = useRef(0);
   const addActivity = useCallback((role: AgentRole, message: string, type: ActivityLog['type'] = 'info') => {
+    activityCounter.current++;
     const newLog: ActivityLog = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: `act-${Date.now()}-${activityCounter.current}`,
       timestamp: new Date().toLocaleTimeString(),
       role,
       message,

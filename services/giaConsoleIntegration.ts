@@ -728,23 +728,20 @@ export class GIAConsoleIntegration {
       this.metrics.apiCalls++;
       this.callbacks.onMetricsUpdate(this.metrics);
 
-      // Simulate test results
-      const passed = Math.random() > 0.2;
-      if (passed) {
-        this.emitLine('success', '+', `${suite}: PASSED (0 findings)`);
-      } else {
-        this.emitLine('warning', '~', `${suite}: 1 finding (MEDIUM severity)`);
-      }
+      // Demo console — no real scan is executed. Real scanning requires
+      // the red team agent to execute actual prompt injection / boundary tests
+      // via the governed kernel. This just shows the console UI pattern.
+      this.emitLine('success', '+', `${suite}: PASSED [DEMO — no real scan executed]`);
     }
 
     await this.createEvidencePack(
-      { id: 'red-team', agentId: 'RED-TEAM', description: 'Security scan results', classification: MAIClassification.INFORMATIONAL } as any,
-      { suites: testSuites.length, passed: testSuites.length - 1 }
+      { id: 'red-team', agentId: 'RED-TEAM', description: 'Security scan results [DEMO]', classification: MAIClassification.INFORMATIONAL } as any,
+      { suites: testSuites.length, passed: testSuites.length, _demo: true }
     );
 
     this.emitSpacer();
-    this.emitLine('success', '+', 'security scan complete');
-    this.emitLine('system', '*', 'overall score: 94/100');
+    this.emitLine('success', '+', 'security scan complete [DEMO]');
+    this.emitLine('system', '*', 'score: NOT COMPUTED — demo mode, no real tests executed');
 
     this.callbacks.onWorkflowComplete({
       workflowId: this.currentWorkflowId,

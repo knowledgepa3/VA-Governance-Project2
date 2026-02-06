@@ -86,7 +86,7 @@ export function checkUIAnchors(
       anchor_value: anchor.value,
       status,
       checked_at: now,
-      response_time_ms: Math.floor(Math.random() * 500) + 100,
+      response_time_ms: 0, // Not measured — actual DOM response time would require real timing
       failure_count: status === 'FOUND' ? 0 : 1
     };
 

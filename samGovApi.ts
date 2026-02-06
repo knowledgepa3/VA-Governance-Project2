@@ -296,26 +296,25 @@ export function convertToBDOpportunity(samOpp: SAMOpportunity): {
       }
     }
 
-    // If still no value, estimate based on opportunity type
+    // If still no value, use deterministic midpoint estimates based on opportunity type.
+    // These are conservative SAM.gov category midpoints — not random.
+    // In production, real award amounts come from FPDS data.
     if (!estimatedValue || isNaN(estimatedValue)) {
       const type = (samOpp.type || samOpp.baseType || '').toLowerCase();
       const title = samOpp.title.toLowerCase();
 
       if (type.includes('presolicitation') || type.includes('sources sought') || type.includes('rfi')) {
-        // Early stage - could be any size, use mid-range estimate
-        estimatedValue = Math.floor(Math.random() * 40000) + 15000; // $15K - $55K
+        estimatedValue = 35000; // Midpoint for early-stage opportunities
       } else if (type.includes('combined') || type.includes('solicitation')) {
-        // Active solicitation - typically larger
-        estimatedValue = Math.floor(Math.random() * 60000) + 25000; // $25K - $85K
+        estimatedValue = 55000; // Midpoint for active solicitations
       } else if (title.includes('support') || title.includes('maintenance')) {
-        estimatedValue = Math.floor(Math.random() * 50000) + 35000; // $35K - $85K
+        estimatedValue = 60000; // Midpoint for support contracts
       } else if (title.includes('study') || title.includes('assessment') || title.includes('analysis')) {
-        estimatedValue = Math.floor(Math.random() * 30000) + 20000; // $20K - $50K
+        estimatedValue = 35000; // Midpoint for study/analysis
       } else if (title.includes('advisory') || title.includes('consulting')) {
-        estimatedValue = Math.floor(Math.random() * 40000) + 25000; // $25K - $65K
+        estimatedValue = 45000; // Midpoint for advisory/consulting
       } else {
-        // Default - random in micro-purchase to simplified range
-        estimatedValue = Math.floor(Math.random() * 70000) + 10000; // $10K - $80K
+        estimatedValue = 0; // Unknown — no estimate available from SAM.gov data
       }
     }
   }

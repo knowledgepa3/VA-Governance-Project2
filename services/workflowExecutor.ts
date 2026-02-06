@@ -486,8 +486,10 @@ export class WorkflowExecutor {
         evidenceExtracted: true
       };
 
-      // Simulate CUE discovery (only if enabled)
-      if (step.cueDiscoveryEnabled && Math.random() > 0.7) {
+      // CUE discovery — in demo mode, always show example CUE finding when enabled.
+      // In production, real CUE analysis is performed by the evidence agent.
+      // Not using random probability — either CUE discovery is enabled or not.
+      if (step.cueDiscoveryEnabled) {
         output.cueFindings = [{
           priorDecisionDate: '2022-01-15',
           priorDecisionOutcome: 'Denied',

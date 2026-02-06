@@ -126,6 +126,7 @@ const AppSecure: React.FC = () => {
   const activityScrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const approvalTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const logActionCounter = useRef(0);
 
   const activeTemplate = WORKFORCE_TEMPLATES[state.template];
   const ROLES_IN_ORDER = activeTemplate.roles;
@@ -206,9 +207,11 @@ const AppSecure: React.FC = () => {
     addActivity(AgentRole.SUPERVISOR, `Workforce reconfigured: ${WORKFORCE_TEMPLATES[newTemplate].name}`, 'info');
   };
 
+  const activityCounter = useRef(0);
   const addActivity = useCallback((role: AgentRole, message: string, type: ActivityLog['type'] = 'info') => {
+    activityCounter.current++;
     const newLog: ActivityLog = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: `act-${Date.now()}-${activityCounter.current}`,
       timestamp: new Date().toLocaleTimeString(),
       role,
       message,
@@ -285,8 +288,9 @@ const AppSecure: React.FC = () => {
     review: AgentAction['humanReviewStatus'] = 'N/A',
     escalation: string = 'Integrity normal'
   ) => {
+    logActionCounter.current++;
     const newLog: AgentAction = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: `log-${Date.now()}-${logActionCounter.current}`,
       timestamp: new Date().toISOString().replace('T', ' ').substr(0, 19),
       agentId,
       actionType: type,
@@ -295,7 +299,7 @@ const AppSecure: React.FC = () => {
       classification,
       humanReviewStatus: review,
       escalationTrigger: escalation,
-      duration: Math.floor(Math.random() * 30) + 5,
+      duration: 0, // Real duration set by caller when available
       status
     };
     setState(prev => ({ ...prev, logs: [newLog, ...prev.logs] }));
