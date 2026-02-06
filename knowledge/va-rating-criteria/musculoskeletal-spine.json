@@ -1,0 +1,131 @@
+{
+  "_meta": {
+    "source": "38 CFR Part 4, Subpart B - Schedule of Ratings, Musculoskeletal System (Section 4.71a)",
+    "authority": "Code of Federal Regulations, Title 38",
+    "lastVerified": "2026-02-06",
+    "urls": [
+      "https://www.ecfr.gov/current/title-38/chapter-I/part-4/subpart-B/subject-group-ECFRd3005f7d828ea7b/section-4.71a",
+      "https://www.law.cornell.edu/cfr/text/38/4.71a"
+    ]
+  },
+
+  "generalRatingFormulaSpine": {
+    "name": "General Rating Formula for Diseases and Injuries of the Spine",
+    "appliesTo": "Diagnostic Codes 5235 through 5243 (unless 5243 evaluated under IVDS incapacitating episodes formula)",
+    "note": "These ratings apply WITH OR WITHOUT symptoms such as pain (whether or not it radiates), stiffness, or aching in the area of the spine affected by residuals of injury or disease.",
+
+    "ratingLevels": {
+      "100": {
+        "percentage": 100,
+        "criteria": "Unfavorable ankylosis of the entire spine.",
+        "keyIndicators": ["Unfavorable ankylosis of entire spine"]
+      },
+      "50": {
+        "percentage": 50,
+        "criteria": "Unfavorable ankylosis of the entire thoracolumbar spine.",
+        "keyIndicators": ["Unfavorable ankylosis of entire thoracolumbar spine"]
+      },
+      "40": {
+        "percentage": 40,
+        "criteria": "Unfavorable ankylosis of the entire cervical spine; or, forward flexion of the thoracolumbar spine 30 degrees or less; or, favorable ankylosis of the entire thoracolumbar spine.",
+        "keyIndicators": [
+          "Unfavorable ankylosis of entire cervical spine",
+          "Forward flexion of thoracolumbar spine 30 degrees or less",
+          "Favorable ankylosis of entire thoracolumbar spine"
+        ]
+      },
+      "30": {
+        "percentage": 30,
+        "criteria": "Forward flexion of the cervical spine 15 degrees or less; or, favorable ankylosis of the entire cervical spine.",
+        "keyIndicators": [
+          "Forward flexion of cervical spine 15 degrees or less",
+          "Favorable ankylosis of entire cervical spine"
+        ],
+        "note": "30% rating is specific to cervical spine conditions only under this formula."
+      },
+      "20": {
+        "percentage": 20,
+        "criteria": "Forward flexion of the thoracolumbar spine greater than 30 degrees but not greater than 60 degrees; or, forward flexion of the cervical spine greater than 15 degrees but not greater than 30 degrees; or, the combined range of motion of the thoracolumbar spine not greater than 120 degrees; or, the combined range of motion of the cervical spine not greater than 170 degrees; or, muscle spasm or guarding severe enough to result in abnormal gait or abnormal spinal contour such as scoliosis, reversed lordosis, or abnormal kyphosis.",
+        "keyIndicators": [
+          "Thoracolumbar forward flexion > 30 but <= 60 degrees",
+          "Cervical forward flexion > 15 but <= 30 degrees",
+          "Thoracolumbar combined ROM <= 120 degrees",
+          "Cervical combined ROM <= 170 degrees",
+          "Muscle spasm/guarding causing abnormal gait or spinal contour"
+        ]
+      },
+      "10": {
+        "percentage": 10,
+        "criteria": "Forward flexion of the thoracolumbar spine greater than 60 degrees but not greater than 85 degrees; or, forward flexion of the cervical spine greater than 30 degrees but not greater than 40 degrees; or, combined range of motion of the thoracolumbar spine greater than 120 degrees but not greater than 235 degrees; or, combined range of motion of the cervical spine greater than 170 degrees but not greater than 335 degrees; or, muscle spasm, guarding, or localized tenderness not resulting in abnormal gait or abnormal spinal contour; or, vertebral body fracture with loss of 50 percent or more of height.",
+        "keyIndicators": [
+          "Thoracolumbar forward flexion > 60 but <= 85 degrees",
+          "Cervical forward flexion > 30 but <= 40 degrees",
+          "Thoracolumbar combined ROM > 120 but <= 235 degrees",
+          "Cervical combined ROM > 170 but <= 335 degrees",
+          "Muscle spasm/guarding/tenderness without abnormal gait/contour",
+          "Vertebral body fracture with >= 50% height loss"
+        ]
+      }
+    }
+  },
+
+  "normalRangeOfMotion": {
+    "cervicalSpine": {
+      "forwardFlexion": { "normal": 45, "unit": "degrees" },
+      "extension": { "normal": 45, "unit": "degrees" },
+      "leftLateralFlexion": { "normal": 45, "unit": "degrees" },
+      "rightLateralFlexion": { "normal": 45, "unit": "degrees" },
+      "leftLateralRotation": { "normal": 80, "unit": "degrees" },
+      "rightLateralRotation": { "normal": 80, "unit": "degrees" },
+      "combinedNormal": 340
+    },
+    "thoracolumbarSpine": {
+      "forwardFlexion": { "normal": 90, "unit": "degrees" },
+      "extension": { "normal": 30, "unit": "degrees" },
+      "leftLateralFlexion": { "normal": 30, "unit": "degrees" },
+      "rightLateralFlexion": { "normal": 30, "unit": "degrees" },
+      "leftLateralRotation": { "normal": 30, "unit": "degrees" },
+      "rightLateralRotation": { "normal": 30, "unit": "degrees" },
+      "combinedNormal": 240
+    }
+  },
+
+  "diagnosticCodes": {
+    "5235": { "name": "Vertebral fracture or dislocation", "formula": "General Rating Formula for Spine" },
+    "5236": { "name": "Sacroiliac injury and weakness", "formula": "General Rating Formula for Spine" },
+    "5237": { "name": "Lumbosacral or cervical strain", "formula": "General Rating Formula for Spine" },
+    "5238": { "name": "Spinal stenosis", "formula": "General Rating Formula for Spine" },
+    "5239": { "name": "Spondylolisthesis or segmental instability", "formula": "General Rating Formula for Spine" },
+    "5240": { "name": "Ankylosing spondylitis", "formula": "General Rating Formula for Spine" },
+    "5241": { "name": "Spinal fusion", "formula": "General Rating Formula for Spine" },
+    "5242": { "name": "Degenerative arthritis of the spine (DDD)", "formula": "General Rating Formula for Spine" },
+    "5243": { "name": "Intervertebral disc syndrome (IVDS)", "formula": "General Rating Formula for Spine OR IVDS Incapacitating Episodes (whichever is higher)" }
+  },
+
+  "ivdsFormula": {
+    "name": "Formula for Rating IVDS Based on Incapacitating Episodes",
+    "note": "An incapacitating episode is a period of acute signs and symptoms requiring bed rest PRESCRIBED BY A PHYSICIAN and treatment by a physician.",
+    "ratingLevels": {
+      "60": "Incapacitating episodes having a total duration of at least 6 weeks during the past 12 months",
+      "40": "Incapacitating episodes having a total duration of at least 4 weeks but less than 6 weeks during the past 12 months",
+      "20": "Incapacitating episodes having a total duration of at least 2 weeks but less than 4 weeks during the past 12 months",
+      "10": "Incapacitating episodes having a total duration of at least 1 week but less than 2 weeks during the past 12 months"
+    }
+  },
+
+  "importantRules": {
+    "separateNeurologicalRatings": "Any associated objective neurologic abnormalities, including but not limited to bowel or bladder impairment, shall be evaluated separately under an appropriate diagnostic code (e.g., radiculopathy under 8520).",
+    "painfulMotionPrinciple": "Per 38 CFR 4.59, any evidence of pain during movement qualifies the condition for at least the minimum compensable rating (10%). This is the 'Painful Motion' principle.",
+    "flareUps": "Per Sharp v. Shulkin (CAVC), VA examiners MUST offer an opinion on functional limitation during flare-ups, even if exam is not conducted during a flare-up.",
+    "functionalLoss": "Per 38 CFR 4.40 and 4.45, disability ratings must account for functional loss due to pain, weakness, fatigability, and incoordination, including during repeated use and flare-ups (DeLuca v. Brown factors).",
+    "combinedROM": "Combined range of motion = sum of forward flexion + extension + left lateral flexion + right lateral flexion + left rotation + right rotation."
+  },
+
+  "commonSecondaryConditions": [
+    { "condition": "Radiculopathy", "dc": "8520", "description": "Nerve root impingement causing pain/numbness in extremities. Rated separately for each affected extremity." },
+    { "condition": "Sciatica", "dc": "8520", "description": "Sciatic nerve impairment. Often secondary to lumbar spine conditions." },
+    { "condition": "Bowel impairment", "dc": "7332", "description": "Loss of sphincter control secondary to spinal cord involvement." },
+    { "condition": "Bladder impairment", "dc": "7542", "description": "Neurogenic bladder secondary to spinal cord involvement." },
+    { "condition": "Erectile dysfunction", "dc": "7522", "description": "May be secondary to spinal conditions or medication side effects." }
+  ]
+}

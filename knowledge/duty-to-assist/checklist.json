@@ -1,0 +1,195 @@
+{
+  "_meta": {
+    "source": "38 CFR 3.159, Veterans Claims Assistance Act (VCAA) of 2000 (P.L. 106-475), M21-1 Adjudication Procedures Manual",
+    "authority": "Code of Federal Regulations, Title 38; Public Law 106-475",
+    "lastVerified": "2026-02-06",
+    "urls": [
+      "https://www.law.cornell.edu/cfr/text/38/3.159",
+      "https://www.va.gov/resources/vas-duty-to-assist/",
+      "https://www.knowva.ebenefits.va.gov/system/templates/selfservice/va_ssnew/help/customer/locale/en-US/portal/554400000001018/content/554400000180494/M21-1-Part-IV-Subpart-i-Chapter-1-Section-A-Duty-to-Assist-With-Providing-a-Medical-Examination-or-Opinion"
+    ]
+  },
+
+  "overview": {
+    "statute": "Veterans Claims Assistance Act (VCAA) of 2000",
+    "regulation": "38 CFR 3.159",
+    "principle": "VA has a duty to assist claimants in obtaining evidence to substantiate all substantially complete claims. VA will make reasonable efforts to help a claimant obtain evidence necessary to substantiate the claim."
+  },
+
+  "requirements": {
+    "federalRecords": {
+      "description": "VA must make as many requests as necessary to obtain relevant records from Federal departments or agencies.",
+      "recordTypes": [
+        "Military service records (STRs, personnel records)",
+        "Service medical records",
+        "Medical and other records from VA medical facilities",
+        "Records from non-VA facilities providing treatment at VA expense",
+        "Social Security Administration (SSA) records",
+        "Other Federal agency records"
+      ],
+      "standard": "VA will end efforts ONLY if it concludes records do not exist or further efforts would be futile.",
+      "commonFailure": "VA fails to request or obtain service treatment records, VA treatment records, or SSA records that are relevant to the claim."
+    },
+    "privateRecords": {
+      "description": "For non-Federal records (private medical, employer, state/local), VA must make reasonable efforts: initial request plus at least one follow-up.",
+      "requirement": "Veteran must provide authorization via VA Form 21-4142",
+      "commonFailure": "VA sends one request and gives up, or does not inform veteran of inability to obtain records."
+    },
+    "medicalExaminations": {
+      "description": "VA must provide a C&P examination or obtain a medical opinion when necessary to decide the claim.",
+      "triggerCriteria": [
+        "Competent evidence of a current disability or persistent/recurrent symptoms",
+        "Evidence of an in-service event, injury, or disease",
+        "Evidence that the disability or symptoms may be associated with the in-service event",
+        "Insufficient medical evidence to make a decision"
+      ],
+      "lowThreshold": "The threshold for determining whether evidence 'indicates' a disability 'may be associated' with service is LOW (McLendon v. Nicholson).",
+      "commonFailure": "VA does not schedule a C&P exam when one is clearly warranted by the evidence."
+    },
+    "notification": {
+      "description": "VA must notify the veteran of evidence needed, evidence VA will obtain, and evidence the veteran should provide.",
+      "commonFailure": "VA does not properly inform veteran of what additional evidence is needed or of inability to obtain certain records."
+    }
+  },
+
+  "commonFailures": {
+    "description": "The most frequently identified DTA errors in VA claims, ranked by frequency",
+    "errors": [
+      {
+        "id": "INADEQUATE_EXAM",
+        "name": "Inadequate Medical Examination or Opinion",
+        "frequency": "Most Common",
+        "description": "The C&P exam contains errors, fails to address the correct question, is based on inaccurate facts, or the examiner does not provide adequate rationale.",
+        "indicators": [
+          "Examiner did not review claims file",
+          "Exam report contradicts itself",
+          "No rationale provided for negative opinion",
+          "Examiner did not address all claimed conditions",
+          "Exam based on inaccurate factual premise",
+          "Examiner did not address flare-ups or functional loss",
+          "Examiner ignored favorable medical evidence in the file",
+          "Exam was too brief or superficial for the condition's complexity"
+        ],
+        "remedy": "Request new C&P exam or independent medical opinion"
+      },
+      {
+        "id": "NO_EXAM_SCHEDULED",
+        "name": "Failure to Schedule C&P Examination",
+        "frequency": "Very Common",
+        "description": "VA fails to schedule a C&P exam or obtain a medical opinion when the evidence triggers the duty to provide one.",
+        "indicators": [
+          "Current symptoms documented but no exam ordered",
+          "In-service event documented but nexus not established",
+          "Veteran requested exam but none was scheduled",
+          "Claim denied without any medical opinion"
+        ],
+        "remedy": "File for new exam; cite McLendon low threshold standard"
+      },
+      {
+        "id": "RECORDS_NOT_OBTAINED",
+        "name": "Failure to Obtain Relevant Records",
+        "frequency": "Very Common",
+        "description": "VA does not request or retrieve medical, service, or private treatment records necessary for the claim.",
+        "indicators": [
+          "Service treatment records not in file",
+          "VA treatment records referenced but not obtained",
+          "SSA disability records not requested",
+          "Private treatment records identified by veteran but not pursued",
+          "Only partial records obtained"
+        ],
+        "remedy": "Identify missing records; file supplemental claim with records or request VA obtain them"
+      },
+      {
+        "id": "ISSUES_NOT_ADDRESSED",
+        "name": "Not Addressing All Claims or Issues",
+        "frequency": "Common",
+        "description": "VA overlooks key issues, evidence, or implicitly raised claims.",
+        "indicators": [
+          "Secondary conditions reasonably raised by evidence but not addressed",
+          "TDIU reasonably raised but not considered",
+          "Veteran filed for multiple conditions but only some were addressed",
+          "Evidence raised new theory of entitlement that was ignored"
+        ],
+        "remedy": "File for the overlooked issues; cite the evidence that raised them"
+      },
+      {
+        "id": "NOTIFICATION_FAILURE",
+        "name": "Failure to Properly Notify Veteran",
+        "frequency": "Common",
+        "description": "VA does not inform veteran of what evidence is needed or that records could not be obtained.",
+        "indicators": [
+          "No VCAA notice letter in file",
+          "Notice letter did not address all claimed conditions",
+          "Veteran not informed of inability to obtain records",
+          "Veteran not advised of alternative evidence sources"
+        ],
+        "remedy": "Cite notification failure in appeal; request proper notice"
+      },
+      {
+        "id": "TREATISE_IGNORED",
+        "name": "Failure to Address Medical Treatise Evidence",
+        "frequency": "Moderate",
+        "description": "Medical articles or treatise evidence submitted by the veteran is not addressed in the decision.",
+        "indicators": [
+          "Veteran submitted medical literature supporting their claim",
+          "Decision does not mention or discuss the submitted evidence",
+          "Examiner's opinion contradicts submitted literature without explanation"
+        ],
+        "remedy": "Identify the unaddressed evidence; cite the duty to address all evidence"
+      }
+    ]
+  },
+
+  "whenDTAdoesNotApply": [
+    "Higher-Level Review (HLR) — VA reviews existing evidence only, no new development",
+    "CUE claims — duty to assist does not apply to CUE motions",
+    "Supplemental claims where veteran fails to submit new and relevant evidence"
+  ],
+
+  "remedies": {
+    "ifErrorFound": "When a DTA error is identified, the claim is typically remanded for correction. The VA must fix the error before making a final decision.",
+    "backPay": "If a DTA error prompts VA to reconsider and grant the claim, the veteran is typically entitled to back pay for the delay caused by the error.",
+    "notCUE": "Important: A duty to assist error is NOT a CUE. However, DTA errors can be raised in appeals and supplemental claims."
+  },
+
+  "analysisChecklist": {
+    "description": "Checklist for GIA agents to evaluate potential DTA errors in a veteran's claim",
+    "steps": [
+      {
+        "step": 1,
+        "action": "Verify all service records obtained",
+        "check": "Are complete STRs and service personnel records in the file? If not, were they requested?"
+      },
+      {
+        "step": 2,
+        "action": "Verify all VA treatment records obtained",
+        "check": "Are all VA treatment records from identified facilities in the file? Check for gaps in treatment history."
+      },
+      {
+        "step": 3,
+        "action": "Check for SSA records",
+        "check": "If veteran receives SSA disability, were those records requested? SSA records often contain relevant medical evidence."
+      },
+      {
+        "step": 4,
+        "action": "Evaluate C&P exam adequacy",
+        "check": "Was a C&P exam conducted? Did the examiner review the claims file? Is the rationale adequate? Were all conditions examined? Were flare-ups and functional loss addressed?"
+      },
+      {
+        "step": 5,
+        "action": "Check for unaddressed claims",
+        "check": "Did the decision address ALL conditions claimed? Were secondary conditions or TDIU reasonably raised but not adjudicated?"
+      },
+      {
+        "step": 6,
+        "action": "Verify proper notification",
+        "check": "Was the veteran properly notified of evidence needed? Were they informed of records VA could not obtain?"
+      },
+      {
+        "step": 7,
+        "action": "Check for unaddressed evidence",
+        "check": "Did the decision discuss all relevant evidence in the file, including medical literature, buddy statements, and lay evidence?"
+      }
+    ]
+  }
+}

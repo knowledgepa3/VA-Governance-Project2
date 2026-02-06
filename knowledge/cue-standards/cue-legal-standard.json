@@ -1,0 +1,200 @@
+{
+  "_meta": {
+    "source": "38 CFR 3.105(a), 38 CFR 20.1403, Russell v. Principi (3 Vet. App. 310, 313-14), Fugo v. Brown (6 Vet. App. 40)",
+    "authority": "Code of Federal Regulations, Title 38; U.S. Court of Appeals for Veterans Claims",
+    "lastVerified": "2026-02-06",
+    "urls": [
+      "https://www.law.cornell.edu/cfr/text/38/3.105",
+      "https://www.law.cornell.edu/cfr/text/38/20.1403",
+      "https://www.knowva.ebenefits.va.gov/system/templates/selfservice/va_ssnew/help/customer/locale/en-US/portal/554400000001018/content/554400000177971/M21-1-Part-X-Subpart-ii-Chapter-5-Section-A-Revision-Due-to-Clear-and-Unmistakable-Error-CUE"
+    ]
+  },
+
+  "definition": {
+    "text": "Clear and Unmistakable Error is a very specific and rare kind of error. It is the kind of error, of fact or of law, that when called to the attention of later reviewers compels the conclusion, to which reasonable minds could not differ, that the result would have been manifestly different but for the error.",
+    "certaintyStandard": "If it is not absolutely clear that a different result would have ensued, the error complained of cannot be clear and unmistakable."
+  },
+
+  "threePartTest": {
+    "description": "To establish CUE, all three elements must be proven:",
+    "elements": [
+      {
+        "number": 1,
+        "element": "Error of fact or law",
+        "description": "Either the correct facts, as they were known at the time, were not before the adjudicator, OR the statutory and regulatory provisions extant at the time were incorrectly applied."
+      },
+      {
+        "number": 2,
+        "element": "Error is undebatable",
+        "description": "The error must be undebatable — reasonable minds could not differ that an error occurred. It must compel the conclusion that an error was made."
+      },
+      {
+        "number": 3,
+        "element": "Manifestly different outcome",
+        "description": "Had the error not been made, the outcome of the decision would have been manifestly different. The error must be outcome-determinative."
+      }
+    ]
+  },
+
+  "whatConstituesCUE": [
+    {
+      "type": "Incorrect application of regulations or statutes",
+      "description": "VA applied outdated rules, wrong diagnostic codes, or ignored relevant laws in making a rating decision.",
+      "examples": [
+        "Applying the wrong diagnostic code to rate a condition",
+        "Failing to apply a regulation that was in effect at the time of the decision",
+        "Using superseded rating criteria instead of the criteria in effect"
+      ]
+    },
+    {
+      "type": "Overlooking evidence in the claims file",
+      "description": "VA failed to consider or evaluate evidence that was part of the original claims file.",
+      "examples": [
+        "Service treatment records showing in-service injury were in the file but not discussed",
+        "Medical evidence clearly supporting a higher rating was ignored",
+        "Buddy statements or lay evidence in the file were not considered"
+      ]
+    },
+    {
+      "type": "Factual errors",
+      "description": "VA overlooked or misinterpreted key facts in the veteran's records.",
+      "examples": [
+        "Incorrect service dates used in decision",
+        "Wrong medical condition addressed in rating",
+        "Incorrect characterization of the evidence of record"
+      ]
+    },
+    {
+      "type": "Failure to apply presumption of soundness",
+      "description": "VA wrongly denied claim on basis condition was pre-existing without clear and convincing evidence of pre-existence.",
+      "examples": [
+        "Entrance examination showed no defects but VA denied as pre-existing",
+        "No clear and unmistakable evidence that condition existed prior to service"
+      ]
+    },
+    {
+      "type": "Improper rating reduction",
+      "description": "Reducing a rating without following applicable legal safeguards under 38 CFR 3.344.",
+      "examples": [
+        "Reducing a rating that had been in effect for 5+ years without showing sustained improvement",
+        "Single examination used to reduce a rating without considering overall disability picture"
+      ]
+    },
+    {
+      "type": "Failure to apply benefit of the doubt",
+      "description": "When evidence is in approximate balance, the benefit of the doubt goes to the veteran (38 CFR 3.102). Failure to apply this is CUE.",
+      "examples": [
+        "Evidence roughly equal for and against, but VA denied without applying reasonable doubt doctrine",
+        "Two equally competent medical opinions but VA sided with the negative without explanation"
+      ]
+    },
+    {
+      "type": "Failure to give sympathetic reading",
+      "description": "VA failed to liberally construe the veteran's filings to determine all potential claims raised by the evidence.",
+      "examples": [
+        "Veteran's filing clearly raised a secondary condition but VA only addressed the primary",
+        "Evidence supported TDIU but VA did not consider it despite being reasonably raised"
+      ]
+    }
+  ],
+
+  "whatIsNOTCue": [
+    {
+      "type": "Disagreement with how evidence was weighed",
+      "description": "A difference in how the evidence was evaluated is NOT CUE. You cannot reweigh the evidence under a CUE claim."
+    },
+    {
+      "type": "New medical diagnosis",
+      "description": "A new medical diagnosis that 'corrects' an earlier diagnosis considered in the decision is NOT CUE."
+    },
+    {
+      "type": "Duty to Assist failures",
+      "description": "VA's failure to fulfill the duty to assist (e.g., not obtaining records, not scheduling C&P exam) is NOT CUE. However, it may be grounds for a separate appeal."
+    },
+    {
+      "type": "Changed interpretation of law",
+      "description": "The otherwise correct application of a statute or regulation where, subsequent to the decision, there has been a change in interpretation is NOT CUE."
+    },
+    {
+      "type": "Evidence not in the file at the time",
+      "description": "CUE is based solely on the evidence of record at the time of the decision. New evidence cannot form the basis of a CUE claim."
+    }
+  ],
+
+  "effectiveDate": {
+    "rule": "If CUE is granted, the decision is reversed or revised and the effective date is the date of the ORIGINAL claim — not the date the CUE was filed.",
+    "significance": "This is the primary power of CUE claims. A successful CUE motion can result in decades of retroactive benefits dating back to the original claim date.",
+    "citation": "38 CFR 3.105(a)"
+  },
+
+  "filingRequirements": {
+    "mustBeInWriting": true,
+    "mustBeSigned": true,
+    "requiredContent": [
+      "Name of the claimant",
+      "Name of the requesting party (if different from claimant)",
+      "Applicable VA file number",
+      "Date of the decision being challenged",
+      "Specific issue(s) to which the request pertains",
+      "Clear and specific description of the alleged CUE(s) of fact or law",
+      "Legal or factual basis for the allegation",
+      "Explanation of why the result would have been manifestly different"
+    ],
+    "noTimeLimit": "CUE can be alleged at any time after a decision becomes final. There is no statute of limitations."
+  },
+
+  "commonPatterns": {
+    "description": "Frequently observed CUE patterns identified from BVA decisions and veterans law practice",
+    "patterns": [
+      {
+        "id": "WRONG_DC",
+        "name": "Wrong Diagnostic Code Applied",
+        "frequency": "Common",
+        "description": "Condition rated under a diagnostic code that does not correspond to the actual diagnosed condition, resulting in lower rating.",
+        "lookFor": "Compare the diagnosed condition with the DC used in the rating decision. Check if a more favorable DC was available and applicable."
+      },
+      {
+        "id": "IGNORED_STR",
+        "name": "Service Treatment Records Ignored",
+        "frequency": "Common",
+        "description": "STRs in the file clearly documented an in-service event, injury, or treatment, but the rating decision failed to acknowledge or discuss them.",
+        "lookFor": "Cross-reference STRs with the rating decision. If STRs show treatment for the claimed condition and the decision says 'no evidence of in-service occurrence,' this is potentially CUE."
+      },
+      {
+        "id": "WRONG_CRITERIA",
+        "name": "Wrong Rating Criteria Applied",
+        "frequency": "Common",
+        "description": "VA applied rating criteria from the wrong time period (criteria change periodically) or applied the wrong subsection of the criteria.",
+        "lookFor": "Verify which version of the rating criteria was in effect at the time of the decision. Compare the criteria cited in the decision with the criteria that should have been applied."
+      },
+      {
+        "id": "MISSED_SECONDARY",
+        "name": "Secondary Conditions Not Considered",
+        "frequency": "Moderate",
+        "description": "Evidence in the file reasonably raised secondary service connection or secondary conditions, but VA failed to adjudicate them.",
+        "lookFor": "Review medical evidence for conditions caused or aggravated by already service-connected disabilities. Check if the decision addressed all conditions raised by the evidence."
+      },
+      {
+        "id": "NO_DOUBT",
+        "name": "Benefit of Doubt Not Applied",
+        "frequency": "Moderate",
+        "description": "Evidence was approximately balanced (in equipoise) but VA denied without applying the reasonable doubt doctrine (38 USC 5107(b), 38 CFR 3.102).",
+        "lookFor": "When there is both positive and negative evidence of roughly equal weight, the veteran should prevail. Check if the decision acknowledged and applied this standard."
+      },
+      {
+        "id": "PRESUMPTION_MISSED",
+        "name": "Presumptive Service Connection Ignored",
+        "frequency": "Moderate",
+        "description": "Condition qualified for presumptive service connection (e.g., chronic disease manifesting within 1 year, Agent Orange presumptives, Gulf War presumptives) but VA did not consider or apply the presumption.",
+        "lookFor": "Check if the condition appears on any presumptive lists. Verify if the veteran's service period/location qualifies. Check if the decision addressed presumptive service connection."
+      },
+      {
+        "id": "TDIU_NOT_CONSIDERED",
+        "name": "TDIU Not Considered When Reasonably Raised",
+        "frequency": "Moderate",
+        "description": "Evidence in the file showed the veteran was unable to work due to service-connected disabilities, but VA did not consider entitlement to TDIU.",
+        "lookFor": "Look for evidence of unemployability — termination letters, SSA disability awards, medical opinions on employability, veteran's own statements about inability to work."
+      }
+    ]
+  }
+}

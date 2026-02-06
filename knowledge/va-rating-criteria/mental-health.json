@@ -1,0 +1,146 @@
+{
+  "_meta": {
+    "source": "38 CFR Part 4, Subpart B - Schedule of Ratings, Mental Disorders (Section 4.130)",
+    "authority": "Code of Federal Regulations, Title 38",
+    "lastVerified": "2026-02-06",
+    "urls": [
+      "https://www.ecfr.gov/current/title-38/chapter-I/part-4/subpart-B/subject-group-ECFRfa64377db09ae97/section-4.130",
+      "https://www.law.cornell.edu/cfr/text/38/4.130"
+    ],
+    "note": "Symptoms listed are examples, not exhaustive requirements. Veterans need not exhibit every listed symptom. Per 38 CFR 4.7, when evidence approximately meets two levels, assign the higher rating."
+  },
+
+  "generalRatingFormula": {
+    "name": "General Rating Formula for Mental Disorders",
+    "appliesTo": "Diagnostic Codes 9201 through 9440",
+    "ratingLevels": {
+      "100": {
+        "percentage": 100,
+        "standard": "Total occupational and social impairment",
+        "criteria": "Total occupational and social impairment, due to such symptoms as: gross impairment in thought processes or communication; persistent delusions or hallucinations; grossly inappropriate behavior; persistent danger of hurting self or others; intermittent inability to perform activities of daily living (including maintenance of minimal personal hygiene); disorientation to time or place; memory loss for names of close relatives, own occupation, or own name.",
+        "keyIndicators": [
+          "Gross impairment in thought processes or communication",
+          "Persistent delusions or hallucinations",
+          "Grossly inappropriate behavior",
+          "Persistent danger of hurting self or others",
+          "Intermittent inability to perform activities of daily living",
+          "Cannot maintain minimal personal hygiene",
+          "Disorientation to time or place",
+          "Memory loss for names of close relatives, own occupation, or own name"
+        ]
+      },
+      "70": {
+        "percentage": 70,
+        "standard": "Occupational and social impairment, with deficiencies in most areas",
+        "criteria": "Occupational and social impairment, with deficiencies in most areas, such as work, school, family relations, judgment, thinking, or mood, due to such symptoms as: suicidal ideation; obsessional rituals which interfere with routine activities; speech intermittently illogical, obscure, or irrelevant; near-continuous panic or depression affecting the ability to function independently, appropriately and effectively; impaired impulse control (such as unprovoked irritability with periods of violence); spatial disorientation; neglect of personal appearance and hygiene; difficulty in adapting to stressful circumstances (including work or a worklike setting); inability to establish and maintain effective relationships.",
+        "keyIndicators": [
+          "Suicidal ideation",
+          "Obsessional rituals interfering with routine activities",
+          "Speech intermittently illogical, obscure, or irrelevant",
+          "Near-continuous panic or depression",
+          "Impaired impulse control with periods of violence",
+          "Spatial disorientation",
+          "Neglect of personal appearance and hygiene",
+          "Difficulty adapting to stressful circumstances including work",
+          "Inability to establish and maintain effective relationships"
+        ],
+        "deficiencyAreas": ["work", "school", "family relations", "judgment", "thinking", "mood"]
+      },
+      "50": {
+        "percentage": 50,
+        "standard": "Occupational and social impairment with reduced reliability and productivity",
+        "criteria": "Occupational and social impairment with reduced reliability and productivity due to such symptoms as: flattened affect; circumstantial, circumlocutory, or stereotyped speech; panic attacks more than once a week; difficulty in understanding complex commands; impairment of short- and long-term memory (e.g., retention of only highly learned material, forgetting to complete tasks); impaired judgment; impaired abstract thinking; disturbances of motivation and mood; difficulty in establishing and maintaining effective work and social relationships.",
+        "keyIndicators": [
+          "Flattened affect",
+          "Circumstantial, circumlocutory, or stereotyped speech",
+          "Panic attacks more than once a week",
+          "Difficulty understanding complex commands",
+          "Impairment of short- and long-term memory",
+          "Retention of only highly learned material",
+          "Forgetting to complete tasks",
+          "Impaired judgment",
+          "Impaired abstract thinking",
+          "Disturbances of motivation and mood",
+          "Difficulty establishing and maintaining effective work and social relationships"
+        ]
+      },
+      "30": {
+        "percentage": 30,
+        "standard": "Occupational and social impairment with occasional decrease in work efficiency and intermittent periods of inability to perform occupational tasks",
+        "criteria": "Occupational and social impairment with occasional decrease in work efficiency and intermittent periods of inability to perform occupational tasks (although generally functioning satisfactorily, with routine behavior, self-care, and conversation normal), due to such symptoms as: depressed mood, anxiety, suspiciousness, panic attacks (weekly or less often), chronic sleep impairment, mild memory loss (such as forgetting names, directions, recent events).",
+        "keyIndicators": [
+          "Generally functioning satisfactorily",
+          "Depressed mood",
+          "Anxiety",
+          "Suspiciousness",
+          "Panic attacks weekly or less often",
+          "Chronic sleep impairment",
+          "Mild memory loss (forgetting names, directions, recent events)"
+        ]
+      },
+      "10": {
+        "percentage": 10,
+        "standard": "Occupational and social impairment due to mild or transient symptoms",
+        "criteria": "Occupational and social impairment due to mild or transient symptoms which decrease work efficiency and ability to perform occupational tasks only during periods of significant stress, or; symptoms controlled by continuous medication.",
+        "keyIndicators": [
+          "Mild or transient symptoms",
+          "Decreased work efficiency only during significant stress",
+          "Symptoms controlled by continuous medication"
+        ]
+      },
+      "0": {
+        "percentage": 0,
+        "standard": "Mental condition formally diagnosed but not severe enough to interfere with functioning",
+        "criteria": "A mental condition has been formally diagnosed, but symptoms are not severe enough either to interfere with occupational and social functioning or to require continuous medication.",
+        "keyIndicators": [
+          "Formally diagnosed mental condition",
+          "No interference with occupational or social functioning",
+          "No continuous medication required"
+        ]
+      }
+    }
+  },
+
+  "diagnosticCodes": {
+    "9201": { "name": "Schizophrenia", "formula": "General Rating Formula for Mental Disorders" },
+    "9202": { "name": "Schizophreniform disorder", "formula": "General Rating Formula for Mental Disorders" },
+    "9203": { "name": "Delusional disorder", "formula": "General Rating Formula for Mental Disorders" },
+    "9204": { "name": "Brief psychotic disorder", "formula": "General Rating Formula for Mental Disorders" },
+    "9205": { "name": "Schizoaffective disorder", "formula": "General Rating Formula for Mental Disorders" },
+    "9208": { "name": "Unspecified schizophrenia spectrum and other psychotic disorder", "formula": "General Rating Formula for Mental Disorders" },
+    "9210": { "name": "Other specified schizophrenia spectrum and other psychotic disorder", "formula": "General Rating Formula for Mental Disorders" },
+    "9211": { "name": "Dissociative amnesia; dissociative identity disorder", "formula": "General Rating Formula for Mental Disorders" },
+    "9300": { "name": "Delirium", "formula": "General Rating Formula for Mental Disorders" },
+    "9301": { "name": "Major or mild neurocognitive disorder due to HIV infection", "formula": "General Rating Formula for Mental Disorders" },
+    "9304": { "name": "Major or mild neurocognitive disorder due to traumatic brain injury", "formula": "General Rating Formula for Mental Disorders" },
+    "9305": { "name": "Major or mild vascular neurocognitive disorder", "formula": "General Rating Formula for Mental Disorders" },
+    "9326": { "name": "Major or mild neurocognitive disorder due to another medical condition or substance/medication-induced", "formula": "General Rating Formula for Mental Disorders" },
+    "9327": { "name": "Unspecified neurocognitive disorder", "formula": "General Rating Formula for Mental Disorders" },
+    "9400": { "name": "Generalized anxiety disorder", "formula": "General Rating Formula for Mental Disorders" },
+    "9403": { "name": "Specific phobia; social anxiety disorder (social phobia)", "formula": "General Rating Formula for Mental Disorders" },
+    "9404": { "name": "Obsessive-compulsive disorder", "formula": "General Rating Formula for Mental Disorders" },
+    "9410": { "name": "Other specified anxiety disorder", "formula": "General Rating Formula for Mental Disorders" },
+    "9411": { "name": "Posttraumatic stress disorder (PTSD)", "formula": "General Rating Formula for Mental Disorders" },
+    "9412": { "name": "Panic disorder and/or agoraphobia", "formula": "General Rating Formula for Mental Disorders" },
+    "9413": { "name": "Unspecified anxiety disorder", "formula": "General Rating Formula for Mental Disorders" },
+    "9416": { "name": "Somatic symptom disorder", "formula": "General Rating Formula for Mental Disorders" },
+    "9417": { "name": "Illness anxiety disorder", "formula": "General Rating Formula for Mental Disorders" },
+    "9421": { "name": "Conversion disorder (functional neurological symptom disorder)", "formula": "General Rating Formula for Mental Disorders" },
+    "9422": { "name": "Other specified somatic symptom and related disorder", "formula": "General Rating Formula for Mental Disorders" },
+    "9424": { "name": "Anorexia nervosa", "formula": "General Rating Formula for Mental Disorders" },
+    "9425": { "name": "Bulimia nervosa", "formula": "General Rating Formula for Mental Disorders" },
+    "9431": { "name": "Bipolar disorder", "formula": "General Rating Formula for Mental Disorders" },
+    "9432": { "name": "Cyclothymic disorder", "formula": "General Rating Formula for Mental Disorders" },
+    "9433": { "name": "Persistent depressive disorder (dysthymia)", "formula": "General Rating Formula for Mental Disorders" },
+    "9434": { "name": "Major depressive disorder", "formula": "General Rating Formula for Mental Disorders" },
+    "9435": { "name": "Unspecified depressive disorder", "formula": "General Rating Formula for Mental Disorders" },
+    "9440": { "name": "Chronic adjustment disorder", "formula": "General Rating Formula for Mental Disorders" }
+  },
+
+  "importantRules": {
+    "singleMentalHealthRating": "Even if diagnosed with multiple mental health conditions (e.g., PTSD and depression), the VA assigns only ONE combined mental health rating. All mental disorders are rated together under the General Rating Formula.",
+    "symptomExamples": "The symptoms listed in each rating level are examples meant to demonstrate the type and degree of impairment. Veterans do NOT need to exhibit every listed symptom to qualify for that rating.",
+    "higherRatingRule": "Per 38 CFR 4.7, when the disability picture more nearly approximates the criteria for the higher rating, the higher rating shall be assigned.",
+    "upcomingChanges": "Significant changes anticipated by end of 2026: shift to a domain-based assessment system and elimination of the 0% rating, potentially making it easier to obtain higher ratings."
+  }
+}

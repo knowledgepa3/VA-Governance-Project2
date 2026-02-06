@@ -1,0 +1,101 @@
+{
+  "_meta": {
+    "source": "38 CFR Part 4, Subpart B - Schedule of Ratings, Musculoskeletal System (Section 4.71a)",
+    "authority": "Code of Federal Regulations, Title 38",
+    "lastVerified": "2026-02-06",
+    "urls": [
+      "https://www.ecfr.gov/current/title-38/chapter-I/part-4/subpart-B/subject-group-ECFRd3005f7d828ea7b/section-4.71a"
+    ]
+  },
+
+  "normalRangeOfMotion": {
+    "flexion": { "normal": 140, "unit": "degrees" },
+    "extension": { "normal": 0, "unit": "degrees" }
+  },
+
+  "diagnosticCodes": {
+    "5003": {
+      "name": "Degenerative arthritis (hypertrophic or osteoarthritis)",
+      "ratingMethod": "Based on limitation of motion under appropriate DCs. If limitation is noncompensable, 10% for each major joint. X-ray evidence required.",
+      "ratings": {
+        "20": "X-ray evidence of involvement of 2 or more major joints with occasional incapacitating exacerbations",
+        "10": "X-ray evidence of involvement of 2 or more major joints or 2 or more minor joint groups"
+      }
+    },
+    "5055": {
+      "name": "Knee replacement (prosthesis)",
+      "ratings": {
+        "100": "For 1 year following implantation of prosthesis (mandatory minimum)",
+        "60": "Chronic residuals consisting of severe painful motion or weakness in the affected extremity",
+        "30": "Minimum rating after prosthesis replacement (intermediate degrees rated by analogy)"
+      }
+    },
+    "5256": {
+      "name": "Ankylosis of the knee",
+      "ratings": {
+        "60": "Extremely unfavorable, in flexion at an angle of 45 degrees or more",
+        "50": "In flexion between 20 degrees and 45 degrees",
+        "40": "In flexion between 10 degrees and 20 degrees",
+        "30": "Favorable angle in full extension, or in slight flexion between 0 degrees and 10 degrees"
+      }
+    },
+    "5257": {
+      "name": "Recurrent subluxation or lateral instability",
+      "note": "Based on instability, NOT range of motion. Can be rated SEPARATELY from limitation of motion codes (VAOPGCPREC 23-97).",
+      "ratings": {
+        "30": "Severe",
+        "20": "Moderate",
+        "10": "Slight"
+      }
+    },
+    "5258": {
+      "name": "Dislocated semilunar cartilage (meniscus)",
+      "ratings": {
+        "20": "With frequent episodes of 'locking,' pain, and effusion into the joint"
+      }
+    },
+    "5259": {
+      "name": "Removal of semilunar cartilage (meniscectomy)",
+      "ratings": {
+        "10": "Symptomatic"
+      }
+    },
+    "5260": {
+      "name": "Limitation of flexion of the leg",
+      "ratings": {
+        "30": "Flexion limited to 15 degrees",
+        "20": "Flexion limited to 30 degrees",
+        "10": "Flexion limited to 45 degrees",
+        "0": "Flexion limited to 60 degrees"
+      }
+    },
+    "5261": {
+      "name": "Limitation of extension of the leg",
+      "ratings": {
+        "50": "Extension limited to 45 degrees",
+        "40": "Extension limited to 30 degrees",
+        "30": "Extension limited to 20 degrees",
+        "20": "Extension limited to 15 degrees",
+        "10": "Extension limited to 10 degrees",
+        "0": "Extension limited to 5 degrees"
+      }
+    },
+    "5262": {
+      "name": "Impairment of the tibia and fibula",
+      "ratings": {
+        "40": "Nonunion, with loose motion, requiring brace",
+        "30": "Malunion with marked knee or ankle disability",
+        "20": "Malunion with moderate knee or ankle disability",
+        "10": "Malunion with slight knee or ankle disability"
+      }
+    }
+  },
+
+  "importantRules": {
+    "separateRatings": "A veteran can receive SEPARATE ratings for instability (DC 5257) AND limitation of motion (DC 5260/5261) in the same knee per VAOPGCPREC 23-97 and 9-98. This is commonly missed by VA raters.",
+    "separateFlexionExtension": "Per VAOPGCPREC 9-2004, separate ratings can be assigned for limitation of flexion (DC 5260) and limitation of extension (DC 5261) of the same knee joint.",
+    "bilateralFactor": "If both knees are affected, the bilateral factor (38 CFR 4.26) adds 10% to the combined value of bilateral disabilities.",
+    "painfulMotion": "Per 38 CFR 4.59, painful motion of a major joint warrants at least the minimum compensable rating (10%) even if range of motion is technically full.",
+    "flareUps": "Examiners must estimate additional functional loss during flare-ups per DeLuca v. Brown and Sharp v. Shulkin."
+  }
+}
