@@ -26,9 +26,13 @@
     <div id="root"></div>
     <!-- Auth guard: requires login before React app loads -->
     <script>
-      if (window.GIA && window.GIA.auth && !window.GIA.auth.requireAuth()) {
-        throw new Error('AUTH_REDIRECT');
-      }
+      (function() {
+        if (window.GIA && window.GIA.auth && !window.GIA.auth.isLoggedIn()) {
+          window.location.replace('/login');
+          window.stop();
+          document.documentElement.innerHTML = '';
+        }
+      })();
     </script>
     <script type="module" src="/index.tsx"></script>
 </body>
