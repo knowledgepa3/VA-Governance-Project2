@@ -27,13 +27,12 @@
     <!-- Auth guard: checks sessionStorage directly (no dependency on gia-core.js load order) -->
     <script>
       (function() {
-        var token = sessionStorage.getItem('gia_token');
-        if (!token) {
+        function bail() {
+          document.body.style.display = 'none';
           window.location.replace('/login');
-          window.stop();
-          document.documentElement.innerHTML = '';
-          return;
         }
+        var token = sessionStorage.getItem('gia_token');
+        if (!token) { bail(); return; }
         try {
           var parts = token.split('.');
           if (parts.length === 3) {
@@ -41,19 +40,13 @@
             if (payload.exp && payload.exp <= Math.floor(Date.now() / 1000)) {
               sessionStorage.removeItem('gia_token');
               sessionStorage.removeItem('gia_session');
-              window.location.replace('/login');
-              window.stop();
-              document.documentElement.innerHTML = '';
-              return;
+              bail(); return;
             }
           }
         } catch(e) {
           sessionStorage.removeItem('gia_token');
           sessionStorage.removeItem('gia_session');
-          window.location.replace('/login');
-          window.stop();
-          document.documentElement.innerHTML = '';
-          return;
+          bail(); return;
         }
       })();
     </script>

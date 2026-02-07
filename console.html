@@ -2197,13 +2197,12 @@
   <!-- Auth guard: checks sessionStorage directly (no dependency on gia-core.js load order) -->
   <script>
     (function() {
-      var token = sessionStorage.getItem('gia_token');
-      if (!token) {
+      function bail() {
+        document.body.style.display = 'none';
         window.location.replace('/login');
-        window.stop();
-        document.documentElement.innerHTML = '';
-        return;
       }
+      var token = sessionStorage.getItem('gia_token');
+      if (!token) { bail(); return; }
       // Basic JWT expiry check (payload is second segment, base64url-encoded)
       try {
         var parts = token.split('.');
@@ -2212,20 +2211,13 @@
           if (payload.exp && payload.exp <= Math.floor(Date.now() / 1000)) {
             sessionStorage.removeItem('gia_token');
             sessionStorage.removeItem('gia_session');
-            window.location.replace('/login');
-            window.stop();
-            document.documentElement.innerHTML = '';
-            return;
+            bail(); return;
           }
         }
       } catch(e) {
-        // Malformed token — clear and redirect
         sessionStorage.removeItem('gia_token');
         sessionStorage.removeItem('gia_session');
-        window.location.replace('/login');
-        window.stop();
-        document.documentElement.innerHTML = '';
-        return;
+        bail(); return;
       }
       // Grab gia-core.js auth/sounds refs NOW (before console's script overwrites window.GIA)
       // gia-core.js is a blocking <script> in <head>, so it has already executed at this point
