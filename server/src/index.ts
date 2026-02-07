@@ -203,7 +203,13 @@ app.use('/api', (req, res, next) => {
   }
   requireAuth(req, res, next);
 });
-app.use('/api', tenantIsolationMiddleware);
+app.use('/api', (req, res, next) => {
+  // Skip tenant isolation for unauthenticated endpoints
+  if (req.path.startsWith('/auth/') || req.path === '/errors/report' || req.path.startsWith('/onboarding/')) {
+    return next();
+  }
+  tenantIsolationMiddleware(req, res, next);
+});
 
 // Onboarding configuration (no auth required — rate-limited)
 app.use('/api/onboarding', createOnboardingRouter());
