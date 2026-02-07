@@ -93,10 +93,24 @@ const DEFAULT_LIMITS: Record<string, RateLimitConfig> = {
     message: 'Audit query rate limit exceeded.'
   },
 
-  // Auth endpoints - prevent brute force
-  '/api/auth': {
+  // Auth login - prevent brute force
+  '/api/auth/login': {
     windowMs: 15 * 60 * 1000,  // 15 minutes
     maxRequests: 10,            // 10 attempts per 15 min
+    message: 'Too many login attempts. Please wait.'
+  },
+
+  // Auth registration - strict to prevent abuse
+  '/api/auth/register': {
+    windowMs: 60 * 60 * 1000,  // 1 hour
+    maxRequests: 3,             // 3 registrations per hour per IP
+    message: 'Too many registration attempts. Please try again later.'
+  },
+
+  // Auth general fallback
+  '/api/auth': {
+    windowMs: 15 * 60 * 1000,
+    maxRequests: 10,
     message: 'Too many authentication attempts. Please wait.'
   },
 

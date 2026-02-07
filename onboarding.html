@@ -607,6 +607,134 @@
       to { transform: rotate(360deg); }
     }
 
+    /* Registration Card */
+    .register-card {
+      display: none;
+      margin-top: 2rem;
+      background: var(--dark-lighter);
+      border: 1px solid var(--gray-700);
+      border-radius: 12px;
+      padding: 2rem;
+      text-align: left;
+    }
+
+    .register-card.show {
+      display: block;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .register-card h3 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .register-card .reg-subtitle {
+      color: var(--gray-400);
+      font-size: 0.85rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .register-card .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .register-card .form-label {
+      font-size: 0.8rem;
+    }
+
+    .register-card .form-input {
+      width: 100%;
+    }
+
+    .register-card .reg-btn {
+      width: 100%;
+      padding: 0.8rem;
+      background: var(--gradient-primary);
+      color: var(--white);
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 0.5rem;
+    }
+
+    .register-card .reg-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+    }
+
+    .register-card .reg-btn:disabled {
+      opacity: 0.6;
+      cursor: wait;
+      transform: none;
+    }
+
+    .register-card .reg-error {
+      display: none;
+      color: var(--err);
+      font-size: 0.8rem;
+      margin-bottom: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      background: rgba(239, 68, 68, 0.1);
+      border-radius: 6px;
+    }
+
+    .register-card .reg-error.show {
+      display: block;
+    }
+
+    .register-card .reg-success {
+      display: none;
+      text-align: center;
+      padding: 1.5rem 0;
+    }
+
+    .register-card .reg-success.show {
+      display: block;
+    }
+
+    .register-card .reg-success h3 {
+      text-align: center;
+      color: var(--secondary);
+      margin-bottom: 0.5rem;
+    }
+
+    .register-card .reg-success p {
+      color: var(--gray-400);
+      font-size: 0.85rem;
+      text-align: center;
+    }
+
+    .register-card .skip-link {
+      display: block;
+      text-align: center;
+      margin-top: 1rem;
+      color: var(--gray-500);
+      font-size: 0.8rem;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .register-card .skip-link:hover {
+      color: var(--gray-300);
+    }
+
+    .tier-badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.15rem 0.5rem;
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: 4px;
+      color: var(--primary-light);
+      margin-left: 0.5rem;
+      vertical-align: middle;
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
       header { padding: 1rem; }
@@ -788,7 +916,7 @@
       <div class="form-card confirmation" id="confirmation">
         <div class="confirmation-check">&#x2713;</div>
         <h2 id="confirmTitle">Your Workspace is Ready</h2>
-        <p id="confirmSubtitle">Here's your auto-configured governance profile.</p>
+        <p id="confirmSubtitle">Here's your auto-configured governance profile. No data was stored — this was generated live.</p>
 
         <div style="display: inline-block; padding: 0.5rem 1.25rem; background: var(--dark); border: 1px solid var(--gray-700); border-radius: 8px; font-family: monospace; color: var(--secondary); font-size: 0.9rem;" id="runId"></div>
         <p style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--gray-500);">Your setup ID</p>
@@ -825,6 +953,41 @@
 
         <!-- Evidence footer -->
         <div class="evidence-footer" id="evidenceFooter"></div>
+
+        <!-- Registration Card (appears after workspace is configured) -->
+        <div class="register-card" id="registerCard">
+          <div id="regForm">
+            <h3>Create Your Account <span class="tier-badge">FREE</span></h3>
+            <p class="reg-subtitle">Save your workspace and get 50 AI queries/month. No credit card required.</p>
+            <p class="reg-subtitle" style="margin-top: -1rem; font-size: 0.75rem; color: var(--gray-600);">Creating an account stores your email, organization, and usage data. Your configuration above was generated live with no data stored.</p>
+
+            <div class="reg-error" id="regError"></div>
+
+            <div class="form-group">
+              <label class="form-label" for="regEmail">Email</label>
+              <input type="email" class="form-input" id="regEmail" placeholder="you@company.com" required>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div class="form-group">
+                <label class="form-label" for="regPassword">Password</label>
+                <input type="password" class="form-input" id="regPassword" placeholder="Min 8 chars, letter + number" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="regPasswordConfirm">Confirm Password</label>
+                <input type="password" class="form-input" id="regPasswordConfirm" placeholder="Confirm password" required>
+              </div>
+            </div>
+
+            <button type="button" class="reg-btn" id="regBtn" onclick="handleRegistration()">Create Account</button>
+            <a class="skip-link" onclick="document.getElementById('registerCard').style.display='none'">Skip for now</a>
+          </div>
+
+          <div class="reg-success" id="regSuccess">
+            <h3>Account Created</h3>
+            <p>You're logged in. Redirecting to your workspace...</p>
+          </div>
+        </div>
 
         <p style="margin-top: 1.5rem; font-size: 0.85rem; color: var(--gray-500);">
           Questions? <a href="mailto:support@aceadvising.com" style="color: var(--primary-light);">support@aceadvising.com</a>
@@ -1098,6 +1261,9 @@
 
         document.getElementById('confirmation').classList.add('show');
         window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        // Show registration card after confirmation (Phase 2: self-service signup)
+        setTimeout(() => showRegistrationCard(), 800);
       } catch (err) {
         // Re-enable button on error (with 3s debounce)
         console.error('[Onboarding] Submission error:', err);
@@ -1112,6 +1278,111 @@
         }, 3000);
       }
     });
+
+    // ═══════════════════════════════════════════════════════════════
+    // REGISTRATION (Phase 2: Self-Service Signup)
+    // ═══════════════════════════════════════════════════════════════
+
+    function showRegistrationCard() {
+      const card = document.getElementById('registerCard');
+      const emailField = document.getElementById('regEmail');
+
+      // Pre-fill email from onboarding form
+      const savedEmail = document.getElementById('userEmail').value.trim();
+      if (savedEmail) emailField.value = savedEmail;
+
+      card.classList.add('show');
+    }
+
+    async function handleRegistration() {
+      const btn = document.getElementById('regBtn');
+      const errEl = document.getElementById('regError');
+      const email = document.getElementById('regEmail').value.trim();
+      const password = document.getElementById('regPassword').value;
+      const confirmPassword = document.getElementById('regPasswordConfirm').value;
+
+      // Client-side validation
+      errEl.classList.remove('show');
+
+      if (!email || !password || !confirmPassword) {
+        errEl.textContent = 'Please fill in all fields.';
+        errEl.classList.add('show');
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        errEl.textContent = 'Passwords do not match.';
+        errEl.classList.add('show');
+        return;
+      }
+
+      if (password.length < 8) {
+        errEl.textContent = 'Password must be at least 8 characters.';
+        errEl.classList.add('show');
+        return;
+      }
+
+      if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+        errEl.textContent = 'Password must contain at least one letter and one number.';
+        errEl.classList.add('show');
+        return;
+      }
+
+      // Disable button
+      btn.disabled = true;
+      btn.textContent = 'Creating account...';
+
+      // Gather context from onboarding
+      const giaConfig = JSON.parse(localStorage.getItem('gia_config') || '{}');
+
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: email,
+            password: password,
+            displayName: document.getElementById('userName').value.trim() || email.split('@')[0],
+            organizationName: document.getElementById('orgName').value.trim() || 'My Organization',
+            setupId: giaConfig.setupId || giaConfig.configurationId || null,
+            domainType: giaConfig.workforceType || null,
+          })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || `Registration failed (${res.status})`);
+        }
+
+        // Store auth token
+        sessionStorage.setItem('gia_token', data.token);
+        sessionStorage.setItem('gia_session', JSON.stringify({
+          sessionId: data.sessionId,
+          user: data.user,
+          tenant: data.tenant,
+        }));
+
+        // Update gia_config with account info
+        const updatedConfig = { ...giaConfig, ...data.user, tenantId: data.tenant.id, registered: true };
+        localStorage.setItem('gia_config', JSON.stringify(updatedConfig));
+
+        // Show success
+        document.getElementById('regForm').style.display = 'none';
+        document.getElementById('regSuccess').classList.add('show');
+
+        // Redirect after 2 seconds
+        setTimeout(() => {
+          window.location.href = '/app';
+        }, 2000);
+
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.add('show');
+        btn.disabled = false;
+        btn.textContent = 'Create Account';
+      }
+    }
   </script>
 </body>
 </html>

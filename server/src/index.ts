@@ -33,6 +33,8 @@ import { generateUUID } from './utils/crypto';
 import { initialize as initDb, shutdown as shutdownDb } from './db/connection';
 import * as userRepository from './db/repositories/userRepository';
 import { createCasesRouter } from './routes/cases';
+import { createAuthRouter } from './routes/auth';
+import * as tenantRepository from './db/repositories/tenantRepository';
 
 // Security modules
 import {
@@ -213,6 +215,10 @@ app.use('/api', (req, res, next) => {
   if (isPublicRoute(req.path)) return next();
   tenantIsolationMiddleware(req, res, next);
 });
+
+// Auth routes: registration (public, rate-limited)
+app.use('/api/auth', express.json({ limit: '4kb' }));
+app.use('/api/auth', createAuthRouter());
 
 // Onboarding: hard body size cap (4KB) + multi-key rate limiter + route
 app.use('/api/onboarding', express.json({ limit: '4kb' }));
@@ -487,6 +493,11 @@ async function start() {
     // Initialize database connection and run migrations
     await initDb();
     log.info('Database initialized');
+
+    // Load tenant cache from PostgreSQL (after migrations)
+    await tenantRepository.loadCache().catch(err => {
+      log.warn('Tenant cache load skipped (table may not exist yet)', { error: err.message });
+    });
 
     // Initialize security modules
     await initializeSecurity();

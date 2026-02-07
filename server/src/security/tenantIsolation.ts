@@ -15,6 +15,7 @@ import { logger } from '../logger';
 import { complianceMode } from './complianceMode';
 import { secureAuditStore } from '../audit/auditStoreSecure';
 import { AuthenticatedRequest } from '../auth/middleware';
+import * as tenantRepository from '../db/repositories/tenantRepository';
 
 const log = logger.child({ component: 'TenantIsolation' });
 
@@ -53,10 +54,29 @@ const tenantRegistry: Map<string, TenantContext> = new Map([
 ]);
 
 /**
- * Get tenant context
+ * Get tenant context (checks in-memory registry first, then DB cache)
  */
 export function getTenantContext(tenantId: string): TenantContext | null {
-  return tenantRegistry.get(tenantId) || null;
+  const inMemory = tenantRegistry.get(tenantId);
+  if (inMemory) return inMemory;
+
+  // Check DB-backed cache (populated from tenantRepository)
+  const dbCached = tenantRepository.getAllCached().get(tenantId);
+  if (dbCached) {
+    // Promote to in-memory registry for future lookups
+    const ctx: TenantContext = {
+      tenantId: dbCached.id,
+      tenantName: dbCached.name,
+      tier: dbCached.tier,
+      dataRegion: dbCached.dataRegion,
+      isolationLevel: dbCached.isolationLevel,
+      features: new Set(dbCached.features),
+    };
+    tenantRegistry.set(tenantId, ctx);
+    return ctx;
+  }
+
+  return null;
 }
 
 /**
