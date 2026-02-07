@@ -2194,19 +2194,43 @@
     </div>
   </div>
 
-  <!-- Auth guard: requires login before console loads -->
+  <!-- Auth guard: checks sessionStorage directly (no dependency on gia-core.js load order) -->
   <script>
     (function() {
-      if (window.GIA && window.GIA.auth && !window.GIA.auth.isLoggedIn()) {
-        // Halt page parsing and redirect immediately
+      var token = sessionStorage.getItem('gia_token');
+      if (!token) {
         window.location.replace('/login');
-        window.stop(); // Stop loading remaining scripts/resources
-        document.documentElement.innerHTML = ''; // Clear DOM to prevent flash
+        window.stop();
+        document.documentElement.innerHTML = '';
         return;
       }
-      // Store auth reference before console's local GIA overrides window.GIA
-      window._giaAuth = window.GIA ? window.GIA.auth : null;
-      window._giaSounds = window.GIA ? window.GIA.sounds : null;
+      // Basic JWT expiry check (payload is second segment, base64url-encoded)
+      try {
+        var parts = token.split('.');
+        if (parts.length === 3) {
+          var payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+          if (payload.exp && payload.exp <= Math.floor(Date.now() / 1000)) {
+            sessionStorage.removeItem('gia_token');
+            sessionStorage.removeItem('gia_session');
+            window.location.replace('/login');
+            window.stop();
+            document.documentElement.innerHTML = '';
+            return;
+          }
+        }
+      } catch(e) {
+        // Malformed token — clear and redirect
+        sessionStorage.removeItem('gia_token');
+        sessionStorage.removeItem('gia_session');
+        window.location.replace('/login');
+        window.stop();
+        document.documentElement.innerHTML = '';
+        return;
+      }
+      // Grab gia-core.js auth/sounds refs NOW (before console's script overwrites window.GIA)
+      // gia-core.js is a blocking <script> in <head>, so it has already executed at this point
+      window._giaAuth = (window.GIA && window.GIA.auth) ? window.GIA.auth : null;
+      window._giaSounds = (window.GIA && window.GIA.sounds) ? window.GIA.sounds : null;
     })();
   </script>
 

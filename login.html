@@ -346,12 +346,22 @@
   </main>
 
   <script>
-    // Redirect if already logged in
-    document.addEventListener('DOMContentLoaded', () => {
-      if (GIA.auth && GIA.auth.isLoggedIn()) {
-        window.location.href = '/console';
+    // Redirect if already logged in (check sessionStorage directly for reliability)
+    (function() {
+      var token = sessionStorage.getItem('gia_token');
+      if (token) {
+        try {
+          var parts = token.split('.');
+          if (parts.length === 3) {
+            var payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+            if (!payload.exp || payload.exp > Math.floor(Date.now() / 1000)) {
+              window.location.href = '/console';
+              return;
+            }
+          }
+        } catch(e) { /* invalid token, let them re-login */ }
       }
-    });
+    })();
 
     async function handleLogin(e) {
       e.preventDefault();
