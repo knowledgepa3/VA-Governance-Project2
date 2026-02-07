@@ -6,6 +6,7 @@
   <title>GIA Platform | Enterprise AI Governance</title>
   <meta name="description" content="Governed Intelligence Architecture - The control plane for enterprise AI. Audit trails, approval gates, and compliance built in.">
   <link rel="icon" type="image/svg+xml" href="/shared/gia-icon.svg">
+  <script src="/shared/gia-core.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -813,8 +814,20 @@
         <a href="#features">Features</a>
         <a href="#compliance">Compliance</a>
         <a href="/console">Console</a>
-        <a href="/onboarding" class="nav-cta">Get Started</a>
+        <a href="/login" id="navAuthLink" class="nav-cta">Sign In</a>
       </nav>
+      <script>
+        // Dynamic nav: show user name when logged in
+        document.addEventListener('DOMContentLoaded', () => {
+          if (window.GIA && window.GIA.auth && window.GIA.auth.isLoggedIn()) {
+            const link = document.getElementById('navAuthLink');
+            const name = window.GIA.auth.getDisplayName() || 'Console';
+            link.textContent = name;
+            link.href = '/console';
+            link.title = 'Go to Console (click to sign out)';
+          }
+        });
+      </script>
     </div>
   </header>
 

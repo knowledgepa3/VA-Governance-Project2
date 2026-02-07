@@ -8,8 +8,9 @@
  *
  * Provides:
  * - GIA.config       - Runtime configuration
+ * - GIA.auth         - Authentication state management
  * - GIA.sounds       - JARVIS-style audio feedback
- * - GIA.api          - Claude API wrapper
+ * - GIA.api          - Claude API wrapper (backend proxy)
  * - GIA.evidence     - Hash chains & evidence packs
  * - GIA.utils        - Common utilities
  */
@@ -22,7 +23,7 @@
   // ============================================
 
   const GIA = {
-    VERSION: '0.2.0',
+    VERSION: '0.3.0',
     initialized: false
   };
 
@@ -49,6 +50,171 @@
       return this.isDemoMode ? 'LOCAL_DEMO' : 'BACKEND';
     }
   });
+
+  // ============================================
+  // AUTH - Authentication State Management
+  // ============================================
+  // Single source of truth for client-side auth.
+  // JWT stored in sessionStorage (cleared on tab close).
+  // Server is the authority — client auth is a UX convenience.
+
+  GIA.auth = {
+    _TOKEN_KEY: 'gia_token',
+    _SESSION_KEY: 'gia_session',
+
+    /**
+     * Get the current JWT token
+     * @returns {string|null}
+     */
+    getToken() {
+      return sessionStorage.getItem(this._TOKEN_KEY);
+    },
+
+    /**
+     * Get the current session (user, tenant, sessionId)
+     * @returns {object|null}
+     */
+    getSession() {
+      try {
+        const raw = sessionStorage.getItem(this._SESSION_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    },
+
+    /**
+     * Check if user is logged in with a non-expired token.
+     * Decodes JWT exp claim client-side (server still validates).
+     * @returns {boolean}
+     */
+    isLoggedIn() {
+      const token = this.getToken();
+      if (!token) return false;
+
+      try {
+        // Decode payload (base64url → JSON) — NOT a security check, just expiry UX
+        const parts = token.split('.');
+        if (parts.length !== 3) return false;
+
+        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+        const now = Math.floor(Date.now() / 1000);
+
+        // Token expired?
+        if (payload.exp && payload.exp <= now) {
+          console.log('[GIA Auth] Token expired, clearing session');
+          this.clearSession();
+          return false;
+        }
+
+        return true;
+      } catch {
+        return false;
+      }
+    },
+
+    /**
+     * Store auth data after login or registration.
+     * @param {object} data - Response from /api/auth/login or /api/auth/register
+     *   Expected shape: { token, sessionId, user, tenant }
+     */
+    setSession(data) {
+      if (!data || !data.token) {
+        console.error('[GIA Auth] setSession called without token');
+        return;
+      }
+
+      sessionStorage.setItem(this._TOKEN_KEY, data.token);
+      sessionStorage.setItem(this._SESSION_KEY, JSON.stringify({
+        sessionId: data.sessionId,
+        user: data.user,
+        tenant: data.tenant
+      }));
+
+      console.log('[GIA Auth] Session stored for', data.user?.email || 'unknown');
+    },
+
+    /**
+     * Clear all auth data
+     */
+    clearSession() {
+      sessionStorage.removeItem(this._TOKEN_KEY);
+      sessionStorage.removeItem(this._SESSION_KEY);
+      console.log('[GIA Auth] Session cleared');
+    },
+
+    /**
+     * Logout: clear session and redirect to login
+     */
+    logout() {
+      this.clearSession();
+      window.location.href = '/login';
+    },
+
+    /**
+     * Auth guard — call on page load for protected pages.
+     * Redirects to /login if not authenticated.
+     * @returns {boolean} true if authenticated
+     */
+    requireAuth() {
+      if (!this.isLoggedIn()) {
+        console.log('[GIA Auth] Not authenticated, redirecting to /login');
+        window.location.href = '/login';
+        return false;
+      }
+      return true;
+    },
+
+    /**
+     * Authenticated fetch wrapper.
+     * Adds Authorization header, handles 401 → redirect to login.
+     * @param {string} url
+     * @param {object} opts - fetch options
+     * @returns {Promise<Response>}
+     */
+    async authFetch(url, opts = {}) {
+      const token = this.getToken();
+      if (!token) {
+        this.logout();
+        throw new Error('No auth token');
+      }
+
+      const headers = {
+        ...opts.headers,
+        'Authorization': `Bearer ${token}`
+      };
+
+      const response = await fetch(url, { ...opts, headers });
+
+      // Auto-logout on 401
+      if (response.status === 401) {
+        console.warn('[GIA Auth] 401 received, session expired');
+        this.clearSession();
+        window.location.href = '/login';
+        throw new Error('Session expired');
+      }
+
+      return response;
+    },
+
+    /**
+     * Get display name for nav UI
+     * @returns {string}
+     */
+    getDisplayName() {
+      const session = this.getSession();
+      return session?.user?.displayName || session?.user?.email || '';
+    },
+
+    /**
+     * Get user role
+     * @returns {string}
+     */
+    getRole() {
+      const session = this.getSession();
+      return session?.user?.role || '';
+    }
+  };
 
   // ============================================
   // SOUNDS - JARVIS-style Audio Feedback
@@ -160,7 +326,7 @@
   // ============================================
 
   GIA.api = {
-    // Session-only key storage (security: never persisted)
+    // Legacy: session-only key for direct Anthropic calls (demo mode fallback)
     _sessionKey: null,
 
     // Version info for reproducibility
@@ -170,6 +336,7 @@
       apiVersion: '2023-06-01'
     },
 
+    // Legacy methods — kept for backward compat with console.html direct calls
     getApiKey() {
       return this._sessionKey || '';
     },
@@ -184,16 +351,86 @@
       console.log('[GIA API] Key cleared');
     },
 
+    /**
+     * Check if API is available — either via auth (backend proxy) or legacy API key.
+     * @returns {boolean}
+     */
     hasApiKey() {
+      // Authenticated users route through backend proxy — no client-side key needed
+      if (GIA.auth && GIA.auth.isLoggedIn()) {
+        return true;
+      }
+      // Legacy: direct Anthropic call with client-side key
       const key = this.getApiKey();
       return key && key.length > 10 && key.startsWith('sk-ant-');
     },
 
-    // Generic Claude API call
+    /**
+     * Check if using authenticated backend proxy vs legacy direct calls
+     * @returns {boolean}
+     */
+    _useProxy() {
+      return GIA.auth && GIA.auth.isLoggedIn() && !this._sessionKey;
+    },
+
+    /**
+     * Generic Claude API call.
+     * Routes through backend proxy (/api/ai/chat) when authenticated.
+     * Falls back to direct Anthropic API when legacy _sessionKey is set.
+     */
     async call(systemPrompt, userPrompt, options = {}) {
+      // Route 1: Backend proxy (authenticated users)
+      if (this._useProxy()) {
+        return await this._callProxy(systemPrompt, userPrompt, options);
+      }
+
+      // Route 2: Legacy direct Anthropic call (demo mode / API key set)
+      return await this._callDirect(systemPrompt, userPrompt, options);
+    },
+
+    /**
+     * Backend proxy call via /api/ai/chat
+     * Server holds the Anthropic key — never exposed to browser.
+     */
+    async _callProxy(systemPrompt, userPrompt, options = {}) {
+      const response = await GIA.auth.authFetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: options.model || this.VERSION.model,
+          maxTokens: options.maxTokens || 4096,
+          systemPrompt: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }]
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || `API error: ${response.status}`);
+      }
+
+      // Proxy returns { content: "text", contentBlocks: [...], model, usage }
+      const data = await response.json();
+      const text = data.content || (data.contentBlocks?.[0]?.text) || '';
+      return {
+        success: true,
+        content: text,
+        usage: data.usage,
+        model: data.model,
+        version: {
+          ...this.VERSION,
+          timestamp: new Date().toISOString()
+        }
+      };
+    },
+
+    /**
+     * Legacy direct Anthropic API call (requires client-side API key)
+     */
+    async _callDirect(systemPrompt, userPrompt, options = {}) {
       const apiKey = this.getApiKey();
       if (!apiKey) {
-        throw new Error('No API key configured');
+        throw new Error('No API key configured. Sign in at /login or set a key with GIA.api.setApiKey()');
       }
 
       const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -540,6 +777,8 @@ Provide your analysis with:
     // Log version
     console.log(`[GIA] Core v${this.VERSION} initialized`);
     console.log(`[GIA] Mode: ${this.config.isDemoMode ? 'DEMO' : 'LIVE'}`);
+    console.log(`[GIA] Auth: ${this.auth.isLoggedIn() ? 'AUTHENTICATED (' + this.auth.getDisplayName() + ')' : 'NOT AUTHENTICATED'}`);
+    console.log(`[GIA] API route: ${this.auth.isLoggedIn() ? 'BACKEND PROXY (/api/ai/chat)' : 'DIRECT (requires API key)'}`);
 
     // Initialize sound state from localStorage
     if (localStorage.getItem('gia_sounds') === 'off') {

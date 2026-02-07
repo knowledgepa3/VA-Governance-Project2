@@ -101,7 +101,8 @@ export default defineConfig(({ mode }) => {
             onboarding: path.resolve(__dirname, 'onboarding.html'),
             console: path.resolve(__dirname, 'console.html'),
             bd: path.resolve(__dirname, 'bd.html'),
-            va: path.resolve(__dirname, 'index.html')
+            va: path.resolve(__dirname, 'index.html'),
+            login: path.resolve(__dirname, 'login.html')
           }
         }
       }

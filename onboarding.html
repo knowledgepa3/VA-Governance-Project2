@@ -6,6 +6,7 @@
   <title>GIA | Get Started</title>
   <meta name="description" content="Set up your GIA governed AI workspace. Choose your domain, configure governance, and launch your first workflow.">
   <link rel="icon" type="image/svg+xml" href="/shared/gia-icon.svg">
+  <script src="/shared/gia-core.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -758,8 +759,17 @@
         <a href="/">Home</a>
         <a href="/app">Workflows</a>
         <a href="/console">Console</a>
-        <a href="/bd">BD Dashboard</a>
+        <a href="/login" id="navAuthLink">Sign In</a>
       </nav>
+      <script>
+        document.addEventListener('DOMContentLoaded', () => {
+          if (window.GIA && window.GIA.auth && window.GIA.auth.isLoggedIn()) {
+            const link = document.getElementById('navAuthLink');
+            link.textContent = window.GIA.auth.getDisplayName() || 'Console';
+            link.href = '/console';
+          }
+        });
+      </script>
     </div>
   </header>
 
@@ -1355,13 +1365,18 @@
           throw new Error(data.error || `Registration failed (${res.status})`);
         }
 
-        // Store auth token
-        sessionStorage.setItem('gia_token', data.token);
-        sessionStorage.setItem('gia_session', JSON.stringify({
-          sessionId: data.sessionId,
-          user: data.user,
-          tenant: data.tenant,
-        }));
+        // Store auth session via GIA.auth (single source of truth)
+        if (window.GIA && window.GIA.auth) {
+          window.GIA.auth.setSession(data);
+        } else {
+          // Fallback if gia-core.js didn't load
+          sessionStorage.setItem('gia_token', data.token);
+          sessionStorage.setItem('gia_session', JSON.stringify({
+            sessionId: data.sessionId,
+            user: data.user,
+            tenant: data.tenant,
+          }));
+        }
 
         // Update gia_config with account info
         const updatedConfig = { ...giaConfig, ...data.user, tenantId: data.tenant.id, registered: true };
@@ -1373,7 +1388,7 @@
 
         // Redirect after 2 seconds
         setTimeout(() => {
-          window.location.href = '/app';
+          window.location.href = '/console';
         }, 2000);
 
       } catch (err) {
