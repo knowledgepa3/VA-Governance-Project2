@@ -1212,6 +1212,19 @@
       const domainValue = domainInput?.value || 'unknown';
       const customDomainText = document.getElementById('customDomainInput')?.value || '';
 
+      // Readable labels for the email notification
+      const domainLabels = {
+        'va-claims': 'VA Claims Support',
+        'bd-capture': 'Business Development',
+        'legal': 'Legal & Compliance',
+        'finance': 'Finance & Accounting',
+        'research': 'Research & Analysis',
+        'custom': customDomainText || 'Custom Domain'
+      };
+      const approvalLabels = ['Minimal', 'Standard', 'Maximum'];
+      const costLabels = ['$10/day', '$50/day', '$200/day', 'Unlimited'];
+      const evidenceLabels = ['Basic Logs', 'Standard', 'Full Recording'];
+
       // Build config
       const config = {
         orgName: document.getElementById('orgName').value.trim(),
@@ -1229,33 +1242,27 @@
       // Save config to localStorage
       localStorage.setItem('gia_config', JSON.stringify(config));
 
-      // Try to persist to backend (non-blocking — don't fail onboarding if server is down)
+      // Send signup notification via Formspree (you get an email for every signup)
       try {
-        const token = localStorage.getItem('ace_token');
-        if (token) {
-          await fetch('/api/cases', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              claimType: domainValue === 'va-claims' ? 'VA Disability Claim' : domainValue,
-              conditionCount: 0,
-              priority: 'medium',
-              profileData: {
-                orgName: config.orgName,
-                contactName: config.userName,
-                contactEmail: config.userEmail,
-                domain: domainValue,
-                onboardedAt: config.setupDate
-              }
-            })
-          });
-          console.log('[Onboarding] Case persisted to backend');
-        }
+        await fetch('https://formspree.io/f/xwvqggle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({
+            _subject: 'New GIA Onboarding Signup',
+            name: config.userName,
+            email: config.userEmail,
+            organization: config.orgName,
+            domain: domainLabels[domainValue] || domainValue,
+            approval_level: approvalLabels[(config.approval - 1)] || config.approval,
+            cost_limit: costLabels[(config.cost - 1)] || config.cost,
+            evidence_level: evidenceLabels[(config.evidence - 1)] || config.evidence,
+            signup_date: config.setupDate,
+            source: 'onboarding-wizard'
+          })
+        });
+        console.log('[Onboarding] Signup notification sent');
       } catch (err) {
-        console.warn('[Onboarding] Backend persist failed (non-critical):', err.message);
+        console.warn('[Onboarding] Formspree notification failed (non-critical):', err.message);
       }
 
       // Populate launch options based on domain
