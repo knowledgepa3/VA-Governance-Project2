@@ -1,33 +1,54 @@
 /**
- * Onboarding Configuration Route
+ * Onboarding Configuration Route — Public Constrained Endpoint
  *
  * POST /api/onboarding/configure
  *
- * Unauthenticated endpoint (rate-limited by IP) that:
- * 1. Takes onboarding form data (org, domain, governance level)
- * 2. Maps domain to existing workforce type or calls Claude for custom domains
- * 3. Runs GIA governance classification (MAI + EU AI Act risk tier)
- * 4. Returns a workspace configuration the frontend can display
+ * Public pre-auth route with constrained capability:
+ * - No privileged actions, no sensitive data access
+ * - Strict input/output schema
+ * - No tool execution, no internal system access
+ * - Multi-key rate limited + security logged
  *
- * Layer Check: Execution (Claude call) + Governance (MAI + risk)
- * Evidence: Audit entry with config hash, no PII stored server-side
+ * Processing:
+ * 1. Bot detection (honeypot + timing)
+ * 2. Input validation (strict schema)
+ * 3. Domain → workforce mapping (deterministic first, LLM fallback)
+ * 4. GIA governance classification (MAI + EU AI Act risk tier)
+ * 5. HMAC-signed evidence artifact
+ * 6. Audit entry (no PII)
+ *
+ * Layer Check: Execution (Claude call) + Governance (MAI + risk) + Evidence (signed hash)
  */
 
 import Anthropic from '@anthropic-ai/sdk';
 import { Router, Request, Response } from 'express';
 import { logger } from '../logger';
-import { hashObject, generateUUID, fingerprint } from '../utils/crypto';
+import { hashObject, generateUUID, fingerprint, createSignedEvidence } from '../utils/crypto';
 import { secureAuditStore } from '../audit/auditStoreSecure';
 import {
   classifyDecision,
   assessRiskTier,
   mapDomainToWorkforce,
   buildWorkforceMappingFromClaude,
+  buildCannotClassifyMapping,
+  validateClaudeResponse,
   getGovernanceRecommendations,
   WORKFORCE_TEMPLATES,
 } from '../governance/onboardingGovernance';
+import {
+  logOnboardingRequest,
+  logBotDetection,
+  hashIp,
+  hashEmail,
+  hashOrg,
+  MatchType,
+} from '../security/securityLogger';
 
 const log = logger.child({ component: 'OnboardingRoute' });
+
+// Policy + template versions (bump when logic changes)
+const POLICY_VERSION = '1.0.0';
+const TEMPLATE_VERSION = '1.0.0';
 
 // Initialize Claude client (reuses server-side API key)
 const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -37,7 +58,7 @@ if (apiKey) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// CLAUDE PROMPT FOR WORKSPACE CONFIGURATION
+// CLAUDE PROMPT — PINNED CONTRACT
 // ═══════════════════════════════════════════════════════════════════
 
 const SYSTEM_PROMPT = `You are a workspace configuration engine for the GIA (Governed Intelligence Architecture) platform. Analyze the user's domain and recommend the optimal workspace configuration.
@@ -60,16 +81,17 @@ You have 5 existing workforce types:
    Agents: Grant Opportunity Analyzer, Eligibility Validator, Narrative Writer, Budget Developer, Compliance Checker, Evaluator Lens, Grant QA, Application Assembler, Telemetry.
 
 RULES:
-- If the domain clearly maps to an existing type, use it (confidence > 0.7).
-- If the domain is ambiguous, pick the closest match but note low confidence.
-- For truly novel domains, set matchedType to null and create a custom pipeline name, description, and roles.
+- If the domain clearly maps to an existing type, use it (confidence >= 0.5).
+- If the domain is ambiguous or doesn't clearly fit, set matchedType to "CANNOT_CLASSIFY".
+- NEVER invent a confident match. If confidence < 0.5, you MUST use "CANNOT_CLASSIFY".
+- For truly novel domains with CANNOT_CLASSIFY, still suggest a reasonable pipelineName, description, and roles.
 - Always recommend a primaryLaunchUrl: "/app" for most verticals, "/bd" for BD, "/console" for custom/experimental.
 
-Respond ONLY with valid JSON (no markdown, no code fences):
+Respond ONLY with valid JSON (no markdown, no code fences). Use this EXACT schema:
 {
-  "matchedType": "VA_CLAIMS" | "FINANCIAL_AUDIT" | "CYBER_IR" | "BD_CAPTURE" | "GRANT_WRITING" | null,
+  "matchedType": "VA_CLAIMS" | "FINANCIAL_AUDIT" | "CYBER_IR" | "BD_CAPTURE" | "GRANT_WRITING" | "CANNOT_CLASSIFY" | null,
   "matchConfidence": <number 0-1>,
-  "matchRationale": "<string>",
+  "matchRationale": "<string explaining your reasoning>",
   "isCustom": <boolean>,
   "pipelineName": "<string>",
   "pipelineDescription": "<string>",
@@ -78,25 +100,27 @@ Respond ONLY with valid JSON (no markdown, no code fences):
 }`;
 
 // ═══════════════════════════════════════════════════════════════════
-// INPUT VALIDATION
+// INPUT VALIDATION — STRICT SCHEMA
 // ═══════════════════════════════════════════════════════════════════
 
 const VALID_GOVERNANCE = ['Advisory', 'Strict', 'Regulated'];
 const SETUP_ID_PATTERN = /^GIA-\d{4}-\d{4}-\d{3}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_FIELD_LENGTH = 100;
-const MAX_DOMAIN_LENGTH = 600; // "Custom: " + 500 chars description
+const MAX_DOMAIN_LENGTH = 600;
+const MIN_SUBMIT_TIME_MS = 2000; // Bot timing check: < 2s = suspicious
 
 function sanitizeString(input: string, maxLen: number): string {
   return String(input || '')
     .trim()
     .slice(0, maxLen)
-    .replace(/[<>"'`]/g, ''); // Strip potential XSS/injection chars
+    .replace(/[<>"'`]/g, '');
 }
 
 interface ValidationResult {
   valid: boolean;
   errors: Record<string, string>;
+  botDetected: boolean;
   sanitized: {
     organization: string;
     name: string;
@@ -109,6 +133,20 @@ interface ValidationResult {
 
 function validateInput(body: any): ValidationResult {
   const errors: Record<string, string> = {};
+  let botDetected = false;
+
+  // Bot detection: honeypot field
+  if (body.website && String(body.website).trim().length > 0) {
+    botDetected = true;
+  }
+
+  // Bot detection: timing check
+  if (body._t && typeof body._t === 'number') {
+    const elapsed = Date.now() - body._t;
+    if (elapsed < MIN_SUBMIT_TIME_MS) {
+      botDetected = true;
+    }
+  }
 
   const organization = sanitizeString(body.organization, MAX_FIELD_LENGTH);
   const name = sanitizeString(body.name, MAX_FIELD_LENGTH);
@@ -128,6 +166,7 @@ function validateInput(body: any): ValidationResult {
   return {
     valid: Object.keys(errors).length === 0,
     errors,
+    botDetected,
     sanitized: { organization, name, email, domain, governance, setupId }
   };
 }
@@ -142,16 +181,37 @@ export function createOnboardingRouter(): Router {
   router.post('/configure', async (req: Request, res: Response) => {
     const startTime = Date.now();
     const configurationId = generateUUID();
+    const ipHash = hashIp(req.ip || req.socket.remoteAddress);
+    let matchType: MatchType = 'DIRECT_MATCH';
+    let statusCode = 200;
 
     try {
-      // 1. Validate input
+      // 1. Validate input + bot detection
       const validation = validateInput(req.body);
+
+      // Bot detected — generic 400, don't reveal detection method
+      if (validation.botDetected) {
+        statusCode = 400;
+        logBotDetection({
+          request_id: configurationId,
+          ip_hash: ipHash,
+          detection_type: req.body?.website ? 'honeypot' : 'timing',
+          path: req.path,
+        });
+        res.status(400).json({ error: 'Invalid request', code: 'VALIDATION_ERROR' });
+        return;
+      }
+
       if (!validation.valid) {
+        statusCode = 400;
         res.status(400).json({ error: 'Validation failed', code: 'VALIDATION_ERROR', fields: validation.errors });
         return;
       }
 
       const { organization, name, email, domain, governance, setupId } = validation.sanitized;
+      const emailDomain = email.split('@')[1] || 'unknown';
+      const orgHash = hashOrg(organization, emailDomain);
+      const identHash = hashEmail(email);
 
       log.info('Onboarding configuration requested', {
         configurationId,
@@ -160,26 +220,21 @@ export function createOnboardingRouter(): Router {
         governance
       });
 
-      // 2. Try direct workforce mapping first
+      // 2. Try direct workforce mapping first (deterministic, no LLM)
       let workforceMapping = mapDomainToWorkforce(domain, governance);
       let claudeModel = 'none';
       let tokenUsage = { input: 0, output: 0 };
 
-      // 3. If no direct mapping, call Claude
+      if (workforceMapping) {
+        matchType = 'DIRECT_MATCH';
+      }
+
+      // 3. If no direct mapping, call Claude (LLM fallback)
       if (!workforceMapping) {
         if (!anthropic) {
           log.warn('Claude unavailable for custom domain mapping — no API key');
-          // Fallback: default to console with generic config
-          workforceMapping = {
-            matchedType: null,
-            matchConfidence: 0.5,
-            matchRationale: 'Custom domain — default configuration applied',
-            isCustom: true,
-            pipelineName: `${organization} Workspace`,
-            roles: ['Gateway', 'Analyst', 'QA', 'Report Generator', 'Telemetry'],
-            description: `Custom governed workspace for ${domain}`,
-            primaryUrl: '/console',
-          };
+          matchType = 'FALLBACK';
+          workforceMapping = buildCannotClassifyMapping(organization, domain);
         } else {
           try {
             claudeModel = 'claude-3-5-haiku-20241022';
@@ -198,32 +253,30 @@ export function createOnboardingRouter(): Router {
               output: response.usage?.output_tokens || 0,
             };
 
-            // Parse Claude's JSON response
+            // Parse + validate Claude's response against strict schema
             const textBlock = response.content.find(b => b.type === 'text');
             if (!textBlock || textBlock.type !== 'text') {
               throw new Error('No text response from Claude');
             }
 
-            const claudeResult = JSON.parse(textBlock.text);
+            const rawParsed = JSON.parse(textBlock.text);
+            const validated = validateClaudeResponse(rawParsed);
 
-            // Validate required fields exist
-            if (typeof claudeResult.matchConfidence !== 'number' || !claudeResult.matchRationale) {
-              throw new Error('Invalid Claude response structure');
+            if (!validated) {
+              log.warn('Claude response failed schema validation', { configurationId });
+              matchType = 'FALLBACK';
+              workforceMapping = buildCannotClassifyMapping(organization, domain);
+            } else if (validated.matchedType === 'CANNOT_CLASSIFY' || validated.matchConfidence < 0.5) {
+              matchType = 'CANNOT_CLASSIFY';
+              workforceMapping = buildWorkforceMappingFromClaude(validated);
+            } else {
+              matchType = 'LLM_CLASSIFIED';
+              workforceMapping = buildWorkforceMappingFromClaude(validated);
             }
-
-            workforceMapping = buildWorkforceMappingFromClaude(claudeResult);
           } catch (claudeErr: any) {
             log.warn('Claude configuration failed, using fallback', { error: claudeErr.message });
-            workforceMapping = {
-              matchedType: null,
-              matchConfidence: 0.5,
-              matchRationale: 'Auto-configuration unavailable — default applied',
-              isCustom: true,
-              pipelineName: `${organization} Workspace`,
-              roles: ['Gateway', 'Analyst', 'QA', 'Report Generator', 'Telemetry'],
-              description: `Custom governed workspace for ${domain}`,
-              primaryUrl: '/console',
-            };
+            matchType = 'FALLBACK';
+            workforceMapping = buildCannotClassifyMapping(organization, domain);
           }
         }
       }
@@ -253,7 +306,27 @@ export function createOnboardingRouter(): Router {
         { label: 'Portal', url: '/', icon: 'globe' },
       ];
 
-      // 6. Assemble response
+      // 6. Create HMAC-signed evidence artifact
+      const configHash = hashObject(workforceMapping);
+      let evidenceHash = configHash;
+      let evidenceSignature = '';
+
+      try {
+        const signed = createSignedEvidence({
+          requestId: configurationId,
+          timestamp: new Date().toISOString(),
+          policyVersion: POLICY_VERSION,
+          templateVersion: TEMPLATE_VERSION,
+          configHash,
+        });
+        evidenceHash = signed.hash;
+        evidenceSignature = signed.signature;
+      } catch (signErr) {
+        // If JWT_SECRET missing (dev), fall back to unsigned hash
+        log.warn('Evidence signing failed — JWT_SECRET may be missing', { error: (signErr as Error).message });
+      }
+
+      // 7. Assemble response (strict output schema)
       const configuration = {
         setupId,
         configurationId,
@@ -289,13 +362,17 @@ export function createOnboardingRouter(): Router {
           links: launchLinks,
         },
         evidence: {
-          configHash: hashObject(workforceMapping),
+          configHash: evidenceHash,
+          signature: evidenceSignature,
+          policyVersion: POLICY_VERSION,
+          templateVersion: TEMPLATE_VERSION,
+          requestId: configurationId,
           model: claudeModel,
           tokenUsage,
         },
       };
 
-      // 7. Audit (no PII — only domain, governance, config hash)
+      // 8. Audit (no PII — only domain, governance, config hash)
       try {
         await secureAuditStore.append(
           { sub: 'anonymous', role: 'onboarding', sessionId: setupId, tenantId: 'pre-signup' },
@@ -304,11 +381,13 @@ export function createOnboardingRouter(): Router {
           {
             domain: fingerprint(domain),
             governance,
+            matchType,
             matchedWorkforceType: workforceMapping.matchedType,
             matchConfidence: workforceMapping.matchConfidence,
             riskTier: riskResult.risk_tier,
             maiClassification: maiResult.classification,
-            configHash: configuration.evidence.configHash,
+            evidenceHash,
+            evidenceSignature: evidenceSignature.slice(0, 16) + '...',
             claudeModel,
             inputTokens: tokenUsage.input,
             outputTokens: tokenUsage.output,
@@ -316,22 +395,45 @@ export function createOnboardingRouter(): Router {
           }
         );
       } catch (auditErr) {
-        // Don't fail the request if audit fails
         log.warn('Audit entry failed for onboarding config', { error: (auditErr as Error).message });
       }
 
-      log.info('Onboarding configuration generated', {
-        configurationId,
-        setupId,
-        matchedType: workforceMapping.matchedType,
-        riskTier: riskResult.risk_tier,
-        durationMs: Date.now() - startTime,
+      // 9. Security log (structured, PII hashed)
+      logOnboardingRequest({
+        request_id: configurationId,
+        ip_hash: ipHash,
+        org_hash: orgHash,
+        identifier_hash: identHash,
+        domain_requested: domain,
+        governance_level: governance,
+        match_type: matchType,
+        matched_workforce: workforceMapping.matchedType,
+        rate_limit: { allowed: true },
+        evidence: { hash: evidenceHash, signature: evidenceSignature.slice(0, 16) },
+        latency_ms: Date.now() - startTime,
+        status_code: 200,
       });
 
       res.json(configuration);
 
     } catch (err: any) {
+      statusCode = 500;
       log.error('Onboarding configuration error', { configurationId }, err);
+
+      logOnboardingRequest({
+        request_id: configurationId,
+        ip_hash: ipHash,
+        org_hash: '',
+        identifier_hash: '',
+        domain_requested: '',
+        governance_level: '',
+        match_type: 'DENIED',
+        matched_workforce: null,
+        rate_limit: { allowed: true },
+        latency_ms: Date.now() - startTime,
+        status_code: 500,
+      });
+
       res.status(500).json({
         error: 'Configuration generation failed',
         code: 'CONFIG_ERROR',

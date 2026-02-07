@@ -37,6 +37,7 @@ export type { ComplianceConfig };
 // Rate Limiting
 export {
   createRateLimiter,
+  createOnboardingRateLimiter,
   globalRateLimiter,
   strictRateLimiter,
   authRateLimiter,

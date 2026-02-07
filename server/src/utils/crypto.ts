@@ -8,7 +8,7 @@
  * deterministic output regardless of object key order.
  */
 
-import { createHash, randomUUID, randomBytes } from 'crypto';
+import { createHash, createHmac, randomUUID, randomBytes } from 'crypto';
 
 /**
  * SHA-256 hash of a string or buffer
@@ -151,4 +151,37 @@ export function hashWithSalt(data: string, salt: string): string {
  */
 export function fingerprint(data: unknown, length: number = 8): string {
   return hashObject(data).slice(0, length);
+}
+
+/**
+ * HMAC-SHA256 signature
+ * Used for non-forgeable evidence signing
+ */
+export function hmacSha256(data: string, secret: string): string {
+  return createHmac('sha256', secret).update(data).digest('hex');
+}
+
+/**
+ * Create a signed evidence artifact
+ *
+ * Produces a canonical hash + HMAC signature that proves:
+ * - Response integrity (hash matches content)
+ * - Server origin (only server has the signing secret)
+ * - Replay detection (timestamp + requestId are unique)
+ */
+export function createSignedEvidence(payload: {
+  requestId: string;
+  timestamp: string;
+  policyVersion: string;
+  templateVersion: string;
+  configHash: string;
+}): { hash: string; signature: string } {
+  const canonical = canonicalize(payload);
+  const hash = sha256Hex(canonical);
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET required for evidence signing');
+  }
+  const signature = hmacSha256(hash, secret);
+  return { hash, signature };
 }

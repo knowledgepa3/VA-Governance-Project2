@@ -78,10 +78,11 @@ const DEFAULT_LIMITS: Record<string, RateLimitConfig> = {
     message: 'Redaction scan rate limit exceeded.'
   },
 
-  // Onboarding configuration — strict (no auth, Claude API cost)
+  // Onboarding — handled by createOnboardingRateLimiter() (multi-key)
+  // This entry is a fallback if the dedicated middleware isn't applied
   '/api/onboarding': {
-    windowMs: 15 * 60 * 1000,   // 15 minutes
-    maxRequests: 3,              // 3 per 15min per IP
+    windowMs: 15 * 60 * 1000,
+    maxRequests: 5,
     message: 'Too many configuration requests. Please wait before trying again.'
   },
 
@@ -365,6 +366,96 @@ export const authRateLimiter = createRateLimiter({
   maxRequests: 5,
   message: 'Too many login attempts. Please try again later.'
 });
+
+/**
+ * Multi-key rate limiter for onboarding (public endpoint).
+ *
+ * Checks 3 independent keys — blocked if ANY exceeds:
+ * - ip:{hash}        → 5 per 15 min (coarse, handles botnets)
+ * - org:{hash}       → 3 per 15 min (fair use per company / NAT-safe)
+ * - ident:{hash}     → 2 per 15 min (abuse control per individual)
+ *
+ * Requires parsed body to extract org + email for hashing.
+ */
+export function createOnboardingRateLimiter() {
+  const windowMs = 15 * 60 * 1000; // 15 minutes
+
+  const keys: Array<{
+    name: string;
+    maxRequests: number;
+    extract: (req: Request) => string;
+  }> = [
+    {
+      name: 'ip',
+      maxRequests: 5,
+      extract: (req) => {
+        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        return `ip:${ip}:onboarding`;
+      }
+    },
+    {
+      name: 'org',
+      maxRequests: 3,
+      extract: (req) => {
+        const org = String(req.body?.organization || '').toLowerCase().trim();
+        const email = String(req.body?.email || '').toLowerCase().trim();
+        const emailDomain = email.split('@')[1] || 'unknown';
+        // Hash org+domain so NAT users from different orgs aren't grouped
+        const { createHash } = require('crypto');
+        const hash = createHash('sha256').update(`${org}:${emailDomain}`).digest('hex').slice(0, 16);
+        return `org:${hash}:onboarding`;
+      }
+    },
+    {
+      name: 'ident',
+      maxRequests: 2,
+      extract: (req) => {
+        const email = String(req.body?.email || '').toLowerCase().trim();
+        const { createHash } = require('crypto');
+        const hash = createHash('sha256').update(email).digest('hex').slice(0, 16);
+        return `ident:${hash}:onboarding`;
+      }
+    }
+  ];
+
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const config: RateLimitConfig = { windowMs, maxRequests: 5, message: 'Too many configuration requests. Please wait before trying again.' };
+
+    for (const keyDef of keys) {
+      const key = keyDef.extract(req);
+      const result = limiter.isAllowed(key, { ...config, maxRequests: keyDef.maxRequests });
+
+      if (!result.allowed) {
+        const retryAfter = Math.ceil((result.resetAt - Date.now()) / 1000);
+
+        log.warn('Onboarding rate limit exceeded', {
+          key_type: keyDef.name,
+          key: key.slice(0, 30),
+          path: req.path,
+          resetAt: new Date(result.resetAt).toISOString()
+        });
+
+        await secureAuditStore.append(
+          { sub: 'anonymous', role: 'onboarding', sessionId: 'rate-limit', tenantId: 'pre-signup' },
+          'RATE_LIMIT_EXCEEDED',
+          { type: 'endpoint', id: '/api/onboarding/configure' },
+          { key_type: keyDef.name, retryAfter }
+        ).catch(() => {});
+
+        res.setHeader('Retry-After', retryAfter);
+        res.status(429).json({
+          error: config.message,
+          code: 'RATE_LIMIT_EXCEEDED',
+          retryAfter,
+          keyType: keyDef.name,
+        });
+        return;
+      }
+    }
+
+    next();
+  };
+}
 
 /**
  * Get rate limiter instance for monitoring

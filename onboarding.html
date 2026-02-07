@@ -765,6 +765,11 @@
             </div>
           </div>
 
+          <!-- Honeypot: invisible to humans, bots auto-fill it -->
+          <div style="position:absolute;left:-9999px;top:-9999px;" aria-hidden="true">
+            <input type="text" name="website" id="honeyField" tabindex="-1" autocomplete="off">
+          </div>
+
           <!-- Validation Error -->
           <div class="validation-error" id="validationError"></div>
 
@@ -910,7 +915,8 @@
 
       // Evidence footer
       const evidenceFooter = document.getElementById('evidenceFooter');
-      evidenceFooter.textContent = `config:${config.evidence.configHash.slice(0, 16)} | model:${config.evidence.model} | ${config.configurationId}`;
+      const sig = config.evidence.signature ? ` | sig:${config.evidence.signature.slice(0, 12)}` : '';
+      evidenceFooter.textContent = `config:${config.evidence.configHash.slice(0, 16)} | v${config.evidence.policyVersion}${sig} | ${config.configurationId}`;
 
       // Show dynamic sections
       document.getElementById('configDisplay').style.display = 'block';
@@ -944,11 +950,20 @@
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // FORM SUBMISSION
+    // FORM SUBMISSION (with double-submit guard + bot protection)
     // ═══════════════════════════════════════════════════════════════
+
+    // Page load timestamp for bot timing detection
+    const _pageLoadTime = Date.now();
+    let _formspreeSubmitted = false; // Prevent duplicate Formspree submissions
+    let _submitting = false;         // Double-submit lock
 
     document.getElementById('onboardingForm').addEventListener('submit', async function(e) {
       e.preventDefault();
+
+      // Double-submit guard
+      if (_submitting) return;
+      _submitting = true;
 
       const form = this;
       const btn = document.getElementById('submitBtn');
@@ -962,11 +977,13 @@
       if (!org || !name || !email) {
         errEl.textContent = 'Please fill in all required fields.';
         errEl.classList.add('show');
+        _submitting = false;
         return;
       }
       if (!email.includes('@') || !email.includes('.')) {
         errEl.textContent = 'Please enter a valid email address.';
         errEl.classList.add('show');
+        _submitting = false;
         return;
       }
       errEl.classList.remove('show');
@@ -974,6 +991,7 @@
       // Disable button + show progress
       btn.disabled = true;
       btn.textContent = 'Configuring workspace...';
+      btn.style.opacity = '0.6';
 
       // Collect form data
       const formData = new FormData(form);
@@ -996,83 +1014,103 @@
       progressEl.textContent = 'Analyzing your domain...';
       btn.parentNode.insertBefore(progressEl, btn.nextSibling.nextSibling);
 
-      // ── Parallel requests: Formspree + Configure API ──
+      try {
+        // ── Parallel requests: Formspree (once) + Configure API ──
 
-      const formspreePromise = fetch('https://formspree.io/f/xwvqggle', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(data)
-      }).catch(err => {
-        console.warn('[Onboarding] Formspree error:', err.message);
-      });
+        // Only submit to Formspree once (prevent duplicate on retry)
+        const formspreePromise = _formspreeSubmitted
+          ? Promise.resolve()
+          : fetch('https://formspree.io/f/xwvqggle', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+              body: JSON.stringify(data)
+            }).then(() => { _formspreeSubmitted = true; }).catch(err => {
+              console.warn('[Onboarding] Formspree error:', err.message);
+            });
 
-      const configPromise = (async () => {
-        try {
-          progressEl.textContent = 'Running governance classification...';
+        const configPromise = (async () => {
+          try {
+            progressEl.textContent = 'Running governance classification...';
 
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 8000); // 8s timeout
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 8000);
 
-          const res = await fetch('/api/onboarding/configure', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal: controller.signal,
-            body: JSON.stringify({
-              organization: org,
-              name: name,
-              email: email,
-              domain: data.domain,
-              governance: data.governance,
-              setupId: setupId
-            })
-          });
+            const res = await fetch('/api/onboarding/configure', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              signal: controller.signal,
+              body: JSON.stringify({
+                organization: org,
+                name: name,
+                email: email,
+                domain: data.domain,
+                governance: data.governance,
+                setupId: setupId,
+                website: document.getElementById('honeyField').value, // Honeypot
+                _t: _pageLoadTime // Bot timing token
+              })
+            });
 
-          clearTimeout(timeout);
+            clearTimeout(timeout);
 
-          if (!res.ok) {
-            const errBody = await res.json().catch(() => ({}));
-            throw new Error(errBody.error || `HTTP ${res.status}`);
+            if (!res.ok) {
+              const errBody = await res.json().catch(() => ({}));
+              throw new Error(errBody.error || `HTTP ${res.status}`);
+            }
+
+            progressEl.textContent = 'Building agent pipeline...';
+            return await res.json();
+          } catch (err) {
+            console.warn('[Onboarding] Configure API error:', err.message);
+            return null;
           }
+        })();
 
-          progressEl.textContent = 'Building agent pipeline...';
-          return await res.json();
-        } catch (err) {
-          console.warn('[Onboarding] Configure API error:', err.message);
-          return null; // Will fallback to static
+        // Wait for both
+        const [, config] = await Promise.all([formspreePromise, configPromise]);
+
+        // Remove progress text
+        if (progressEl.parentNode) progressEl.remove();
+
+        // Save to localStorage
+        localStorage.setItem('gia_config', JSON.stringify({
+          orgName: org,
+          userName: name,
+          userEmail: email,
+          domain: data.domain,
+          governance: data.governance,
+          setupComplete: true,
+          setupDate: data.signup_date,
+          setupId: setupId,
+          configurationId: config ? config.configurationId : null,
+          workforceType: config ? config.workforceMapping.matchedType : null
+        }));
+
+        // Show confirmation
+        document.getElementById('formCard').querySelector('form').style.display = 'none';
+        document.getElementById('runId').textContent = setupId;
+
+        if (config) {
+          renderDynamicConfirmation(config);
+        } else {
+          renderStaticConfirmation();
         }
-      })();
 
-      // Wait for both
-      const [, config] = await Promise.all([formspreePromise, configPromise]);
-
-      // Remove progress text
-      if (progressEl.parentNode) progressEl.remove();
-
-      // Save to localStorage
-      localStorage.setItem('gia_config', JSON.stringify({
-        orgName: org,
-        userName: name,
-        userEmail: email,
-        domain: data.domain,
-        governance: data.governance,
-        setupComplete: true,
-        setupDate: data.signup_date,
-        setupId: setupId,
-        workforceType: config ? config.workforceMapping.matchedType : null
-      }));
-
-      // Show confirmation
-      document.getElementById('formCard').querySelector('form').style.display = 'none';
-      document.getElementById('runId').textContent = setupId;
-
-      if (config) {
-        renderDynamicConfirmation(config);
-      } else {
-        renderStaticConfirmation();
+        document.getElementById('confirmation').classList.add('show');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (err) {
+        // Re-enable button on error (with 3s debounce)
+        console.error('[Onboarding] Submission error:', err);
+        if (progressEl.parentNode) progressEl.remove();
+        errEl.textContent = 'Something went wrong. Please try again.';
+        errEl.classList.add('show');
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.textContent = 'Get Started';
+          btn.style.opacity = '1';
+          _submitting = false;
+        }, 3000);
       }
-
-      document.getElementById('confirmation').classList.add('show');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   </script>
 </body>

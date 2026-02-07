@@ -41,6 +41,7 @@ import {
   globalRateLimiter,
   authRateLimiter,
   strictRateLimiter,
+  createOnboardingRateLimiter,
   tenantIsolationMiddleware,
   breakGlassMiddleware,
   complianceMode,
@@ -190,28 +191,32 @@ app.post('/api/auth/login',
   }
 );
 
-// Auth + Tenant isolation on all /api routes (except /api/auth/*)
-// Auth must run BEFORE tenant isolation so JWT tenantId is available
+// ═══════════════════════════════════════════════════════════════════
+// PUBLIC PRE-AUTH ROUTES
+// Constrained capability: no privileged actions, no sensitive data,
+// strict input/output schema, no tool execution, no internal system
+// access. Rate limited + security logged.
+// ═══════════════════════════════════════════════════════════════════
+const PUBLIC_ROUTES = ['/auth/', '/errors/report', '/onboarding/'];
+const isPublicRoute = (path: string) =>
+  PUBLIC_ROUTES.some(r => path.startsWith(r) || path === r);
+
+// Auth on all /api routes (public routes skip)
 app.use('/api', (req, res, next) => {
-  // Skip auth for login/register endpoints and error reporting
-  if (req.path.startsWith('/auth/') || req.path === '/errors/report' || req.path.startsWith('/onboarding/')) {
-    return next();
-  }
-  // Skip auth for AI health check (used by proxy provider)
-  if (req.path === '/ai/health') {
-    return next();
-  }
+  if (isPublicRoute(req.path)) return next();
+  if (req.path === '/ai/health') return next();
   requireAuth(req, res, next);
 });
+
+// Tenant isolation on all /api routes (public routes skip)
 app.use('/api', (req, res, next) => {
-  // Skip tenant isolation for unauthenticated endpoints
-  if (req.path.startsWith('/auth/') || req.path === '/errors/report' || req.path.startsWith('/onboarding/')) {
-    return next();
-  }
+  if (isPublicRoute(req.path)) return next();
   tenantIsolationMiddleware(req, res, next);
 });
 
-// Onboarding configuration (no auth required — rate-limited)
+// Onboarding: hard body size cap (4KB) + multi-key rate limiter + route
+app.use('/api/onboarding', express.json({ limit: '4kb' }));
+app.use('/api/onboarding', createOnboardingRateLimiter());
 app.use('/api/onboarding', createOnboardingRouter());
 
 // Claude API proxy

@@ -274,8 +274,78 @@ export function mapDomainToWorkforce(domain: string, governance: string): Workfo
   return null;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// CLAUDE RESPONSE VALIDATION (Pin the Contract)
+// ═══════════════════════════════════════════════════════════════════
+
+const VALID_MATCHED_TYPES = ['VA_CLAIMS', 'FINANCIAL_AUDIT', 'CYBER_IR', 'BD_CAPTURE', 'GRANT_WRITING', 'CANNOT_CLASSIFY', null];
+const MAX_LLM_CONFIDENCE = 0.7; // Only DIRECT_MATCH gets higher
+
 /**
- * Build a workforce mapping from Claude's response
+ * Validate Claude's JSON response against strict schema.
+ * Returns null if invalid — caller should use CANNOT_CLASSIFY fallback.
+ */
+export function validateClaudeResponse(raw: unknown): {
+  matchedType: string | null;
+  matchConfidence: number;
+  matchRationale: string;
+  isCustom: boolean;
+  pipelineName: string;
+  pipelineDescription: string;
+  roles: string[];
+  primaryLaunchUrl: string;
+} | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const obj = raw as Record<string, unknown>;
+
+  // Required fields
+  if (typeof obj.matchConfidence !== 'number') return null;
+  if (typeof obj.matchRationale !== 'string') return null;
+  if (typeof obj.isCustom !== 'boolean') return null;
+  if (typeof obj.pipelineName !== 'string') return null;
+  if (typeof obj.pipelineDescription !== 'string') return null;
+  if (!Array.isArray(obj.roles) || obj.roles.length === 0) return null;
+  if (typeof obj.primaryLaunchUrl !== 'string') return null;
+
+  // matchedType must be from our allowed list
+  const matchedType = obj.matchedType === null ? null : String(obj.matchedType);
+  if (matchedType !== null && !VALID_MATCHED_TYPES.includes(matchedType)) return null;
+
+  // Confidence must be 0-1
+  const confidence = Math.max(0, Math.min(1, obj.matchConfidence));
+
+  return {
+    matchedType,
+    matchConfidence: confidence,
+    matchRationale: String(obj.matchRationale).slice(0, 500),
+    isCustom: obj.isCustom,
+    pipelineName: String(obj.pipelineName).slice(0, 100),
+    pipelineDescription: String(obj.pipelineDescription).slice(0, 500),
+    roles: obj.roles.map(r => String(r).slice(0, 50)).slice(0, 15),
+    primaryLaunchUrl: String(obj.primaryLaunchUrl).slice(0, 50),
+  };
+}
+
+/**
+ * Build the CANNOT_CLASSIFY safe default mapping.
+ * Used when Claude can't match or returns invalid data.
+ */
+export function buildCannotClassifyMapping(orgName: string, domain: string): WorkforceMapping {
+  return {
+    matchedType: null,
+    matchConfidence: 0.3,
+    matchRationale: 'Unable to auto-classify domain — manual review recommended',
+    isCustom: true,
+    pipelineName: `${orgName.slice(0, 40)} Workspace`,
+    roles: ['Gateway', 'Analyst', 'QA', 'Report Generator', 'Telemetry'],
+    description: `Custom governed workspace for ${domain.slice(0, 60)} — pending manual review`,
+    primaryUrl: '/console',
+  };
+}
+
+/**
+ * Build a workforce mapping from Claude's validated response.
+ * Caps LLM confidence at MAX_LLM_CONFIDENCE (0.7).
  */
 export function buildWorkforceMappingFromClaude(claudeResponse: {
   matchedType: string | null;
@@ -287,12 +357,26 @@ export function buildWorkforceMappingFromClaude(claudeResponse: {
   roles: string[];
   primaryLaunchUrl: string;
 }): WorkforceMapping {
+  // CANNOT_CLASSIFY: safe defaults
+  if (claudeResponse.matchedType === 'CANNOT_CLASSIFY' || claudeResponse.matchConfidence < 0.5) {
+    return {
+      matchedType: null,
+      matchConfidence: Math.min(claudeResponse.matchConfidence, 0.4),
+      matchRationale: claudeResponse.matchRationale + ' [CANNOT_CLASSIFY — manual review recommended]',
+      isCustom: true,
+      pipelineName: claudeResponse.pipelineName || 'Custom Workspace',
+      roles: claudeResponse.roles.length > 0 ? claudeResponse.roles : ['Gateway', 'Analyst', 'QA', 'Report Generator', 'Telemetry'],
+      description: claudeResponse.pipelineDescription || 'Custom governed workspace — pending manual review',
+      primaryUrl: '/console',
+    };
+  }
+
   // If Claude matched an existing type, use our template data
   if (claudeResponse.matchedType && WORKFORCE_TEMPLATES[claudeResponse.matchedType]) {
     const template = WORKFORCE_TEMPLATES[claudeResponse.matchedType];
     return {
       matchedType: claudeResponse.matchedType,
-      matchConfidence: claudeResponse.matchConfidence,
+      matchConfidence: Math.min(claudeResponse.matchConfidence, MAX_LLM_CONFIDENCE),
       matchRationale: claudeResponse.matchRationale,
       isCustom: false,
       pipelineName: template.name,
@@ -302,10 +386,10 @@ export function buildWorkforceMappingFromClaude(claudeResponse: {
     };
   }
 
-  // Custom pipeline from Claude
+  // Custom pipeline from Claude — cap confidence
   return {
     matchedType: null,
-    matchConfidence: claudeResponse.matchConfidence,
+    matchConfidence: Math.min(claudeResponse.matchConfidence, MAX_LLM_CONFIDENCE),
     matchRationale: claudeResponse.matchRationale,
     isCustom: true,
     pipelineName: claudeResponse.pipelineName,
