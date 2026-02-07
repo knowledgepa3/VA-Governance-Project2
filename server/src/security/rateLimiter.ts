@@ -78,6 +78,13 @@ const DEFAULT_LIMITS: Record<string, RateLimitConfig> = {
     message: 'Redaction scan rate limit exceeded.'
   },
 
+  // Onboarding configuration — strict (no auth, Claude API cost)
+  '/api/onboarding': {
+    windowMs: 15 * 60 * 1000,   // 15 minutes
+    maxRequests: 3,              // 3 per 15min per IP
+    message: 'Too many configuration requests. Please wait before trying again.'
+  },
+
   // Audit endpoints - restrict heavily
   '/api/audit': {
     windowMs: 60 * 1000,

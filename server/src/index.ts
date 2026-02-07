@@ -26,6 +26,7 @@ import { secureAuditStore } from './audit/auditStoreSecure';
 import { createClaudeProxyRouter } from './ai/claudeProxy';
 import { createActionGatewayRouter } from './gateway/actionGateway';
 import { createRedactionRouter } from './gateway/redactionScanner';
+import { createOnboardingRouter } from './routes/onboarding';
 import { requireAuth, requireRole, AuthenticatedRequest } from './auth/middleware';
 import { signJwt } from './auth/jwt';
 import { generateUUID } from './utils/crypto';
@@ -193,7 +194,7 @@ app.post('/api/auth/login',
 // Auth must run BEFORE tenant isolation so JWT tenantId is available
 app.use('/api', (req, res, next) => {
   // Skip auth for login/register endpoints and error reporting
-  if (req.path.startsWith('/auth/') || req.path === '/errors/report') {
+  if (req.path.startsWith('/auth/') || req.path === '/errors/report' || req.path.startsWith('/onboarding/')) {
     return next();
   }
   // Skip auth for AI health check (used by proxy provider)
@@ -203,6 +204,9 @@ app.use('/api', (req, res, next) => {
   requireAuth(req, res, next);
 });
 app.use('/api', tenantIsolationMiddleware);
+
+// Onboarding configuration (no auth required — rate-limited)
+app.use('/api/onboarding', createOnboardingRouter());
 
 // Claude API proxy
 app.use('/api/ai', createClaudeProxyRouter());

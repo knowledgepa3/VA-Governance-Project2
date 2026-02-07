@@ -478,6 +478,135 @@
     .footer-links a { color: var(--gray-400); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
     .footer-links a:hover { color: var(--white); }
 
+    /* Dynamic Config Display */
+    .config-section {
+      background: var(--dark);
+      border: 1px solid var(--gray-700);
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      text-align: left;
+    }
+
+    .config-section-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--gray-500);
+      margin-bottom: 0.75rem;
+    }
+
+    .config-match {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .config-match-type {
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+
+    .config-match-confidence {
+      font-size: 0.8rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 100px;
+      font-weight: 600;
+    }
+
+    .confidence-high { background: rgba(16, 185, 129, 0.15); color: var(--secondary); border: 1px solid rgba(16, 185, 129, 0.3); }
+    .confidence-med { background: rgba(234, 179, 8, 0.15); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.3); }
+    .confidence-low { background: rgba(239, 68, 68, 0.15); color: var(--err); border: 1px solid rgba(239, 68, 68, 0.3); }
+
+    .config-rationale {
+      font-size: 0.8rem;
+      color: var(--gray-400);
+      line-height: 1.4;
+    }
+
+    .pipeline-roles {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .pipeline-role {
+      font-size: 0.75rem;
+      padding: 0.3rem 0.6rem;
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: 6px;
+      color: var(--primary-light);
+      font-weight: 500;
+    }
+
+    .badge-row {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .gov-badge {
+      font-size: 0.75rem;
+      padding: 0.3rem 0.75rem;
+      border-radius: 6px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+
+    .badge-mandatory { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge-advisory { background: rgba(234, 179, 8, 0.15); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.3); }
+    .badge-informational { background: rgba(16, 185, 129, 0.15); color: var(--secondary); border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-high { background: rgba(249, 115, 22, 0.15); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.3); }
+    .badge-limited { background: rgba(234, 179, 8, 0.15); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.3); }
+    .badge-minimal { background: rgba(16, 185, 129, 0.15); color: var(--secondary); border: 1px solid rgba(16, 185, 129, 0.3); }
+
+    .recommendations-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .recommendations-list li {
+      font-size: 0.8rem;
+      color: var(--gray-400);
+      padding: 0.3rem 0;
+      padding-left: 1rem;
+      position: relative;
+    }
+
+    .recommendations-list li::before {
+      content: '\2192';
+      position: absolute;
+      left: 0;
+      color: var(--primary-light);
+    }
+
+    .evidence-footer {
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--gray-800);
+      font-size: 0.7rem;
+      color: var(--gray-600);
+      font-family: 'Courier New', monospace;
+      text-align: center;
+    }
+
+    .progress-text {
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--gray-400);
+      margin-top: 1rem;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
       header { padding: 1rem; }
@@ -650,34 +779,49 @@
         </form>
       </div>
 
-      <!-- Confirmation (hidden by default) -->
+      <!-- Confirmation (hidden by default — populated dynamically) -->
       <div class="form-card confirmation" id="confirmation">
         <div class="confirmation-check">&#x2713;</div>
-        <h2>You're In</h2>
-        <p>We're setting up your governed workspace. You'll hear from us shortly.</p>
+        <h2 id="confirmTitle">Your Workspace is Ready</h2>
+        <p id="confirmSubtitle">Here's your auto-configured governance profile.</p>
 
         <div style="display: inline-block; padding: 0.5rem 1.25rem; background: var(--dark); border: 1px solid var(--gray-700); border-radius: 8px; font-family: monospace; color: var(--secondary); font-size: 0.9rem;" id="runId"></div>
         <p style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--gray-500);">Your setup ID</p>
 
-        <div class="launch-grid" id="launchGrid">
-          <a href="/app" class="launch-card">
-            <div class="launch-card-icon">&#x1F4CB;</div>
-            <div class="launch-card-title">VA Claims</div>
-            <div class="launch-card-desc">Run the evidence pipeline</div>
-          </a>
-          <a href="/console" class="launch-card">
-            <div class="launch-card-icon">&#x1F5A5;&#xFE0F;</div>
-            <div class="launch-card-title">Console</div>
-            <div class="launch-card-desc">Terminal workflow interface</div>
-          </a>
-          <a href="/" class="launch-card">
-            <div class="launch-card-icon">&#x1F310;</div>
-            <div class="launch-card-title">Portal</div>
-            <div class="launch-card-desc">All workflows</div>
-          </a>
+        <!-- Dynamic config sections (populated by JS) -->
+        <div id="configDisplay" style="margin-top: 2rem; text-align: left;">
+          <!-- Workforce Match -->
+          <div class="config-section" id="configMatch">
+            <div class="config-section-label">Workforce Match</div>
+            <div class="config-match">
+              <span class="config-match-type" id="matchType">—</span>
+              <span class="config-match-confidence" id="matchConfidence">—</span>
+            </div>
+            <div class="config-rationale" id="matchRationale"></div>
+          </div>
+
+          <!-- Agent Pipeline -->
+          <div class="config-section" id="configPipeline">
+            <div class="config-section-label">Agent Pipeline</div>
+            <div style="font-weight: 600; margin-bottom: 0.5rem;" id="pipelineName">—</div>
+            <div class="pipeline-roles" id="pipelineRoles"></div>
+          </div>
+
+          <!-- Governance Profile -->
+          <div class="config-section" id="configGovernance">
+            <div class="config-section-label">Governance Profile</div>
+            <div class="badge-row" id="govBadges"></div>
+            <ul class="recommendations-list" id="govRecommendations"></ul>
+          </div>
         </div>
 
-        <p style="margin-top: 2rem; font-size: 0.85rem; color: var(--gray-500);">
+        <!-- Launch Cards -->
+        <div class="launch-grid" id="launchGrid"></div>
+
+        <!-- Evidence footer -->
+        <div class="evidence-footer" id="evidenceFooter"></div>
+
+        <p style="margin-top: 1.5rem; font-size: 0.85rem; color: var(--gray-500);">
           Questions? <a href="mailto:support@aceadvising.com" style="color: var(--primary-light);">support@aceadvising.com</a>
         </p>
       </div>
@@ -710,7 +854,99 @@
       return `GIA-${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${seq}`;
     }
 
-    // Form submission — intercept to show confirmation
+    // ═══════════════════════════════════════════════════════════════
+    // DYNAMIC CONFIRMATION RENDERER
+    // ═══════════════════════════════════════════════════════════════
+
+    function renderDynamicConfirmation(config) {
+      // Workforce match
+      const matchType = document.getElementById('matchType');
+      const matchConf = document.getElementById('matchConfidence');
+      const matchRat = document.getElementById('matchRationale');
+
+      matchType.textContent = config.agentPipeline.name;
+      const confPct = Math.round(config.workforceMapping.matchConfidence * 100);
+      matchConf.textContent = confPct + '% match';
+      matchConf.className = 'config-match-confidence ' +
+        (confPct >= 85 ? 'confidence-high' : confPct >= 60 ? 'confidence-med' : 'confidence-low');
+      matchRat.textContent = config.workforceMapping.matchRationale;
+
+      // Agent pipeline roles
+      const pipelineName = document.getElementById('pipelineName');
+      const pipelineRoles = document.getElementById('pipelineRoles');
+      pipelineName.textContent = config.agentPipeline.description;
+      pipelineRoles.innerHTML = config.agentPipeline.roles
+        .map(r => `<span class="pipeline-role">${r}</span>`).join('');
+
+      // Governance badges
+      const govBadges = document.getElementById('govBadges');
+      const mai = config.governanceProfile.maiClassification;
+      const risk = config.governanceProfile.riskTier;
+      const maiBadgeClass = 'badge-' + mai.classification.toLowerCase();
+      const riskBadgeClass = 'badge-' + risk.tier.toLowerCase();
+
+      govBadges.innerHTML =
+        `<span class="gov-badge ${maiBadgeClass}">MAI: ${mai.classification}</span>` +
+        `<span class="gov-badge ${riskBadgeClass}">Risk: ${risk.tier}</span>` +
+        `<span class="gov-badge" style="background:rgba(99,102,241,0.15);color:var(--primary-light);border:1px solid rgba(99,102,241,0.3);">${config.governanceProfile.level}</span>`;
+
+      // Recommendations
+      const govRecs = document.getElementById('govRecommendations');
+      govRecs.innerHTML = config.governanceProfile.recommendations
+        .slice(0, 5)
+        .map(r => `<li>${r}</li>`).join('');
+
+      // Launch cards
+      const launchGrid = document.getElementById('launchGrid');
+      const iconMap = { workflow: '\uD83D\uDCCB', briefcase: '\uD83D\uDCBC', terminal: '\uD83D\uDDA5\uFE0F', globe: '\uD83C\uDF10' };
+      launchGrid.innerHTML = config.launchConfig.links
+        .map(link => `
+          <a href="${link.url}" class="launch-card">
+            <div class="launch-card-icon">${iconMap[link.icon] || '\uD83C\uDF10'}</div>
+            <div class="launch-card-title">${link.label}</div>
+            <div class="launch-card-desc">Launch workspace</div>
+          </a>
+        `).join('');
+
+      // Evidence footer
+      const evidenceFooter = document.getElementById('evidenceFooter');
+      evidenceFooter.textContent = `config:${config.evidence.configHash.slice(0, 16)} | model:${config.evidence.model} | ${config.configurationId}`;
+
+      // Show dynamic sections
+      document.getElementById('configDisplay').style.display = 'block';
+    }
+
+    function renderStaticConfirmation() {
+      // Hide dynamic sections, show basic confirmation
+      document.getElementById('configDisplay').style.display = 'none';
+      document.getElementById('confirmTitle').textContent = "You're In";
+      document.getElementById('confirmSubtitle').textContent = "We're setting up your governed workspace. You'll hear from us shortly.";
+
+      // Static launch cards
+      document.getElementById('launchGrid').innerHTML = `
+        <a href="/app" class="launch-card">
+          <div class="launch-card-icon">\uD83D\uDCCB</div>
+          <div class="launch-card-title">Workflows</div>
+          <div class="launch-card-desc">Run the agent pipeline</div>
+        </a>
+        <a href="/console" class="launch-card">
+          <div class="launch-card-icon">\uD83D\uDDA5\uFE0F</div>
+          <div class="launch-card-title">Console</div>
+          <div class="launch-card-desc">Terminal interface</div>
+        </a>
+        <a href="/" class="launch-card">
+          <div class="launch-card-icon">\uD83C\uDF10</div>
+          <div class="launch-card-title">Portal</div>
+          <div class="launch-card-desc">All workflows</div>
+        </a>
+      `;
+      document.getElementById('evidenceFooter').textContent = '';
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // FORM SUBMISSION
+    // ═══════════════════════════════════════════════════════════════
+
     document.getElementById('onboardingForm').addEventListener('submit', async function(e) {
       e.preventDefault();
 
@@ -735,9 +971,9 @@
       }
       errEl.classList.remove('show');
 
-      // Disable button
+      // Disable button + show progress
       btn.disabled = true;
-      btn.textContent = 'Setting up...';
+      btn.textContent = 'Configuring workspace...';
 
       // Collect form data
       const formData = new FormData(form);
@@ -754,21 +990,65 @@
         data.domain = 'Custom: ' + document.getElementById('customDomain').value.trim();
       }
 
-      // Submit to Formspree
-      try {
-        const res = await fetch('https://formspree.io/f/xwvqggle', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          body: JSON.stringify(data)
-        });
+      // Add progress text
+      const progressEl = document.createElement('div');
+      progressEl.className = 'progress-text';
+      progressEl.textContent = 'Analyzing your domain...';
+      btn.parentNode.insertBefore(progressEl, btn.nextSibling.nextSibling);
 
-        if (!res.ok) throw new Error('Submission failed');
-      } catch (err) {
+      // ── Parallel requests: Formspree + Configure API ──
+
+      const formspreePromise = fetch('https://formspree.io/f/xwvqggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(data)
+      }).catch(err => {
         console.warn('[Onboarding] Formspree error:', err.message);
-        // Show confirmation anyway — don't block the user
-      }
+      });
 
-      // Save to localStorage for returning user detection
+      const configPromise = (async () => {
+        try {
+          progressEl.textContent = 'Running governance classification...';
+
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 8000); // 8s timeout
+
+          const res = await fetch('/api/onboarding/configure', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal,
+            body: JSON.stringify({
+              organization: org,
+              name: name,
+              email: email,
+              domain: data.domain,
+              governance: data.governance,
+              setupId: setupId
+            })
+          });
+
+          clearTimeout(timeout);
+
+          if (!res.ok) {
+            const errBody = await res.json().catch(() => ({}));
+            throw new Error(errBody.error || `HTTP ${res.status}`);
+          }
+
+          progressEl.textContent = 'Building agent pipeline...';
+          return await res.json();
+        } catch (err) {
+          console.warn('[Onboarding] Configure API error:', err.message);
+          return null; // Will fallback to static
+        }
+      })();
+
+      // Wait for both
+      const [, config] = await Promise.all([formspreePromise, configPromise]);
+
+      // Remove progress text
+      if (progressEl.parentNode) progressEl.remove();
+
+      // Save to localStorage
       localStorage.setItem('gia_config', JSON.stringify({
         orgName: org,
         userName: name,
@@ -777,15 +1057,21 @@
         governance: data.governance,
         setupComplete: true,
         setupDate: data.signup_date,
-        setupId: setupId
+        setupId: setupId,
+        workforceType: config ? config.workforceMapping.matchedType : null
       }));
 
       // Show confirmation
       document.getElementById('formCard').querySelector('form').style.display = 'none';
       document.getElementById('runId').textContent = setupId;
-      document.getElementById('confirmation').classList.add('show');
 
-      // Scroll to top
+      if (config) {
+        renderDynamicConfirmation(config);
+      } else {
+        renderStaticConfirmation();
+      }
+
+      document.getElementById('confirmation').classList.add('show');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   </script>
