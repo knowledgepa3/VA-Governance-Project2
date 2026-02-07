@@ -28,7 +28,7 @@ export interface JWTConfig {
 
 // SECURITY: JWT_SECRET is MANDATORY. No fallback allowed.
 const jwtSecret = process.env.JWT_SECRET;
-if (!jwtSecret || jwtSecret.length < 32 || jwtSecret.includes('CHANGE_ME')) {
+if (!jwtSecret || jwtSecret.length < 32 || jwtSecret.includes('CHANGE_ME') || jwtSecret.includes('dev_only')) {
   const msg = 'FATAL: JWT_SECRET is not set or is insecure. ' +
     'Set JWT_SECRET to a random string of at least 64 characters. ' +
     'Generate with: openssl rand -hex 64';

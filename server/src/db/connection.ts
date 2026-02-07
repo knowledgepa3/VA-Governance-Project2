@@ -22,7 +22,17 @@ import { runMigrations } from './migrate';
 
 const DATABASE_URL =
   process.env.DATABASE_URL ||
-  `postgresql://${process.env.POSTGRES_USER || 'ace'}:${process.env.POSTGRES_PASSWORD || 'changeme'}@${process.env.POSTGRES_HOST || 'postgres'}:${process.env.POSTGRES_PORT || '5432'}/${process.env.POSTGRES_DB || 'ace_governance'}`;
+  `postgresql://${process.env.POSTGRES_USER || 'ace'}:${process.env.POSTGRES_PASSWORD || 'dev_only_changeme'}@${process.env.POSTGRES_HOST || 'postgres'}:${process.env.POSTGRES_PORT || '5432'}/${process.env.POSTGRES_DB || 'ace_governance'}`;
+
+// Warn if using default password
+const dbPassword = process.env.POSTGRES_PASSWORD || '';
+if (!dbPassword || dbPassword.includes('changeme') || dbPassword.includes('dev_only')) {
+  console.warn('[DB] WARNING: Using default database password. Set POSTGRES_PASSWORD in .env for production.');
+  if (process.env.NODE_ENV === 'production') {
+    console.error('[DB] FATAL: Default database password in production is not allowed.');
+    process.exit(1);
+  }
+}
 
 const pool = new Pool({
   connectionString: DATABASE_URL,

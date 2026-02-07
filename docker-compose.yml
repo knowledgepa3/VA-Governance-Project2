@@ -29,8 +29,8 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - COMPLIANCE_LEVEL=${COMPLIANCE_LEVEL:-development}
 
-      # Security - CHANGE THESE IN PRODUCTION
-      - JWT_SECRET=${JWT_SECRET:-CHANGE_ME_IN_PRODUCTION_minimum_32_chars}
+      # Security — MUST override in production .env (dev default is non-functional)
+      - JWT_SECRET=${JWT_SECRET:-dev_only_not_for_production_change_me}
       - JWT_ISSUER=${JWT_ISSUER:-ace-governance}
       - JWT_AUDIENCE=${JWT_AUDIENCE:-ace-platform}
 
@@ -49,8 +49,8 @@ services:
 
       # Anthropic API is loaded from env_file (.env)
 
-      # PostgreSQL connection
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-ace}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-ace_governance}
+      # PostgreSQL connection — MUST override password in production .env
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-ace}:${POSTGRES_PASSWORD:-dev_only_changeme}@postgres:5432/${POSTGRES_DB:-ace_governance}
 
     depends_on:
       postgres:
@@ -153,7 +153,7 @@ services:
 
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-ace}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-dev_only_changeme}
       - POSTGRES_DB=${POSTGRES_DB:-ace_governance}
 
     volumes:
