@@ -84,8 +84,21 @@ RULES:
 - If the domain clearly maps to an existing type, use it (confidence >= 0.5).
 - If the domain is ambiguous or doesn't clearly fit, set matchedType to "CANNOT_CLASSIFY".
 - NEVER invent a confident match. If confidence < 0.5, you MUST use "CANNOT_CLASSIFY".
-- For truly novel domains with CANNOT_CLASSIFY, still suggest a reasonable pipelineName, description, and roles.
+- For truly novel domains OR when the user provides a wishlist, design a CUSTOM agent pipeline.
 - Always recommend a primaryLaunchUrl: "/app" for most verticals, "/bd" for BD, "/console" for custom/experimental.
+
+CUSTOM PIPELINE DESIGN RULES (when designing from a wishlist):
+- Each role MUST be named as "[Domain-Specific Prefix] [Archetype]"
+- Allowed archetypes (pick from this list ONLY):
+  Gateway, Intake, Extractor, Analyzer, Compliance, Scorer, Writer, Builder, Validator, QA, Supervisor, Telemetry
+- Examples: "Gateway", "RFI Extractor", "Policy Compliance", "Risk Scorer", "Proposal Writer", "Evidence Validator", "QA", "Telemetry"
+- First role MUST be "Gateway"
+- Last role MUST be "Telemetry"
+- Always include "QA" before the final output role
+- 6-10 roles per pipeline (not fewer than 6, not more than 10)
+- If constraints include "human-approval", note it in the pipelineDescription
+- If constraints include "no-pii", note PII redaction in the pipelineDescription
+- If constraints include "read-only", only use Intake/Extractor/Analyzer/QA/Telemetry archetypes
 
 Respond ONLY with valid JSON (no markdown, no code fences). Use this EXACT schema:
 {
@@ -93,8 +106,8 @@ Respond ONLY with valid JSON (no markdown, no code fences). Use this EXACT schem
   "matchConfidence": <number 0-1>,
   "matchRationale": "<string explaining your reasoning>",
   "isCustom": <boolean>,
-  "pipelineName": "<string>",
-  "pipelineDescription": "<string>",
+  "pipelineName": "<string — short name, e.g. 'RFI Response Builder'>",
+  "pipelineDescription": "<string — end-to-end workflow description with constraints noted>",
   "roles": ["<role1>", "<role2>", ...],
   "primaryLaunchUrl": "<string>"
 }`;
@@ -108,7 +121,13 @@ const SETUP_ID_PATTERN = /^GIA-\d{4}-\d{4}-\d{3}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_FIELD_LENGTH = 100;
 const MAX_DOMAIN_LENGTH = 600;
+const MAX_WISHLIST_LENGTH = 1200;
 const MIN_SUBMIT_TIME_MS = 2000; // Bot timing check: < 2s = suspicious
+
+// Valid structured tags (must match frontend chips exactly)
+const VALID_INPUTS = ['pdf', 'word', 'csv', 'urls', 'email', 'images'];
+const VALID_OUTPUTS = ['report', 'checklist', 'json', 'summary', 'timeline', 'matrix'];
+const VALID_CONSTRAINTS = ['no-pii', 'read-only', 'human-approval', 'no-external'];
 
 function sanitizeString(input: string, maxLen: number): string {
   return String(input || '')
@@ -128,6 +147,10 @@ interface ValidationResult {
     domain: string;
     governance: string;
     setupId: string;
+    wishlist: string;
+    inputs: string[];
+    outputs: string[];
+    constraints: string[];
   };
 }
 
@@ -155,6 +178,21 @@ function validateInput(body: any): ValidationResult {
   const governance = sanitizeString(body.governance, 20);
   const setupId = sanitizeString(body.setupId, 20);
 
+  // Wishlist fields (optional — only present for custom domains)
+  const wishlist = sanitizeString(body.wishlist || '', MAX_WISHLIST_LENGTH);
+
+  // Structured tags — validated against whitelists
+  const parseTagArray = (raw: unknown, allowed: string[], max: number): string[] => {
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map((c: unknown) => String(c).trim().toLowerCase())
+      .filter((c: string) => allowed.includes(c))
+      .slice(0, max);
+  };
+  const inputs = parseTagArray(body.inputs, VALID_INPUTS, 6);
+  const outputs = parseTagArray(body.outputs, VALID_OUTPUTS, 6);
+  const constraints = parseTagArray(body.constraints, VALID_CONSTRAINTS, 4);
+
   if (!organization) errors.organization = 'Organization is required';
   if (!name) errors.name = 'Name is required';
   if (!email) errors.email = 'Email is required';
@@ -167,7 +205,7 @@ function validateInput(body: any): ValidationResult {
     valid: Object.keys(errors).length === 0,
     errors,
     botDetected,
-    sanitized: { organization, name, email, domain, governance, setupId }
+    sanitized: { organization, name, email, domain, governance, setupId, wishlist, inputs, outputs, constraints }
   };
 }
 
@@ -208,16 +246,21 @@ export function createOnboardingRouter(): Router {
         return;
       }
 
-      const { organization, name, email, domain, governance, setupId } = validation.sanitized;
+      const { organization, name, email, domain, governance, setupId, wishlist, inputs, outputs, constraints } = validation.sanitized;
       const emailDomain = email.split('@')[1] || 'unknown';
       const orgHash = hashOrg(organization, emailDomain);
       const identHash = hashEmail(email);
+      const hasWishlist = wishlist.length > 0 || inputs.length > 0 || outputs.length > 0;
 
       log.info('Onboarding configuration requested', {
         configurationId,
         setupId,
         domain: fingerprint(domain),
-        governance
+        governance,
+        hasWishlist,
+        inputCount: inputs.length,
+        outputCount: outputs.length,
+        constraintCount: constraints.length,
       });
 
       // 2. Try direct workforce mapping first (deterministic, no LLM)
@@ -234,11 +277,30 @@ export function createOnboardingRouter(): Router {
         if (!anthropic) {
           log.warn('Claude unavailable for custom domain mapping — no API key');
           matchType = 'FALLBACK';
-          workforceMapping = buildCannotClassifyMapping(organization, domain);
+          workforceMapping = buildCannotClassifyMapping(organization, domain, inputs, outputs);
         } else {
           try {
             claudeModel = 'claude-3-5-haiku-20241022';
-            const userMessage = `Configure workspace for:\nOrganization: ${organization}\nDomain: ${domain}\nGovernance Level: ${governance}`;
+
+            // Build rich user message — include structured wishlist if available
+            let userMessage = `Configure workspace for:\nOrganization: ${organization}\nDomain: ${domain}\nGovernance Level: ${governance}`;
+
+            if (hasWishlist) {
+              userMessage += '\n\n--- CUSTOM WORKFLOW WISHLIST ---';
+              if (wishlist) {
+                userMessage += `\nWorkflow Description:\n${wishlist}`;
+              }
+              if (inputs.length > 0) {
+                userMessage += `\nInput Types: ${inputs.join(', ')}`;
+              }
+              if (outputs.length > 0) {
+                userMessage += `\nExpected Outputs: ${outputs.join(', ')}`;
+              }
+              if (constraints.length > 0) {
+                userMessage += `\nConstraints: ${constraints.join(', ')}`;
+              }
+              userMessage += '\n\nIMPORTANT: This is a custom workflow request. Design a bespoke agent pipeline. Each role MUST map to one of these archetypes: Intake, Extractor, Analyzer, Compliance, Writer, Scorer, QA, Supervisor, or Telemetry. Customize the role NAME to the domain (e.g., "RFI Extractor" not "Extractor"), but the archetype must be recognizable. Include constraints in the pipeline description.';
+            }
 
             const response = await anthropic.messages.create({
               model: claudeModel,
@@ -265,9 +327,13 @@ export function createOnboardingRouter(): Router {
             if (!validated) {
               log.warn('Claude response failed schema validation', { configurationId });
               matchType = 'FALLBACK';
-              workforceMapping = buildCannotClassifyMapping(organization, domain);
+              workforceMapping = buildCannotClassifyMapping(organization, domain, inputs, outputs);
             } else if (validated.matchedType === 'CANNOT_CLASSIFY' || validated.matchConfidence < 0.5) {
               matchType = 'CANNOT_CLASSIFY';
+              workforceMapping = buildWorkforceMappingFromClaude(validated);
+            } else if (validated.isCustom && hasWishlist) {
+              // Custom pipeline designed from user's wishlist
+              matchType = 'CUSTOM_DESIGNED';
               workforceMapping = buildWorkforceMappingFromClaude(validated);
             } else {
               matchType = 'LLM_CLASSIFIED';
@@ -276,7 +342,7 @@ export function createOnboardingRouter(): Router {
           } catch (claudeErr: any) {
             log.warn('Claude configuration failed, using fallback', { error: claudeErr.message });
             matchType = 'FALLBACK';
-            workforceMapping = buildCannotClassifyMapping(organization, domain);
+            workforceMapping = buildCannotClassifyMapping(organization, domain, inputs, outputs);
           }
         }
       }
@@ -373,6 +439,9 @@ export function createOnboardingRouter(): Router {
       };
 
       // 8. Audit (no PII — only domain, governance, config hash)
+      // Normalized domain for GIA MCP correlation (maps to MCP enum)
+      const mcpDomain = normalizeDomainForMCP(domain);
+
       try {
         await secureAuditStore.append(
           { sub: 'anonymous', role: 'onboarding', sessionId: setupId, tenantId: 'pre-signup' },
@@ -380,12 +449,19 @@ export function createOnboardingRouter(): Router {
           { type: 'onboarding_config', id: configurationId },
           {
             domain: fingerprint(domain),
+            mcpDomain, // GIA MCP-compatible domain enum
             governance,
             matchType,
             matchedWorkforceType: workforceMapping.matchedType,
             matchConfidence: workforceMapping.matchConfidence,
+            pipelineName: workforceMapping.pipelineName,
+            roleCount: workforceMapping.roles.length,
             riskTier: riskResult.risk_tier,
             maiClassification: maiResult.classification,
+            hasWishlist,
+            inputs: inputs.length > 0 ? inputs : undefined,
+            outputs: outputs.length > 0 ? outputs : undefined,
+            constraints: constraints.length > 0 ? constraints : undefined,
             evidenceHash,
             evidenceSignature: evidenceSignature.slice(0, 16) + '...',
             claudeModel,
@@ -450,4 +526,18 @@ function getIconForUrl(url: string): string {
   if (url === '/console') return 'terminal';
   if (url === '/app') return 'workflow';
   return 'globe';
+}
+
+/**
+ * Normalize a domain string to GIA MCP enum values.
+ * MCP accepts: 'va-claims' | 'legal' | 'healthcare' | 'finance' | 'federal' | 'general'
+ */
+function normalizeDomainForMCP(domain: string): string {
+  const dl = domain.toLowerCase();
+  if (dl.includes('va') || dl.includes('veteran') || dl.includes('disability')) return 'va-claims';
+  if (dl.includes('legal') || dl.includes('compliance') || dl.includes('contract')) return 'legal';
+  if (dl.includes('health') || dl.includes('medical') || dl.includes('clinical')) return 'healthcare';
+  if (dl.includes('finance') || dl.includes('audit') || dl.includes('tax') || dl.includes('accounting')) return 'finance';
+  if (dl.includes('federal') || dl.includes('government') || dl.includes('grant') || dl.includes('rfp') || dl.includes('proposal')) return 'federal';
+  return 'general';
 }

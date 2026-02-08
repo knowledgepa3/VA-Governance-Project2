@@ -13,7 +13,7 @@ import { fingerprint } from '../utils/crypto';
 
 const securityLog = logger.child({ channel: 'security' });
 
-export type MatchType = 'DIRECT_MATCH' | 'LLM_CLASSIFIED' | 'FALLBACK' | 'CANNOT_CLASSIFY' | 'DENIED';
+export type MatchType = 'DIRECT_MATCH' | 'LLM_CLASSIFIED' | 'CUSTOM_DESIGNED' | 'FALLBACK' | 'CANNOT_CLASSIFY' | 'DENIED';
 
 export interface OnboardingSecurityEvent {
   request_id: string;

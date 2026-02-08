@@ -280,6 +280,16 @@ export function mapDomainToWorkforce(domain: string, governance: string): Workfo
 
 const VALID_MATCHED_TYPES = ['VA_CLAIMS', 'FINANCIAL_AUDIT', 'CYBER_IR', 'BD_CAPTURE', 'GRANT_WRITING', 'CANNOT_CLASSIFY', null];
 const MAX_LLM_CONFIDENCE = 0.7; // Only DIRECT_MATCH gets higher
+const MAX_CUSTOM_CONFIDENCE = 0.65; // Custom pipelines capped slightly lower
+
+// Allowed role archetypes — custom roles must match one of these patterns
+const ROLE_ARCHETYPES = [
+  'intake', 'gateway', 'extractor', 'analyzer', 'compliance', 'scorer',
+  'writer', 'builder', 'validator', 'qa', 'supervisor', 'telemetry',
+  // Also allow existing template role names (for backwards compatibility)
+  'triage', 'mapper', 'tracker', 'advisor', 'generator', 'checker',
+  'assembler', 'reviewer', 'rater', 'examiner', 'detector', 'correlator',
+];
 
 /**
  * Validate Claude's JSON response against strict schema.
@@ -321,7 +331,7 @@ export function validateClaudeResponse(raw: unknown): {
     isCustom: obj.isCustom,
     pipelineName: String(obj.pipelineName).slice(0, 100),
     pipelineDescription: String(obj.pipelineDescription).slice(0, 500),
-    roles: obj.roles.map(r => String(r).slice(0, 50)).slice(0, 15),
+    roles: obj.roles.map(r => String(r).slice(0, 50)).slice(0, 10),
     primaryLaunchUrl: String(obj.primaryLaunchUrl).slice(0, 50),
   };
 }
@@ -329,15 +339,42 @@ export function validateClaudeResponse(raw: unknown): {
 /**
  * Build the CANNOT_CLASSIFY safe default mapping.
  * Used when Claude can't match or returns invalid data.
+ * If structured inputs/outputs are provided, generate more relevant default roles.
  */
-export function buildCannotClassifyMapping(orgName: string, domain: string): WorkforceMapping {
+export function buildCannotClassifyMapping(orgName: string, domain: string, inputs?: string[], outputs?: string[]): WorkforceMapping {
+  let roles = ['Gateway', 'Analyst', 'QA', 'Report Generator', 'Telemetry'];
+  const hasHints = (inputs && inputs.length > 0) || (outputs && outputs.length > 0);
+
+  if (hasHints) {
+    const inputRoleMap: Record<string, string> = {
+      'pdf': 'Document Intake', 'word': 'Document Intake',
+      'csv': 'Data Intake', 'urls': 'Web Intake',
+      'email': 'Email Intake', 'images': 'Image Intake',
+    };
+    const outputRoleMap: Record<string, string> = {
+      'report': 'Report Generator', 'checklist': 'Checklist Builder',
+      'json': 'Data Formatter', 'summary': 'Summarizer',
+      'timeline': 'Timeline Builder', 'matrix': 'Matrix Builder',
+    };
+
+    const intakeRoles = (inputs || []).map(i => inputRoleMap[i]).filter(Boolean);
+    const outputRoles = (outputs || []).map(o => outputRoleMap[o]).filter(Boolean);
+    const uniqueIntake = intakeRoles.filter((r, i) => intakeRoles.indexOf(r) === i);
+    const uniqueOutput = outputRoles.filter((r, i) => outputRoles.indexOf(r) === i);
+
+    if (uniqueIntake.length + uniqueOutput.length >= 2) {
+      roles = ['Gateway', ...uniqueIntake, 'Analyzer', ...uniqueOutput, 'QA', 'Telemetry'];
+      roles = roles.filter((r, i) => roles.indexOf(r) === i);
+    }
+  }
+
   return {
     matchedType: null,
-    matchConfidence: 0.3,
+    matchConfidence: hasHints ? 0.35 : 0.3,
     matchRationale: 'Unable to auto-classify domain — manual review recommended',
     isCustom: true,
     pipelineName: `${orgName.slice(0, 40)} Workspace`,
-    roles: ['Gateway', 'Analyst', 'QA', 'Report Generator', 'Telemetry'],
+    roles,
     description: `Custom governed workspace for ${domain.slice(0, 60)} — pending manual review`,
     primaryUrl: '/console',
   };
@@ -346,6 +383,11 @@ export function buildCannotClassifyMapping(orgName: string, domain: string): Wor
 /**
  * Build a workforce mapping from Claude's validated response.
  * Caps LLM confidence at MAX_LLM_CONFIDENCE (0.7).
+ *
+ * Three outcomes:
+ *  1. CANNOT_CLASSIFY — low confidence, safe defaults, routes to /console
+ *  2. Matched existing type — uses template data, caps at MAX_LLM_CONFIDENCE
+ *  3. Custom pipeline — Claude designed a bespoke pipeline from the user's wishlist
  */
 export function buildWorkforceMappingFromClaude(claudeResponse: {
   matchedType: string | null;
@@ -386,16 +428,23 @@ export function buildWorkforceMappingFromClaude(claudeResponse: {
     };
   }
 
-  // Custom pipeline from Claude — cap confidence
+  // Custom pipeline from Claude — bespoke design from wishlist
+  // If Claude provided 5+ roles with a real pipeline name, this is a designed pipeline (not a fallback)
+  const isDesignedPipeline = claudeResponse.roles.length >= 5 && claudeResponse.pipelineName.length > 3;
+  const cappedConfidence = isDesignedPipeline
+    ? Math.min(claudeResponse.matchConfidence, MAX_CUSTOM_CONFIDENCE)
+    : Math.min(claudeResponse.matchConfidence, 0.5);
+
   return {
     matchedType: null,
-    matchConfidence: Math.min(claudeResponse.matchConfidence, MAX_LLM_CONFIDENCE),
+    matchConfidence: cappedConfidence,
     matchRationale: claudeResponse.matchRationale,
     isCustom: true,
     pipelineName: claudeResponse.pipelineName,
     roles: claudeResponse.roles,
     description: claudeResponse.pipelineDescription,
-    primaryUrl: claudeResponse.primaryLaunchUrl || '/console',
+    // Designed pipelines route to /app (the workflow UI), generic ones to /console
+    primaryUrl: isDesignedPipeline ? (claudeResponse.primaryLaunchUrl || '/app') : '/console',
   };
 }
 

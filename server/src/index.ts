@@ -220,8 +220,8 @@ app.use('/api', (req, res, next) => {
 app.use('/api/auth', express.json({ limit: '4kb' }));
 app.use('/api/auth', createAuthRouter());
 
-// Onboarding: hard body size cap (4KB) + multi-key rate limiter + route
-app.use('/api/onboarding', express.json({ limit: '4kb' }));
+// Onboarding: hard body size cap (8KB for wishlist payloads) + multi-key rate limiter + route
+app.use('/api/onboarding', express.json({ limit: '8kb' }));
 app.use('/api/onboarding', createOnboardingRateLimiter());
 app.use('/api/onboarding', createOnboardingRouter());
 

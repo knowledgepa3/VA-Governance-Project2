@@ -326,13 +326,96 @@
       margin-top: 0.15rem;
     }
 
-    /* Custom domain input */
+    /* Custom domain / wishlist builder */
     .custom-domain-group {
       display: none;
     }
 
     .custom-domain-group.visible {
       display: block;
+      animation: fadeSlideIn 0.3s ease;
+    }
+
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .wishlist-builder {
+      background: rgba(99, 102, 241, 0.04);
+      border: 1px solid rgba(99, 102, 241, 0.15);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-top: 0.75rem;
+    }
+
+    .wishlist-builder .form-group { margin-bottom: 1rem; }
+    .wishlist-builder .form-group:last-child { margin-bottom: 0; }
+
+    .wishlist-textarea {
+      width: 100%;
+      min-height: 80px;
+      max-height: 200px;
+      resize: vertical;
+      background: var(--gray-900);
+      border: 1px solid var(--gray-700);
+      border-radius: 8px;
+      color: var(--white);
+      font-family: inherit;
+      font-size: 0.85rem;
+      padding: 0.75rem;
+      line-height: 1.5;
+      transition: border-color 0.2s;
+    }
+    .wishlist-textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+    }
+    .wishlist-textarea::placeholder { color: var(--gray-600); }
+
+    .capability-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .capability-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      user-select: none;
+      border: 1px solid var(--gray-700);
+      background: var(--gray-900);
+      color: var(--gray-400);
+    }
+
+    .capability-chip:hover {
+      border-color: var(--primary);
+      color: var(--primary-light);
+      background: rgba(99, 102, 241, 0.08);
+    }
+
+    .capability-chip.selected {
+      border-color: var(--primary);
+      background: rgba(99, 102, 241, 0.15);
+      color: var(--primary-light);
+    }
+
+    .capability-chip .chip-icon { font-size: 0.85rem; }
+
+    .wishlist-hint {
+      font-size: 0.7rem;
+      color: var(--gray-600);
+      margin-top: 0.5rem;
+      font-style: italic;
     }
 
     /* Divider */
@@ -586,6 +669,16 @@
       color: var(--primary-light);
     }
 
+    /* Custom pipeline detail (for wishlist-generated workflows) */
+    #configCustomDetail {
+      border-left: 3px solid var(--primary);
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.06) 0%, rgba(16, 185, 129, 0.04) 100%);
+    }
+
+    #configCustomDetail .config-section-label {
+      color: var(--primary-light);
+    }
+
     .evidence-footer {
       margin-top: 1.5rem;
       padding-top: 1rem;
@@ -746,6 +839,13 @@
       .form-card { padding: 1.5rem; }
       .domain-grid { grid-template-columns: repeat(2, 1fr); }
       .launch-grid { grid-template-columns: 1fr; }
+      .wishlist-builder { padding: 1rem; }
+      .capability-chips { gap: 0.35rem; }
+      .capability-chip { padding: 0.3rem 0.6rem; font-size: 0.7rem; }
+      .capability-chip .chip-icon { font-size: 0.75rem; }
+      .wishlist-textarea { min-height: 60px; font-size: 0.8rem; }
+      .badge-row { gap: 0.5rem; }
+      .pipeline-roles { gap: 0.3rem; }
     }
   </style>
 </head>
@@ -867,9 +967,52 @@
           </div>
 
           <div class="custom-domain-group" id="customDomainGroup">
-            <div class="form-group">
-              <label class="form-label" for="customDomain">Describe Your Use Case</label>
-              <input type="text" class="form-input" id="customDomain" name="custom_domain" placeholder="e.g., Marketing automation, Engineering ops, Healthcare triage...">
+            <div class="wishlist-builder">
+              <div class="form-group">
+                <label class="form-label" for="customDomain">Name Your Domain</label>
+                <input type="text" class="form-input" id="customDomain" name="custom_domain" placeholder="e.g., Healthcare triage, Supply chain ops, HR onboarding..." maxlength="100">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="customWishlist">Describe the workflow</label>
+                <textarea class="wishlist-textarea" id="customWishlist" name="custom_wishlist" placeholder="What tasks should your agents perform? Be specific.&#10;&#10;Example: Scan an RFI PDF, extract requirements, create a response outline, build a compliance matrix, and generate a draft proposal..."
+                  maxlength="1200"></textarea>
+                <div class="wishlist-hint">Keep it focused. GIA works best with clear, specific task descriptions.</div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Input types <span style="color:var(--gray-600);font-weight:400;">(what goes in)</span></label>
+                <div class="capability-chips" id="inputChips">
+                  <span class="capability-chip" data-cap="pdf"><span class="chip-icon">&#x1F4C4;</span> PDF</span>
+                  <span class="capability-chip" data-cap="word"><span class="chip-icon">&#x1F4DD;</span> Word/Docs</span>
+                  <span class="capability-chip" data-cap="csv"><span class="chip-icon">&#x1F4CA;</span> CSV/Excel</span>
+                  <span class="capability-chip" data-cap="urls"><span class="chip-icon">&#x1F310;</span> URLs/Links</span>
+                  <span class="capability-chip" data-cap="email"><span class="chip-icon">&#x2709;&#xFE0F;</span> Emails</span>
+                  <span class="capability-chip" data-cap="images"><span class="chip-icon">&#x1F5BC;&#xFE0F;</span> Images</span>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Output types <span style="color:var(--gray-600);font-weight:400;">(what comes out)</span></label>
+                <div class="capability-chips" id="outputChips">
+                  <span class="capability-chip" data-cap="report"><span class="chip-icon">&#x1F4CB;</span> Report</span>
+                  <span class="capability-chip" data-cap="checklist"><span class="chip-icon">&#x2705;</span> Checklist</span>
+                  <span class="capability-chip" data-cap="json"><span class="chip-icon">&#x1F4BE;</span> JSON Data</span>
+                  <span class="capability-chip" data-cap="summary"><span class="chip-icon">&#x1F4DD;</span> Summary</span>
+                  <span class="capability-chip" data-cap="timeline"><span class="chip-icon">&#x1F4C5;</span> Timeline</span>
+                  <span class="capability-chip" data-cap="matrix"><span class="chip-icon">&#x1F4CA;</span> Matrix/Table</span>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Constraints <span style="color:var(--gray-600);font-weight:400;">(safety boundaries)</span></label>
+                <div class="capability-chips" id="constraintChips">
+                  <span class="capability-chip" data-cap="no-pii"><span class="chip-icon">&#x1F512;</span> No PII stored</span>
+                  <span class="capability-chip" data-cap="read-only"><span class="chip-icon">&#x1F441;&#xFE0F;</span> Read-only tools</span>
+                  <span class="capability-chip" data-cap="human-approval"><span class="chip-icon">&#x270B;</span> Human approval req'd</span>
+                  <span class="capability-chip" data-cap="no-external"><span class="chip-icon">&#x1F6AB;</span> No external API calls</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -950,6 +1093,13 @@
             <div class="pipeline-roles" id="pipelineRoles"></div>
           </div>
 
+          <!-- Custom Pipeline Detail (shown only for custom workflows) -->
+          <div class="config-section" id="configCustomDetail" style="display:none;">
+            <div class="config-section-label">Custom Pipeline Design</div>
+            <div style="font-size: 0.85rem; color: var(--gray-300); line-height: 1.6;" id="customPipelineDetail"></div>
+            <div class="badge-row" id="constraintBadges" style="margin-top: 0.75rem;"></div>
+          </div>
+
           <!-- Governance Profile -->
           <div class="config-section" id="configGovernance">
             <div class="config-section-label">Governance Profile</div>
@@ -1017,13 +1167,34 @@
   </footer>
 
   <script>
-    // Toggle custom domain input
+    // Toggle custom domain wishlist builder
     document.querySelectorAll('input[name="domain"]').forEach(radio => {
       radio.addEventListener('change', () => {
         const group = document.getElementById('customDomainGroup');
         group.classList.toggle('visible', document.getElementById('d-custom').checked);
       });
     });
+
+    // Capability chip toggle (all chip groups)
+    document.querySelectorAll('.capability-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        chip.classList.toggle('selected');
+      });
+    });
+
+    function getChipSelections(containerId) {
+      return Array.from(document.querySelectorAll('#' + containerId + ' .capability-chip.selected'))
+        .map(c => c.dataset.cap);
+    }
+
+    function getWishlistPayload() {
+      return {
+        narrative: (document.getElementById('customWishlist')?.value || '').trim(),
+        inputs: getChipSelections('inputChips'),
+        outputs: getChipSelections('outputChips'),
+        constraints: getChipSelections('constraintChips'),
+      };
+    }
 
     // Generate setup ID
     function generateId() {
@@ -1037,6 +1208,14 @@
     // ═══════════════════════════════════════════════════════════════
 
     function renderDynamicConfirmation(config) {
+      // Update title + labels for custom pipelines
+      if (config.workforceMapping.isCustom) {
+        document.getElementById('confirmTitle').textContent = 'Your Custom Pipeline is Ready';
+        document.getElementById('confirmSubtitle').textContent = 'GIA designed a bespoke agent workforce based on your requirements. Review the pipeline below.';
+        // Change "Workforce Match" label to "Pipeline Generated"
+        document.querySelector('#configMatch .config-section-label').textContent = 'Pipeline Generated';
+      }
+
       // Workforce match
       const matchType = document.getElementById('matchType');
       const matchConf = document.getElementById('matchConfidence');
@@ -1044,17 +1223,49 @@
 
       matchType.textContent = config.agentPipeline.name;
       const confPct = Math.round(config.workforceMapping.matchConfidence * 100);
-      matchConf.textContent = confPct + '% match';
+      // Custom pipelines show "confidence" not "match"
+      matchConf.textContent = config.workforceMapping.isCustom
+        ? confPct + '% confidence'
+        : confPct + '% match';
       matchConf.className = 'config-match-confidence ' +
         (confPct >= 85 ? 'confidence-high' : confPct >= 60 ? 'confidence-med' : 'confidence-low');
       matchRat.textContent = config.workforceMapping.matchRationale;
 
       // Agent pipeline roles
-      const pipelineName = document.getElementById('pipelineName');
+      const pipelineNameEl = document.getElementById('pipelineName');
       const pipelineRoles = document.getElementById('pipelineRoles');
-      pipelineName.textContent = config.agentPipeline.description;
+      // Show description only for template pipelines; custom ones get their detail section
+      pipelineNameEl.textContent = config.workforceMapping.isCustom
+        ? config.agentPipeline.name
+        : config.agentPipeline.description;
+      // Escape role names to prevent XSS from LLM-generated content
+      const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
       pipelineRoles.innerHTML = config.agentPipeline.roles
-        .map(r => `<span class="pipeline-role">${r}</span>`).join('');
+        .map(r => `<span class="pipeline-role">${esc(r)}</span>`).join('');
+
+      // Custom pipeline detail (if custom/wishlist-generated)
+      const customDetailSection = document.getElementById('configCustomDetail');
+      const customDetailEl = document.getElementById('customPipelineDetail');
+      const constraintBadgesEl = document.getElementById('constraintBadges');
+      if (config.workforceMapping.isCustom && config.agentPipeline.description) {
+        customDetailSection.style.display = 'block';
+        customDetailEl.textContent = config.agentPipeline.description; // textContent is safe (no HTML parsing)
+
+        // Show constraint badges from localStorage (what user selected)
+        const savedConfig = JSON.parse(localStorage.getItem('gia_config') || '{}');
+        const constraintLabels = {
+          'no-pii': 'No PII Stored', 'read-only': 'Read-Only',
+          'human-approval': 'Human Approval', 'no-external': 'No External APIs'
+        };
+        const selectedConstraints = savedConfig.constraints || [];
+        if (selectedConstraints.length > 0) {
+          constraintBadgesEl.innerHTML = selectedConstraints
+            .map(c => `<span class="gov-badge" style="background:rgba(16,185,129,0.12);color:var(--secondary);border:1px solid rgba(16,185,129,0.25);font-size:0.7rem;">${constraintLabels[c] || c}</span>`)
+            .join('');
+        }
+      } else {
+        customDetailSection.style.display = 'none';
+      }
 
       // Governance badges
       const govBadges = document.getElementById('govBadges');
@@ -1079,9 +1290,9 @@
       const iconMap = { workflow: '\uD83D\uDCCB', briefcase: '\uD83D\uDCBC', terminal: '\uD83D\uDDA5\uFE0F', globe: '\uD83C\uDF10' };
       launchGrid.innerHTML = config.launchConfig.links
         .map(link => `
-          <a href="${link.url}" class="launch-card">
+          <a href="${esc(link.url)}" class="launch-card">
             <div class="launch-card-icon">${iconMap[link.icon] || '\uD83C\uDF10'}</div>
-            <div class="launch-card-title">${link.label}</div>
+            <div class="launch-card-title">${esc(link.label)}</div>
             <div class="launch-card-desc">Launch workspace</div>
           </a>
         `).join('');
@@ -1159,6 +1370,19 @@
         _submitting = false;
         return;
       }
+
+      // Validate custom domain: name is required, narrative is encouraged
+      const isCustomDomain = document.getElementById('d-custom').checked;
+      if (isCustomDomain) {
+        const customName = document.getElementById('customDomain').value.trim();
+        if (!customName) {
+          errEl.textContent = 'Please name your custom domain (e.g., "Healthcare triage").';
+          errEl.classList.add('show');
+          document.getElementById('customDomain').focus();
+          _submitting = false;
+          return;
+        }
+      }
       errEl.classList.remove('show');
 
       // Disable button + show progress
@@ -1176,15 +1400,22 @@
       data.setup_id = setupId;
       data.signup_date = new Date().toISOString();
 
-      // If custom domain was selected but text is empty, use "Custom"
-      if (data.domain === 'Custom' && document.getElementById('customDomain').value.trim()) {
-        data.domain = 'Custom: ' + document.getElementById('customDomain').value.trim();
+      // If custom domain was selected, build the structured wishlist payload
+      if (data.domain === 'Custom') {
+        const customName = document.getElementById('customDomain').value.trim();
+        data.domain = customName ? 'Custom: ' + customName : 'Custom';
+        const wl = getWishlistPayload();
+        data.wishlist = wl.narrative;
+        data.inputs = wl.inputs;
+        data.outputs = wl.outputs;
+        data.constraints = wl.constraints;
       }
 
-      // Add progress text
+      // Add progress text (different for custom wishlists)
+      const isCustom = document.getElementById('d-custom').checked;
       const progressEl = document.createElement('div');
       progressEl.className = 'progress-text';
-      progressEl.textContent = 'Analyzing your domain...';
+      progressEl.textContent = isCustom ? 'Designing your custom pipeline...' : 'Analyzing your domain...';
       btn.parentNode.insertBefore(progressEl, btn.nextSibling.nextSibling);
 
       try {
@@ -1203,10 +1434,11 @@
 
         const configPromise = (async () => {
           try {
-            progressEl.textContent = 'Running governance classification...';
+            progressEl.textContent = isCustom ? 'Building agent roles from your wishlist...' : 'Running governance classification...';
 
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 8000);
+            const timeoutMs = isCustom ? 12000 : 8000; // Custom wishlists need more time for LLM design
+            const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
             const res = await fetch('/api/onboarding/configure', {
               method: 'POST',
@@ -1219,6 +1451,10 @@
                 domain: data.domain,
                 governance: data.governance,
                 setupId: setupId,
+                wishlist: data.wishlist || '',
+                inputs: data.inputs || [],
+                outputs: data.outputs || [],
+                constraints: data.constraints || [],
                 website: document.getElementById('honeyField').value, // Honeypot
                 _t: _pageLoadTime // Bot timing token
               })
@@ -1231,7 +1467,7 @@
               throw new Error(errBody.error || `HTTP ${res.status}`);
             }
 
-            progressEl.textContent = 'Building agent pipeline...';
+            progressEl.textContent = isCustom ? 'Applying governance constraints...' : 'Building agent pipeline...';
             return await res.json();
           } catch (err) {
             console.warn('[Onboarding] Configure API error:', err.message);
@@ -1245,7 +1481,7 @@
         // Remove progress text
         if (progressEl.parentNode) progressEl.remove();
 
-        // Save to localStorage
+        // Save to localStorage (includes wishlist for custom pipelines)
         localStorage.setItem('gia_config', JSON.stringify({
           orgName: org,
           userName: name,
@@ -1256,7 +1492,14 @@
           setupDate: data.signup_date,
           setupId: setupId,
           configurationId: config ? config.configurationId : null,
-          workforceType: config ? config.workforceMapping.matchedType : null
+          workforceType: config ? config.workforceMapping.matchedType : null,
+          isCustom: config ? config.workforceMapping.isCustom : false,
+          pipelineName: config ? config.agentPipeline.name : null,
+          pipelineRoles: config ? config.agentPipeline.roles : [],
+          wishlist: data.wishlist || null,
+          inputs: data.inputs || [],
+          outputs: data.outputs || [],
+          constraints: data.constraints || []
         }));
 
         // Show confirmation
