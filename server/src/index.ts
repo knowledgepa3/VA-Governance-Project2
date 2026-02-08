@@ -35,6 +35,7 @@ import * as userRepository from './db/repositories/userRepository';
 import { createCasesRouter } from './routes/cases';
 import { createAuthRouter } from './routes/auth';
 import { createPipelineRouter } from './routes/pipeline';
+import { createOperatorRouter } from './routes/operator';
 import * as tenantRepository from './db/repositories/tenantRepository';
 
 // Security modules
@@ -240,6 +241,18 @@ app.use('/api/cases', createCasesRouter());
 
 // Pipeline Execution (Pack Compiler + Supervisor + Workers)
 app.use('/api/pipeline', createPipelineRouter());
+
+// Operator Console (RBAC-gated to governance roles)
+app.use('/api/operator',
+  requireAuth,
+  requireRole(
+    'ISSO / ACE Architect',
+    'Chief Compliance Officer',
+    'Federal Auditor',
+    'Governance Reviewer'
+  ),
+  createOperatorRouter()
+);
 
 // Audit endpoints
 app.get('/api/audit/entries',

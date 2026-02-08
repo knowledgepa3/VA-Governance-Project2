@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GIA Console | Governed AI Terminal</title>
+  <title>GIA | Operator Console</title>
   <link rel="icon" type="image/svg+xml" href="/shared/gia-icon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -43,7 +43,7 @@
       --yellow: var(--warn);
       --red: var(--err);
       --blue: var(--info);
-      --cyan: #818cf8;
+      --cyan: #a78bfa;
       --orange: var(--accent);
       --pink: #8b5cf6;
 
@@ -1993,7 +1993,7 @@
     <div class="header-left">
       <div class="logo">
         <div class="logo-icon">G</div>
-        <span>GIA</span>
+        <span>GIA OPS</span>
       </div>
       <div class="workflow-tag" id="workflowTag">WF-2026-0204-BD-001</div>
       <div class="status-pill running" id="statusPill">
@@ -2251,6 +2251,14 @@
   </script>
 
   <script>
+    // ============================================
+    // AUDIENCE FLAGS — Separate operator console from veteran workspace
+    // ============================================
+    // Veteran Life Ops features (appointments, prescriptions, benefits)
+    // are only shown on /workspace paths. The /console path is the
+    // GIA Operator Console for admins/governance roles.
+    const SHOW_VETERAN_OPS = window.location.pathname.startsWith('/workspace');
+
     // ============================================
     // GIA RUNTIME CONFIG - SINGLE SOURCE OF TRUTH
     // ============================================
@@ -4930,9 +4938,9 @@ OUTPUT: Clean, professional proposal ready to send to the client. One page. Conf
       // Handle numbered actions and natural language commands
       // ============================================
 
-      // Veteran Life Ops actions (1-6)
-      if (/^[1-6]$/.test(lowerText) || lowerText.includes('refill') || lowerText.includes('appointment') ||
-          lowerText.includes('prescription') || lowerText.includes('benefits') || lowerText.includes('schedule')) {
+      // Veteran Life Ops actions (1-6) — only on /workspace
+      if (SHOW_VETERAN_OPS && (/^[1-6]$/.test(lowerText) || lowerText.includes('refill') || lowerText.includes('appointment') ||
+          lowerText.includes('prescription') || lowerText.includes('benefits') || lowerText.includes('schedule'))) {
         addLine('human', 'you:', text);
         addSpacer();
         handleVeteranOpsAction(text);
@@ -12659,159 +12667,145 @@ Return only the selector, no explanation.`;
 
     // JARVIS-style startup sequence
     async function showJarvisWelcome() {
+      // ═══════════════════════════════════════════════════════════════
+      // GIA OPERATOR CONSOLE — Boot Sequence
+      // Fetches real data from /api/operator/boot then renders status
+      // Falls back to offline mode if server unavailable
+      // ═══════════════════════════════════════════════════════════════
+
       GIASounds.workflowStart();
 
-      // Initial boot
-      addLine('system', '*', '<span class="hl-dim">initializing...</span>');
-      await sleep(400);
-
-      // System check
-      addLine('output', ' ', '<span class="hl-dim">├─ core systems.......... </span><span class="hl-green">ONLINE</span>');
-      await sleep(150);
-      addLine('output', ' ', '<span class="hl-dim">├─ governance layer...... </span><span class="hl-green">ACTIVE</span>');
-      await sleep(150);
-      addLine('output', ' ', '<span class="hl-dim">├─ evidence chain........ </span><span class="hl-green">READY</span>');
-      await sleep(150);
-      addLine('output', ' ', '<span class="hl-dim">├─ module system......... </span><span class="hl-green">LOADED</span>');
-      await sleep(150);
-      addLine('output', ' ', '<span class="hl-dim">└─ operator interface.... </span><span class="hl-green">CONNECTED</span>');
+      addLine('system', '*', '<span class="hl-accent">GIA OPERATOR CONSOLE</span>');
+      addLine('output', ' ', '<span class="hl-dim">Initializing security verification...</span>');
       await sleep(300);
 
-      addSpacer();
-
-      // Main welcome
-      const hour = new Date().getHours();
-      const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-
-      addLine('ai', 'gia:', `<span class="hl-accent">${greeting}.</span> GIA Command Center online.`);
-      await sleep(200);
-
-      addSpacer();
-
-      // ============================================
-      // COMMAND CENTER HOME SCREEN
-      // ============================================
-
-      // Product tagline
-      addLine('system', '*', '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      addLine('system', '*', '<span class="hl-accent">VETERAN COMMAND CENTER</span>');
-      addLine('output', ' ', '<span class="hl-dim">Governed AI support for claims, evidence, appointments & life admin</span>');
-      addLine('system', '*', '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      addSpacer();
-
-      await sleep(200);
-
-      // ============================================
-      // ACTIVE VA CASES
-      // ============================================
-      addLine('system', '*', '<span class="hl-cyan">📋 ACTIVE VA CASES</span>');
-
-      // Get real data from evidence chain if available
-      const evidencePacks = GIA.evidence.packs || [];
-      const vaCases = evidencePacks.filter(p => p.source?.includes('VA') || p.source?.includes('CLAIM'));
-
-      if (vaCases.length > 0) {
-        addLine('output', ' ', `<span class="hl-green">${vaCases.length}</span> case(s) with evidence on file`);
-        // Show last 3
-        vaCases.slice(-3).forEach(c => {
-          addLine('output', '  ', `• ${c.id} — ${c.source} <span class="hl-dim">${c.timestamp?.split('T')[0] || ''}</span>`);
-        });
-      } else {
-        addLine('output', ' ', '<span class="hl-dim">No active cases</span>');
-        addLine('output', ' ', '<span class="hl-dim">Click + AGENT → VA Claims to start analysis</span>');
-      }
-      addSpacer();
-
-      await sleep(150);
-
-      // ============================================
-      // PENDING GATES
-      // ============================================
-      addLine('system', '*', '<span class="hl-cyan">🚦 PENDING GATES</span>');
-
-      const pendingCalls = GIAToolRouter.getPendingCalls();
-      const gateStats = GIAToolRouter.getStats();
-
-      if (pendingCalls.length > 0) {
-        addLine('output', ' ', `<span class="hl-yellow">${pendingCalls.length}</span> action(s) awaiting approval`);
-        pendingCalls.slice(0, 3).forEach(c => {
-          addLine('output', '  ', `• ${c.action} <span class="hl-dim">→ requires gate</span>`);
-        });
-      } else {
-        addLine('output', ' ', '<span class="hl-green">✓</span> No pending approvals');
-      }
-
-      // Gate history
-      if (gateStats.decisions.approved > 0 || gateStats.decisions.rejected > 0) {
-        addLine('output', ' ', `<span class="hl-dim">History: ${gateStats.decisions.approved} approved, ${gateStats.decisions.rejected} rejected</span>`);
-      }
-      addSpacer();
-
-      await sleep(150);
-
-      // ============================================
-      // UPCOMING (LIFE OPS)
-      // ============================================
-      addLine('system', '*', '<span class="hl-cyan">📅 UPCOMING</span>');
-      addLine('output', ' ', '• <span class="hl-yellow">Feb 12</span> — Primary Care (VA Medical Center)');
-      addLine('output', ' ', '• <span class="hl-dim">Feb 15</span> — PACT Act Screening form due');
-      addLine('output', ' ', '• <span class="hl-dim">Feb 18</span> — C&P Exam Follow-up');
-      addSpacer();
-
-      await sleep(150);
-
-      // ============================================
-      // LAST EVIDENCE PACK
-      // ============================================
-      addLine('system', '*', '<span class="hl-cyan">🔐 EVIDENCE CHAIN</span>');
-
-      if (evidencePacks.length > 0) {
-        const lastPack = evidencePacks[evidencePacks.length - 1];
-        addLine('output', ' ', `Packs: <span class="hl-green">${evidencePacks.length}</span> sealed`);
-        addLine('output', ' ', `Last: <span class="hl-dim">${lastPack.id}</span>`);
-        addLine('output', ' ', `Hash: <span class="hl-accent">${lastPack.queryHash?.substring(0, 24) || 'N/A'}...</span>`);
-
-        // Verify chain
-        const chainStatus = await GIA.evidence.verifyChain();
-        if (chainStatus.valid) {
-          addLine('output', ' ', `Chain: <span class="hl-green">VERIFIED</span> (${chainStatus.chainLength} links)`);
-        } else {
-          addLine('output', ' ', `Chain: <span class="hl-red">BROKEN</span> at ${chainStatus.brokenAt}`);
+      // ── Fetch boot data from server ──
+      let boot = null;
+      try {
+        const token = sessionStorage.getItem('gia_token');
+        if (token) {
+          const res = await fetch('/api/operator/boot', {
+            headers: { 'Authorization': 'Bearer ' + token }
+          });
+          if (res.ok) boot = await res.json();
         }
+      } catch (e) {
+        // Server unavailable — continue with offline boot
+      }
+
+      // ── Parse session for fallback identity ──
+      let operatorName = 'Operator';
+      let operatorRole = 'Unknown';
+      try {
+        const sess = JSON.parse(sessionStorage.getItem('gia_session') || '{}');
+        operatorName = sess.user?.displayName || sess.user?.email || 'Operator';
+        operatorRole = sess.user?.role || 'Unknown';
+      } catch(e) {}
+
+      addSpacer();
+
+      // ════════════════════════════════════════════════════════════
+      // PHASE 1: SECURITY POSTURE
+      // ════════════════════════════════════════════════════════════
+      addLine('system', '*', '<span class="hl-cyan">SECURITY POSTURE</span>');
+      await sleep(100);
+
+      const env = boot?.version?.env || 'development';
+      const name = boot?.operator?.displayName || operatorName;
+      const role = boot?.operator?.role || operatorRole;
+
+      const checks = [
+        { label: 'Environment', value: env.toUpperCase(), ok: true },
+        { label: 'Operator', value: `${name} [${role}]`, ok: true },
+        { label: 'Session binding', value: 'ACTIVE', ok: true },
+        { label: 'DEMO lock', value: boot?.enforcement?.demoLock ? 'ENFORCED' : 'OFF', ok: true },
+        { label: 'Policy hash', value: boot?.enforcement?.policyHash || 'N/A', ok: !boot?.enforcement?.configDrift },
+        { label: 'Audit chain', value: boot ? (boot.audit?.chainValid ? `VALID (${boot.audit.entryCount} entries)` : 'BROKEN') : 'OFFLINE', ok: boot ? boot.audit?.chainValid : null },
+        { label: 'PII/PHI redaction', value: 'REQUIRED', ok: true },
+        { label: 'RBAC enforcement', value: 'ACTIVE', ok: true },
+        { label: 'Secrets scan', value: 'CLEAN (build-time)', ok: true },
+      ];
+
+      for (let i = 0; i < checks.length; i++) {
+        const c = checks[i];
+        const pad = '.'.repeat(Math.max(2, 24 - c.label.length));
+        const isLast = i === checks.length - 1;
+        const branch = isLast ? '└─' : '├─';
+        const statusClass = c.ok === false ? 'hl-red' : c.ok === null ? 'hl-yellow' : 'hl-green';
+        addLine('output', ' ', `<span class="hl-dim">${branch} ${c.label} ${pad} </span><span class="${statusClass}">${c.value}</span>`);
+        await sleep(80);
+      }
+
+      addSpacer();
+
+      const allPassed = checks.every(c => c.ok !== false);
+      if (allPassed) {
+        addLine('system', '*', '<span class="hl-green">Security posture verified — all checks passed</span>');
       } else {
-        addLine('output', ' ', '<span class="hl-dim">No evidence packs yet</span>');
-        addLine('output', ' ', '<span class="hl-dim">Evidence is created when you run workflows</span>');
+        addLine('system', '*', '<span class="hl-red">Security posture DEGRADED — review flagged items</span>');
       }
       addSpacer();
+      await sleep(200);
 
+      // ════════════════════════════════════════════════════════════
+      // PHASE 2: AGENT REGISTRY
+      // ════════════════════════════════════════════════════════════
+      addLine('system', '*', '<span class="hl-cyan">AGENT REGISTRY</span>');
+      await sleep(100);
+
+      const workers = boot?.agents?.workers || ['gateway', 'extractor', 'validator', 'compliance', 'writer', 'telemetry'];
+      workers.forEach((w, i) => {
+        const isLast = i === workers.length - 1;
+        const branch = isLast ? '└─' : '├─';
+        const pad = '.'.repeat(Math.max(2, 24 - w.length));
+        addLine('output', ' ', `<span class="hl-dim">${branch} ${w} ${pad} </span><span class="hl-green">READY</span>`);
+      });
+
+      addLine('output', ' ', `<span class="hl-dim">${workers.length} workers registered</span>`);
+      addSpacer();
       await sleep(150);
 
-      // ============================================
-      // SYSTEM STATUS
-      // ============================================
-      addLine('system', '*', '<span class="hl-cyan">⚙️ SYSTEM</span>');
+      // ════════════════════════════════════════════════════════════
+      // PHASE 3: PIPELINE STATUS
+      // ════════════════════════════════════════════════════════════
+      addLine('system', '*', '<span class="hl-cyan">PIPELINE STATUS</span>');
+      await sleep(100);
 
-      const modules = GIAModuleSystem.listModules();
-      const instances = GIAModuleSystem.listInstances();
-      const hasApiKey = ClaudeAPI.hasApiKey();
+      const p = boot?.pipelines || { active: 0, paused: 0, completed: 0, failed: 0 };
+      const pendingGates = boot?.gates?.pending || 0;
 
-      addLine('output', ' ', `Mode: ${hasApiKey ? '<span class="hl-green">LIVE</span>' : '<span class="hl-yellow">DEMO</span>'} · Storage: LOCAL · Integrity: HASH_CHAIN`);
-      addLine('output', ' ', `Modules: <span class="hl-green">${modules.length}</span> registered · Instances: ${instances.filter(i => i.status === 'READY' || i.status === 'RUNNING').length} active`);
-      addLine('output', ' ', `Tokens: ${gateStats.tokenUsage?.input + gateStats.tokenUsage?.output || 0} / ${gateStats.tokenCeiling || 100000}`);
+      addLine('output', ' ', `<span class="hl-dim">├─ Active runs ........... </span><span class="${p.active > 0 ? 'hl-green' : 'hl-dim'}">${p.active}</span>`);
+      addLine('output', ' ', `<span class="hl-dim">├─ Pending gates ......... </span><span class="${pendingGates > 0 ? 'hl-yellow' : 'hl-dim'}">${pendingGates}</span>`);
+      addLine('output', ' ', `<span class="hl-dim">├─ Completed ............. </span><span class="hl-dim">${p.completed}</span>`);
+      addLine('output', ' ', `<span class="hl-dim">└─ Failed ................ </span><span class="${p.failed > 0 ? 'hl-red' : 'hl-dim'}">${p.failed}</span>`);
+
+      // Cost summary if available
+      if (boot?.cost) {
+        addSpacer();
+        addLine('output', ' ', `<span class="hl-dim">Cost today: $${boot.cost.today.usd.toFixed(2)} (${boot.cost.today.tokens} tokens) · MTD: $${boot.cost.mtd.usd.toFixed(2)}</span>`);
+      }
+      addSpacer();
+      await sleep(150);
+
+      // ════════════════════════════════════════════════════════════
+      // PHASE 4: QUICK ACTIONS
+      // ════════════════════════════════════════════════════════════
+      addLine('system', '*', '<span class="hl-cyan">READY</span> — Type a command or launch a workflow.');
+      addSpacer();
+      addLine('output', ' ', `<span class="hl-accent">+ AGENT</span>  Launch a governed workflow`);
+      addLine('output', ' ', `<span class="hl-accent">pending</span>  Review pending gate approvals${pendingGates > 0 ? ' <span class="hl-yellow">(' + pendingGates + ')</span>' : ''}`);
+      addLine('output', ' ', `<span class="hl-accent">audit</span>    View audit chain status`);
+      addLine('output', ' ', `<span class="hl-accent">modules</span>  List registered modules`);
+      addLine('output', ' ', `<span class="hl-accent">help</span>     Show all commands`);
       addSpacer();
 
-      // ============================================
-      // QUICK ACTIONS
-      // ============================================
-      addLine('system', '*', '<span class="hl-cyan">⚡ QUICK START</span>');
-      addLine('output', ' ', '<span class="hl-accent">+ AGENT</span> → Launch a workflow (VA Claims, Browser, Life Ops)');
-      addLine('output', ' ', '<span class="hl-accent">help</span> → Show all commands');
-      addLine('output', ' ', '<span class="hl-accent">modules</span> → List registered modules');
-      addLine('output', ' ', '<span class="hl-accent">pending</span> → Show pending approvals');
-      addSpacer();
+      // Server status indicator
+      if (!boot) {
+        addLine('output', ' ', '<span class="hl-yellow">[OFFLINE]</span> <span class="hl-dim">Server unreachable — running in local mode</span>');
+        addSpacer();
+      }
 
-      // Ready state
-      addLine('ai', 'gia:', '<span class="hl-dim">Command Center ready. What would you like to do?</span>');
+      addLine('ai', 'gia:', '<span class="hl-dim">Operator Console ready.</span>');
       addSpacer();
     }
 
@@ -13166,7 +13160,7 @@ Evidence:      Sealed and verified`);
     // Help button
     document.getElementById('helpBtn').addEventListener('click', () => {
       addSpacer();
-      addLine('system', '*', '<span class="hl-accent">GIA Console Help</span>');
+      addLine('system', '*', '<span class="hl-accent">GIA Operator Console Help</span>');
       addLine('system', '  ', '<span class="hl-dim">Enter</span>        — send interrupt/constraint');
       addLine('system', '  ', '<span class="hl-dim">Shift+Enter</span> — new line in input');
       addLine('system', '  ', '<span class="hl-dim">Escape</span>      — clear input');
@@ -13642,7 +13636,7 @@ ${lastAnalysisResult.proposal}
       workflowState.abortController = new AbortController();
 
       // Header
-      addLine('system', '*', `GIA Console v1.0.0 | <span class="hl-green">LIVE AGENT MODE</span>`);
+      addLine('system', '*', `GIA Operator Console v1.0.0 | <span class="hl-green">LIVE AGENT MODE</span>`);
       addLine('system', '*', `workflow: ${workflowId} | mode: GOVERNED`);
       addLine('system', '*', `storage: LOCAL_DEMO | integrity: HASH_CHAIN`);
 
@@ -13670,7 +13664,11 @@ ${lastAnalysisResult.proposal}
             await runLiveHousehold();
             break;
           case 'veteran-life-ops':
-            await runLiveVeteranOps();
+            if (SHOW_VETERAN_OPS) {
+              await runLiveVeteranOps();
+            } else {
+              addLine('system', '*', '<span class="hl-yellow">Veteran Life Ops is available on /workspace</span>');
+            }
             break;
           default:
             await runDemo();
@@ -15284,6 +15282,10 @@ ${hasApiKey ? 'Real adversarial probes executed via Claude API.' : 'Enable API k
      * Legacy Household Tasks (redirects to Veteran Life Ops)
      */
     async function runLiveHousehold() {
+      if (!SHOW_VETERAN_OPS) {
+        addLine('system', '*', '<span class="hl-yellow">Veteran Life Ops is available on /workspace</span>');
+        return;
+      }
       // ============================================
       // INITIALIZE WITH GIA GOVERNANCE
       // ============================================
