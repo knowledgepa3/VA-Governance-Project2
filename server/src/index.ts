@@ -34,6 +34,7 @@ import { initialize as initDb, shutdown as shutdownDb } from './db/connection';
 import * as userRepository from './db/repositories/userRepository';
 import { createCasesRouter } from './routes/cases';
 import { createAuthRouter } from './routes/auth';
+import { createPipelineRouter } from './routes/pipeline';
 import * as tenantRepository from './db/repositories/tenantRepository';
 
 // Security modules
@@ -236,6 +237,9 @@ app.use('/api/redaction', createRedactionRouter());
 
 // Case Management (CRUD with PostgreSQL persistence)
 app.use('/api/cases', createCasesRouter());
+
+// Pipeline Execution (Pack Compiler + Supervisor + Workers)
+app.use('/api/pipeline', createPipelineRouter());
 
 // Audit endpoints
 app.get('/api/audit/entries',
