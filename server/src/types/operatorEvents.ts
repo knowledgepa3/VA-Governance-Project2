@@ -113,6 +113,14 @@ export interface BootResponse {
     categories: string[];
     queryFunctions: number;
   } | null;
+  analytics: {
+    complianceRate: number;
+    complianceTrend: 'improving' | 'stable' | 'declining';
+    totalMetricsRecorded: number;
+    anomaliesDetected: number;
+    topRiskFamily: string | null;
+    policyEffectivenessAvg: number;
+  } | null;
 }
 
 export interface AlertEntry {

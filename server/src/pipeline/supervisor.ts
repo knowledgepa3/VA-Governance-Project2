@@ -59,6 +59,7 @@ import {
 } from './evidenceBundler';
 import { logger } from '../logger';
 import * as govStore from '../governance/governanceLibrary.store';
+import { captureRunMetrics } from '../analytics';
 
 const log = logger.child({ component: 'Supervisor' });
 
@@ -511,6 +512,10 @@ async function executeFromNode(
   // Complete the run, then immediately seal it (immutable from this point)
   await runStore.completeRun(runId, config.tenantId, bundle.bundleId, results, caps);
   await runStore.sealRun(runId, config.tenantId);
+
+  // ─── FEEDBACK LOOP: Capture compliance metrics (fire-and-forget) ────
+  captureRunMetrics(runId, config.tenantId, plan, results, bundle)
+    .catch(err => log.warn('Metrics capture failed (non-blocking)', { runId, error: (err as Error).message }));
 
   log.info('Execution complete — run sealed (immutable)', {
     runId,

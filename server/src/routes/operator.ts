@@ -32,6 +32,13 @@ import {
 import type { BootResponse, IntegrityResponse, AlertEntry } from '../types/operatorEvents';
 import * as govStore from '../governance/governanceLibrary.store';
 import { getKnowledgeInventory } from '../knowledge/knowledgeInventory';
+import {
+  getComplianceOverview,
+  getComplianceTrends,
+  getPolicyEffectiveness,
+  getWorkerRiskProfile,
+  generateDriftAlerts,
+} from '../analytics';
 
 const log = logger.child({ component: 'OperatorRouter' });
 
@@ -104,6 +111,7 @@ export function createOperatorRouter(): Router {
         govSummary,
         secPosture,
         kbInventory,
+        analyticsOverview,
       ] = await Promise.all([
         securityHealthCheck(),
         secureAuditStore.verifyChain().catch(() => ({ valid: false, entriesChecked: 0 })),
@@ -113,6 +121,7 @@ export function createOperatorRouter(): Router {
         govStore.getGovernanceSummary(tenantId).catch(() => null),
         getSecurityPosture(tenantId).catch(() => null),
         Promise.resolve((() => { try { return getKnowledgeInventory(); } catch { return null; } })()),
+        getComplianceOverview(tenantId).catch(() => null),
       ]);
 
       // Aggregate pipeline counts
@@ -242,6 +251,14 @@ export function createOperatorRouter(): Router {
           totalEntries: kbInventory.totalEntries,
           categories: kbInventory.categories,
           queryFunctions: kbInventory.queryFunctions.length,
+        } : null,
+        analytics: analyticsOverview ? {
+          complianceRate: analyticsOverview.complianceRate,
+          complianceTrend: analyticsOverview.complianceTrend,
+          totalMetricsRecorded: analyticsOverview.totalMetricsRecorded,
+          anomaliesDetected: analyticsOverview.anomaliesDetected,
+          topRiskFamily: analyticsOverview.topRiskFamily,
+          policyEffectivenessAvg: analyticsOverview.policyEffectivenessAvg,
         } : null,
       };
 
@@ -502,6 +519,82 @@ export function createOperatorRouter(): Router {
     } catch (error) {
       log.error('Alerts endpoint failed', {}, error as Error);
       res.status(500).json({ error: 'Alert listing failed' });
+    }
+  });
+
+  // ─────────────────────────────────────────────────────────────────
+  // GET /analytics/overview — Full compliance analytics dashboard
+  // ─────────────────────────────────────────────────────────────────
+  router.get('/analytics/overview', async (req: Request, res: Response) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const tenantId = authReq.tenantId || 'default';
+      const overview = await getComplianceOverview(tenantId);
+      res.json(overview);
+    } catch (error) {
+      log.error('Analytics overview failed', {}, error as Error);
+      res.status(500).json({ error: 'Analytics overview failed' });
+    }
+  });
+
+  // ─────────────────────────────────────────────────────────────────
+  // GET /analytics/trends — Time-series compliance data
+  // ─────────────────────────────────────────────────────────────────
+  router.get('/analytics/trends', async (req: Request, res: Response) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const tenantId = authReq.tenantId || 'default';
+      const days = Math.min(parseInt(req.query.days as string) || 30, 90);
+      const trends = await getComplianceTrends(tenantId, days);
+      res.json({ trends, days });
+    } catch (error) {
+      log.error('Analytics trends failed', {}, error as Error);
+      res.status(500).json({ error: 'Analytics trends failed' });
+    }
+  });
+
+  // ─────────────────────────────────────────────────────────────────
+  // GET /analytics/effectiveness — Per-policy effectiveness scores
+  // ─────────────────────────────────────────────────────────────────
+  router.get('/analytics/effectiveness', async (req: Request, res: Response) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const tenantId = authReq.tenantId || 'default';
+      const policies = await getPolicyEffectiveness(tenantId);
+      res.json({ policies });
+    } catch (error) {
+      log.error('Analytics effectiveness failed', {}, error as Error);
+      res.status(500).json({ error: 'Analytics effectiveness failed' });
+    }
+  });
+
+  // ─────────────────────────────────────────────────────────────────
+  // GET /analytics/risk — Worker risk profiles
+  // ─────────────────────────────────────────────────────────────────
+  router.get('/analytics/risk', async (req: Request, res: Response) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const tenantId = authReq.tenantId || 'default';
+      const workers = await getWorkerRiskProfile(tenantId);
+      res.json({ workers });
+    } catch (error) {
+      log.error('Analytics risk failed', {}, error as Error);
+      res.status(500).json({ error: 'Analytics risk failed' });
+    }
+  });
+
+  // ─────────────────────────────────────────────────────────────────
+  // GET /analytics/anomalies — Drift alerts
+  // ─────────────────────────────────────────────────────────────────
+  router.get('/analytics/anomalies', async (req: Request, res: Response) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const tenantId = authReq.tenantId || 'default';
+      const alerts = await generateDriftAlerts(tenantId);
+      res.json({ alerts, count: alerts.length });
+    } catch (error) {
+      log.error('Analytics anomalies failed', {}, error as Error);
+      res.status(500).json({ error: 'Analytics anomalies failed' });
     }
   });
 

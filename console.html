@@ -4397,6 +4397,10 @@ OUTPUT: Clean, professional proposal ready to send to the client. One page. Conf
         addLine('output', ' ', '  governance       — view governance library');
         addLine('output', ' ', '  security posture — security department overview');
         addLine('output', ' ', '  kb               — knowledge base inventory');
+        addLine('output', ' ', '  analytics        — compliance analytics dashboard');
+        addLine('output', ' ', '  analytics trends — 30-day compliance trend chart');
+        addLine('output', ' ', '  analytics risk   — worker risk profiles');
+        addLine('output', ' ', '  analytics anomalies — drift alerts');
         addSpacer();
         addLine('output', ' ', '<span class="hl-cyan">Terminal:</span>');
         addLine('output', ' ', '  help        — show this message');
@@ -4870,6 +4874,111 @@ OUTPUT: Clean, professional proposal ready to send to the client. One page. Conf
           }
         } catch (e) {
           addLine('error', '!', 'Failed to fetch knowledge data: ' + e.message);
+        }
+        addSpacer();
+        inputField.value = '';
+        inputField.style.height = 'auto';
+        return;
+      }
+
+      // Analytics / Compliance command
+      if (lowerText === 'analytics' || lowerText === 'compliance' || lowerText.startsWith('analytics ')) {
+        addLine('human', 'you:', text);
+        addSpacer();
+
+        const parts = text.trim().split(/\s+/);
+        const subCommand = parts[1]?.toLowerCase() || 'overview';
+
+        try {
+          const token = sessionStorage.getItem('gia_token');
+          if (!token) throw new Error('Not authenticated');
+
+          if (subCommand === 'overview' || lowerText === 'analytics' || lowerText === 'compliance') {
+            addLine('system', '*', '<span class="hl-accent">COMPLIANCE ANALYTICS</span>');
+            addSpacer();
+            const res = await fetch('/api/operator/analytics/overview', { headers: { 'Authorization': 'Bearer ' + token } });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            const trendArrow = data.complianceTrend === 'improving' ? '<span class="hl-green">↑ improving</span>' : data.complianceTrend === 'declining' ? '<span class="hl-red">↓ declining</span>' : '<span class="hl-dim">→ stable</span>';
+            const rateColor = data.complianceRate >= 90 ? 'hl-green' : data.complianceRate >= 70 ? 'hl-yellow' : 'hl-red';
+            addLine('output', ' ', `<span class="hl-dim">├─ Overall Rate .......... </span><span class="${rateColor}">${data.complianceRate}%</span> ${trendArrow}`);
+            addLine('output', ' ', `<span class="hl-dim">├─ Total Metrics ......... </span><span class="hl-dim">${data.totalMetricsRecorded}</span>`);
+            addLine('output', ' ', `<span class="hl-dim">├─ Anomalies ............. </span><span class="${data.anomaliesDetected > 0 ? 'hl-yellow' : 'hl-dim'}">${data.anomaliesDetected}</span>`);
+            addLine('output', ' ', `<span class="hl-dim">├─ Top Risk Family ....... </span><span class="${data.topRiskFamily ? 'hl-yellow' : 'hl-dim'}">${data.topRiskFamily || 'none'}</span>`);
+            addLine('output', ' ', `<span class="hl-dim">├─ Effectiveness Avg ..... </span><span class="hl-dim">${data.policyEffectivenessAvg}/100</span>`);
+            addLine('output', ' ', `<span class="hl-dim">└─ Recent (${data.recentWindow.days}d) ......... </span><span class="hl-dim">${data.recentWindow.checks} checks, ${data.recentWindow.passRate}% pass</span>`);
+            if (data.byControlFamily && data.byControlFamily.length > 0) {
+              addSpacer();
+              addLine('output', ' ', '<span class="hl-dim">CONTROL FAMILY BREAKDOWN</span>');
+              for (const f of data.byControlFamily) {
+                const fColor = f.rate >= 90 ? 'hl-green' : f.rate >= 70 ? 'hl-yellow' : 'hl-red';
+                const fTrend = f.trend === 'improving' ? '↑' : f.trend === 'declining' ? '↓' : '→';
+                addLine('output', ' ', `  ${f.controlFamily} ${'·'.repeat(Math.max(1, 22 - f.controlFamily.length))} <span class="${fColor}">${f.rate}%</span> ${fTrend} <span class="hl-dim">(risk: ${f.riskScore}%)</span>`);
+              }
+            }
+          } else if (subCommand === 'trends') {
+            addLine('system', '*', '<span class="hl-accent">COMPLIANCE TRENDS (30d)</span>');
+            addSpacer();
+            const res = await fetch('/api/operator/analytics/trends?days=30', { headers: { 'Authorization': 'Bearer ' + token } });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            if (!data.trends || data.trends.length === 0) {
+              addLine('output', ' ', '<span class="hl-dim">No trend data available yet</span>');
+            } else {
+              // ASCII sparkline
+              const rates = data.trends.map(t => t.rate);
+              const max = Math.max(...rates, 100);
+              const barWidth = 30;
+              for (const t of data.trends) {
+                const barLen = Math.round((t.rate / max) * barWidth);
+                const bar = '█'.repeat(barLen) + '░'.repeat(barWidth - barLen);
+                const anomalyFlag = t.anomaly ? ' <span class="hl-red">⚠</span>' : '';
+                const rColor = t.rate >= 90 ? 'hl-green' : t.rate >= 70 ? 'hl-yellow' : 'hl-red';
+                addLine('output', ' ', `<span class="hl-dim">${t.date.substring(5)}</span> <span class="${rColor}">${bar}</span> ${t.rate}%${anomalyFlag}`);
+              }
+            }
+          } else if (subCommand === 'risk') {
+            addLine('system', '*', '<span class="hl-accent">WORKER RISK PROFILES</span>');
+            addSpacer();
+            const res = await fetch('/api/operator/analytics/risk', { headers: { 'Authorization': 'Bearer ' + token } });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            if (!data.workers || data.workers.length === 0) {
+              addLine('output', ' ', '<span class="hl-dim">No risk data available yet</span>');
+            } else {
+              for (const w of data.workers) {
+                const riskColor = w.bayesianRisk > 50 ? 'hl-red' : w.bayesianRisk > 25 ? 'hl-yellow' : 'hl-green';
+                addLine('output', ' ', `<span class="hl-cyan">${w.workerType}</span>`);
+                addLine('output', ' ', `  <span class="hl-dim">Checks: ${w.totalChecks} | Fail: ${w.failRate}% | Risk: </span><span class="${riskColor}">${w.bayesianRisk}%</span>`);
+                addLine('output', ' ', `  <span class="hl-dim">Avg tokens: ${w.avgTokens} | Avg time: ${w.avgDurationMs}ms${w.topFailFamily ? ' | Top fail: ' + w.topFailFamily : ''}</span>`);
+              }
+            }
+          } else if (subCommand === 'anomalies' || subCommand === 'drift') {
+            addLine('system', '*', '<span class="hl-accent">DRIFT ALERTS</span>');
+            addSpacer();
+            const res = await fetch('/api/operator/analytics/anomalies', { headers: { 'Authorization': 'Bearer ' + token } });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            if (!data.alerts || data.alerts.length === 0) {
+              addLine('success', '+', '<span class="hl-green">No drift anomalies detected</span>');
+            } else {
+              for (const a of data.alerts) {
+                const sevColor = a.severity === 'high' ? 'hl-red' : a.severity === 'medium' ? 'hl-yellow' : 'hl-dim';
+                addLine('output', ' ', `<span class="${sevColor}">[${a.severity.toUpperCase()}]</span> ${a.message}`);
+              }
+            }
+          } else if (subCommand === 'help') {
+            addLine('system', '*', '<span class="hl-accent">ANALYTICS COMMANDS</span>');
+            addLine('output', ' ', '  analytics           — compliance overview dashboard');
+            addLine('output', ' ', '  analytics trends    — 30-day compliance trend chart');
+            addLine('output', ' ', '  analytics risk      — worker risk profiles');
+            addLine('output', ' ', '  analytics anomalies — drift alerts');
+          } else {
+            addLine('warning', '!', `Unknown analytics command: ${subCommand}`);
+            addLine('output', ' ', '<span class="hl-dim">Try: analytics help</span>');
+          }
+        } catch (e) {
+          addLine('error', '!', 'Analytics failed: ' + e.message);
         }
         addSpacer();
         inputField.value = '';
@@ -12960,6 +13069,24 @@ Return only the selector, no explanation.`;
       }
 
       // ════════════════════════════════════════════════════════════
+      // PHASE 3.8: ANALYTICS ENGINE
+      // ════════════════════════════════════════════════════════════
+      if (boot?.analytics) {
+        addLine('system', '*', '<span class="hl-cyan">ANALYTICS ENGINE</span>');
+        await sleep(100);
+        const an = boot.analytics;
+        const trendArrow = an.complianceTrend === 'improving' ? '<span class="hl-green">↑</span>' : an.complianceTrend === 'declining' ? '<span class="hl-red">↓</span>' : '<span class="hl-dim">→</span>';
+        const rateColor = an.complianceRate >= 90 ? 'hl-green' : an.complianceRate >= 70 ? 'hl-yellow' : 'hl-red';
+        addLine('output', ' ', `<span class="hl-dim">├─ Compliance Rate ....... </span><span class="${rateColor}">${an.complianceRate}%</span> ${trendArrow}`);
+        addLine('output', ' ', `<span class="hl-dim">├─ Metrics Recorded ...... </span><span class="hl-dim">${an.totalMetricsRecorded}</span>`);
+        addLine('output', ' ', `<span class="hl-dim">├─ Anomalies Detected .... </span><span class="${an.anomaliesDetected > 0 ? 'hl-yellow' : 'hl-dim'}">${an.anomaliesDetected}</span>`);
+        addLine('output', ' ', `<span class="hl-dim">├─ Top Risk Family ....... </span><span class="${an.topRiskFamily ? 'hl-yellow' : 'hl-dim'}">${an.topRiskFamily || 'none'}</span>`);
+        addLine('output', ' ', `<span class="hl-dim">└─ Policy Effectiveness .. </span><span class="${an.policyEffectivenessAvg >= 80 ? 'hl-green' : an.policyEffectivenessAvg >= 60 ? 'hl-yellow' : 'hl-red'}">${an.policyEffectivenessAvg}/100</span>`);
+        addSpacer();
+        await sleep(150);
+      }
+
+      // ════════════════════════════════════════════════════════════
       // PHASE 4: QUICK ACTIONS
       // ════════════════════════════════════════════════════════════
       addLine('system', '*', '<span class="hl-cyan">READY</span> — Type a command or launch a workflow.');
@@ -12969,6 +13096,7 @@ Return only the selector, no explanation.`;
       addLine('output', ' ', `<span class="hl-accent">governance</span> View governance library`);
       addLine('output', ' ', `<span class="hl-accent">security posture</span> Security department overview`);
       addLine('output', ' ', `<span class="hl-accent">kb</span>         Knowledge base inventory`);
+      addLine('output', ' ', `<span class="hl-accent">analytics</span>  Compliance analytics dashboard`);
       addLine('output', ' ', `<span class="hl-accent">audit</span>      View audit chain status`);
       addLine('output', ' ', `<span class="hl-accent">modules</span>    List registered modules`);
       addLine('output', ' ', `<span class="hl-accent">help</span>       Show all commands`);
