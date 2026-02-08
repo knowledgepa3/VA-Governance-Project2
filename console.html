@@ -4986,10 +4986,16 @@ OUTPUT: Clean, professional proposal ready to send to the client. One page. Conf
         return;
       }
 
-      // Governance Library command
-      if (lowerText === 'governance' || lowerText === 'gov' || lowerText === 'library') {
+      // Governance Library command — supports subcommands: families, search <term>
+      if (lowerText === 'governance' || lowerText === 'gov' || lowerText === 'library' ||
+          lowerText.startsWith('library ') || lowerText.startsWith('gov ')) {
         addLine('human', 'you:', text);
         addSpacer();
+
+        const parts = lowerText.split(' ');
+        const subCommand = parts.length > 1 ? parts[1] : null;
+        const searchTerm = parts.length > 2 ? parts.slice(2).join(' ') : (subCommand === 'search' ? '' : null);
+
         addLine('system', '*', '<span class="hl-accent">GOVERNANCE LIBRARY</span>');
         addSpacer();
 
@@ -5010,25 +5016,103 @@ OUTPUT: Clean, professional proposal ready to send to the client. One page. Conf
             }
           } else {
             const data = await res.json();
-            const families = data.controlFamilies?.join(', ') || 'none';
-            const packNames = data.packBreakdown?.map(p => p.name).join(', ') || 'none';
 
-            addLine('output', ' ', '      <span class="hl-cyan">Active Packs</span> .......... ' + (data.packsActive || 0) + (packNames !== 'none' ? ' (' + packNames + ')' : ''));
-            addLine('output', ' ', '      <span class="hl-cyan">Total Policies</span> ........ ' + (data.policiesActive || 0));
-            addLine('output', ' ', '      <span class="hl-cyan">Control Families</span> ...... ' + families);
-            addLine('output', ' ', '      <span class="hl-cyan">Evidence Templates</span> .... ' + (data.evidenceTemplates || 0));
-            addLine('output', ' ', '      <span class="hl-cyan">Approval Roles</span> ........ ' + (data.approvalRoles || 0));
-
-            if (data.familyBreakdown) {
+            // Subcommand: library families — show all control families with counts
+            if (subCommand === 'families') {
+              addLine('output', ' ', '      <span class="hl-cyan">CONTROL FAMILIES</span> (' + (data.controlFamilies?.length || 0) + ' active)');
               addSpacer();
-              addLine('output', ' ', '      <span class="hl-dim">POLICY DISTRIBUTION</span>');
-              for (const [family, count] of Object.entries(data.familyBreakdown)) {
-                addLine('output', ' ', '      ' + family + ' ' + '.'.repeat(20 - family.length) + ' ' + count);
+              if (data.familyBreakdown) {
+                const sortedFamilies = Object.entries(data.familyBreakdown).sort((a, b) => (b[1] as number) - (a[1] as number));
+                for (const [family, count] of sortedFamilies) {
+                  const bar = '█'.repeat(Math.min(20, Math.ceil((count as number) / 2)));
+                  addLine('output', ' ', '      <span class="hl-green">' + family.padEnd(6) + '</span> ' + String(count).padStart(3) + ' policies  <span class="hl-dim">' + bar + '</span>');
+                }
+              } else {
+                for (const fam of (data.controlFamilies || [])) {
+                  addLine('output', ' ', '      <span class="hl-green">' + fam + '</span>');
+                }
               }
             }
+            // Subcommand: library search <term> — search policies
+            else if (subCommand === 'search' && searchTerm) {
+              addLine('output', ' ', '      <span class="hl-cyan">SEARCH RESULTS</span> for "<span class="hl-yellow">' + searchTerm + '</span>"');
+              addSpacer();
+              try {
+                const searchRes = await fetch('/api/governance/policies?limit=200', {
+                  headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (searchRes.ok) {
+                  const policies = await searchRes.json();
+                  const policyList = policies.policies || policies || [];
+                  const matches = policyList.filter(p =>
+                    (p.title || '').toLowerCase().includes(searchTerm) ||
+                    (p.description || '').toLowerCase().includes(searchTerm) ||
+                    (p.policyId || '').toLowerCase().includes(searchTerm) ||
+                    (p.controlFamily || '').toLowerCase().includes(searchTerm)
+                  );
+                  if (matches.length === 0) {
+                    addLine('output', ' ', '      <span class="hl-dim">No matching policies found</span>');
+                  } else {
+                    addLine('output', ' ', '      <span class="hl-dim">Found ' + matches.length + ' matching policies:</span>');
+                    addSpacer();
+                    for (const p of matches.slice(0, 25)) {
+                      const riskColor = p.riskLevel === 'CRITICAL' ? 'hl-red' : p.riskLevel === 'HIGH' ? 'hl-yellow' : 'hl-dim';
+                      addLine('output', ' ', '      <span class="hl-green">' + (p.policyId || '').padEnd(14) + '</span> <span class="' + riskColor + '">[' + (p.riskLevel || '?') + ']</span> ' + (p.title || 'Untitled'));
+                    }
+                    if (matches.length > 25) {
+                      addLine('output', ' ', '      <span class="hl-dim">... and ' + (matches.length - 25) + ' more</span>');
+                    }
+                  }
+                } else {
+                  addLine('error', '!', 'Search failed: HTTP ' + searchRes.status);
+                }
+              } catch (searchErr) {
+                addLine('error', '!', 'Search failed: ' + searchErr.message);
+              }
+            }
+            // Default: full library overview with pack hierarchy
+            else {
+              const families = data.controlFamilies?.join(', ') || 'none';
+              const familyCount = data.controlFamilies?.length || 0;
 
-            addSpacer();
-            addLine('output', ' ', '      <span class="hl-dim">Last Updated: ' + (data.lastUpdated || 'N/A') + '</span>');
+              // Pack hierarchy display
+              if (data.packBreakdown && data.packBreakdown.length > 0) {
+                addLine('output', ' ', '      <span class="hl-cyan">PACK HIERARCHY</span>');
+                addSpacer();
+                for (const pack of data.packBreakdown) {
+                  const typeTag = pack.packType === 'BASE' ? '<span class="hl-green">[BASE]</span>' :
+                                  pack.packType === 'INDUSTRY' ? '<span class="hl-cyan">[INDUSTRY]</span>' :
+                                  pack.packType === 'ENTERPRISE' ? '<span class="hl-yellow">[ENTERPRISE]</span>' :
+                                  '<span class="hl-accent">[DEPARTMENT]</span>';
+                  addLine('output', ' ', '      ' + typeTag + ' ' + pack.name + ' <span class="hl-dim">(' + pack.policyCount + ' policies, priority ' + pack.priority + ')</span>');
+                  if (pack.controlFamilies && pack.controlFamilies.length > 0) {
+                    addLine('output', ' ', '             <span class="hl-dim">families: ' + pack.controlFamilies.join(', ') + '</span>');
+                  }
+                }
+                addSpacer();
+              }
+
+              addLine('output', ' ', '      <span class="hl-cyan">Active Packs</span> .......... ' + (data.packsActive || 0));
+              addLine('output', ' ', '      <span class="hl-cyan">Total Policies</span> ........ ' + (data.policiesActive || 0));
+              addLine('output', ' ', '      <span class="hl-cyan">Control Families</span> ...... ' + familyCount + ' <span class="hl-dim">(' + families + ')</span>');
+              addLine('output', ' ', '      <span class="hl-cyan">Evidence Templates</span> .... ' + (data.evidenceTemplates || 0));
+              addLine('output', ' ', '      <span class="hl-cyan">Approval Roles</span> ........ ' + (data.approvalRoles || 0));
+              addLine('output', ' ', '      <span class="hl-cyan">Routing Engine</span> ........ <span class="hl-green">CONTEXT-AWARE</span>');
+
+              if (data.familyBreakdown) {
+                addSpacer();
+                addLine('output', ' ', '      <span class="hl-dim">POLICY DISTRIBUTION</span>');
+                const sortedFamilies = Object.entries(data.familyBreakdown).sort((a, b) => (b[1] as number) - (a[1] as number));
+                for (const [family, count] of sortedFamilies) {
+                  addLine('output', ' ', '      ' + family.padEnd(6) + ' ' + '.'.repeat(Math.max(1, 18 - family.length)) + ' ' + count);
+                }
+              }
+
+              addSpacer();
+              addLine('output', ' ', '      <span class="hl-dim">Last Updated: ' + (data.lastUpdated || 'N/A') + '</span>');
+              addSpacer();
+              addLine('output', ' ', '      <span class="hl-dim">Subcommands: library families | library search &lt;term&gt;</span>');
+            }
           }
         } catch (e) {
           addLine('error', '!', '<span class="hl-yellow">Failed to fetch governance data: ' + e.message + '</span>');
@@ -13022,11 +13106,14 @@ Return only the selector, no explanation.`;
         addLine('system', '*', '<span class="hl-cyan">GOVERNANCE LIBRARY</span>');
         await sleep(100);
         const g = boot.governance;
-        addLine('output', ' ', `<span class="hl-dim">├─ Active Packs .......... </span><span class="hl-green">${g.packsActive}</span>`);
-        addLine('output', ' ', `<span class="hl-dim">├─ Total Policies ........ </span><span class="hl-dim">${g.policiesTotal}</span>`);
-        addLine('output', ' ', `<span class="hl-dim">├─ Control Families ...... </span><span class="hl-dim">${g.controlFamilies.join(', ')}</span>`);
+        const expandedTag = g.expandedPackActive ? ' <span class="hl-green">[EXPANDED]</span>' : '';
+        const familyCount = g.controlFamiliesTotal || g.controlFamilies.length;
+        addLine('output', ' ', `<span class="hl-dim">├─ Active Packs .......... </span><span class="hl-green">${g.packsActive}</span>${expandedTag}`);
+        addLine('output', ' ', `<span class="hl-dim">├─ Total Policies ........ </span><span class="hl-green">${g.policiesTotal}</span>`);
+        addLine('output', ' ', `<span class="hl-dim">├─ Control Families ...... </span><span class="hl-green">${familyCount}</span> <span class="hl-dim">(${g.controlFamilies.join(', ')})</span>`);
         addLine('output', ' ', `<span class="hl-dim">├─ Evidence Templates .... </span><span class="hl-dim">${g.evidenceTemplates}</span>`);
-        addLine('output', ' ', `<span class="hl-dim">└─ Approval Roles ........ </span><span class="hl-dim">${g.approvalRoles}</span>`);
+        addLine('output', ' ', `<span class="hl-dim">├─ Approval Roles ........ </span><span class="hl-dim">${g.approvalRoles}</span>`);
+        addLine('output', ' ', `<span class="hl-dim">└─ Routing Engine ........ </span><span class="hl-green">CONTEXT-AWARE</span> <span class="hl-dim">(risk + drift enrichment)</span>`);
         addSpacer();
         await sleep(150);
       }

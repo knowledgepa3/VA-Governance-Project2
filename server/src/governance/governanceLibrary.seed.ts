@@ -15,6 +15,7 @@
 
 import * as store from './governanceLibrary.store';
 import { hashPolicy } from './governanceLibrary.schema';
+import { ALL_EXPANDED_CONTROLS } from './seeds';
 
 // ═══════════════════════════════════════════════════════════════════
 // NIST 800-53 CONTROL DEFINITIONS
@@ -610,5 +611,162 @@ export async function seedGovernanceLibrary(tenantId: string): Promise<{
     policiesCreated,
     templatesCreated,
     rolesCreated,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// EXPANDED LIBRARY SEED — 14 additional NIST 800-53 families
+// ═══════════════════════════════════════════════════════════════════
+
+const EXPANDED_APPROVAL_ROLES_UPDATE = [
+  'AT', 'IA', 'MA', 'MP', 'PE', 'PL', 'PM', 'PS',
+  'SA', 'SC', 'SI', 'CP', 'PT', 'SR',
+];
+
+export async function seedExpandedLibrary(tenantId: string): Promise<{
+  packId: string;
+  policiesCreated: number;
+  templatesCreated: number;
+  familiesAdded: string[];
+}> {
+  // Check if expanded pack already exists
+  const existing = await store.getPackByPackId('nist-800-53-expanded', tenantId);
+  if (existing) {
+    return {
+      packId: existing.id,
+      policiesCreated: 0,
+      templatesCreated: 0,
+      familiesAdded: [],
+    };
+  }
+
+  console.log(`[GOVERNANCE] Seeding Expanded Library for tenant: ${tenantId} (${ALL_EXPANDED_CONTROLS.length} controls)`);
+
+  // 1. Create the expanded pack (INDUSTRY priority — stacks on BASE)
+  const pack = await store.createPack({
+    packId: 'nist-800-53-expanded',
+    name: 'NIST SP 800-53 Rev. 5 — Expanded Controls',
+    description: `Extended NIST 800-53 coverage: ${EXPANDED_APPROVAL_ROLES_UPDATE.length} additional control families (${EXPANDED_APPROVAL_ROLES_UPDATE.join(', ')}). Stacks on the base pack for comprehensive governance.`,
+    packType: 'INDUSTRY',
+    sourceFramework: 'NIST_800_53',
+    version: '1.0.0',
+    priority: 50,
+    metadata: {
+      createdBy: 'SYSTEM',
+      certificationLevel: 3,
+    },
+  }, tenantId);
+
+  console.log(`[GOVERNANCE] Created expanded pack: ${pack.id}`);
+
+  // 2. Batch-create all policies
+  const policyInputs = ALL_EXPANDED_CONTROLS.map(control => {
+    const contentHash = hashPolicy({
+      policyId: control.policyId,
+      tenantId,
+      packId: pack.id,
+      controlFamily: control.controlFamily,
+      title: control.title,
+      description: control.description,
+      requirements: control.requirements,
+      evidenceRequired: control.evidenceTemplates.map(t => ({
+        templateId: t.templateId,
+        name: t.name,
+        templateType: t.templateType as any,
+        isRequired: t.isRequired,
+      })),
+      approvalRoles: control.maiLevel === 'MANDATORY'
+        ? ['ISSO / ACE Architect', 'Chief Compliance Officer']
+        : control.maiLevel === 'ADVISORY'
+          ? ['ISSO / ACE Architect', 'Governance Reviewer']
+          : ['Security Analyst'],
+      riskLevel: control.riskLevel as any,
+      maiLevel: control.maiLevel as any,
+      applicableWorkerTypes: control.applicableWorkerTypes,
+      applicableDomains: [],
+      implementationStatus: control.implementationStatus as any,
+      frameworkRefs: [{
+        framework: 'NIST_800_53',
+        controlId: control.policyId.replace('NIST-', ''),
+        controlName: control.title.split(' — ')[1] || control.title,
+      }],
+      isActive: true,
+    });
+
+    return {
+      policyId: control.policyId,
+      packId: pack.id,
+      controlFamily: control.controlFamily,
+      title: control.title,
+      description: control.description,
+      requirements: control.requirements,
+      evidenceRequired: control.evidenceTemplates.map(t => ({
+        templateId: t.templateId,
+        name: t.name,
+        templateType: t.templateType,
+        isRequired: t.isRequired,
+      })),
+      approvalRoles: control.maiLevel === 'MANDATORY'
+        ? ['ISSO / ACE Architect', 'Chief Compliance Officer']
+        : control.maiLevel === 'ADVISORY'
+          ? ['ISSO / ACE Architect', 'Governance Reviewer']
+          : ['Security Analyst'],
+      riskLevel: control.riskLevel,
+      maiLevel: control.maiLevel,
+      applicableWorkerTypes: control.applicableWorkerTypes,
+      applicableDomains: [],
+      implementationStatus: control.implementationStatus,
+      frameworkRefs: [{
+        framework: 'NIST_800_53',
+        controlId: control.policyId.replace('NIST-', ''),
+        controlName: control.title.split(' — ')[1] || control.title,
+      }],
+      metadata: {
+        version: '1.0.0',
+        createdBy: 'SYSTEM',
+        sourceFramework: 'NIST_800_53',
+        effectiveDate: new Date().toISOString(),
+      },
+      contentHash,
+    };
+  });
+
+  const policiesCreated = await store.createPoliciesBatch(policyInputs, tenantId);
+
+  // 3. Create evidence templates for each control
+  let templatesCreated = 0;
+  // Need to fetch created policies to get their DB IDs for evidence template FK
+  const createdPolicies = await store.listPolicies(tenantId, { packId: pack.id, limit: 200 });
+  const policyIdMap = new Map(createdPolicies.map(p => [p.policyId, p.id]));
+
+  for (const control of ALL_EXPANDED_CONTROLS) {
+    const dbPolicyId = policyIdMap.get(control.policyId);
+    if (!dbPolicyId) continue;
+
+    for (const tmpl of control.evidenceTemplates) {
+      await store.createEvidenceTemplate({
+        templateId: tmpl.templateId,
+        policyId: dbPolicyId,
+        name: tmpl.name,
+        description: `Evidence template for ${control.policyId}: ${tmpl.name}`,
+        templateType: tmpl.templateType,
+        isRequired: tmpl.isRequired,
+      }, tenantId);
+      templatesCreated++;
+    }
+  }
+
+  // 4. Update pack counts
+  await store.updatePackCounts(pack.id, tenantId);
+
+  const familiesAdded = [...new Set(ALL_EXPANDED_CONTROLS.map(c => c.controlFamily))].sort();
+
+  console.log(`[GOVERNANCE] Expanded seed complete: ${policiesCreated} policies, ${templatesCreated} templates, ${familiesAdded.length} families`);
+
+  return {
+    packId: pack.id,
+    policiesCreated,
+    templatesCreated,
+    familiesAdded,
   };
 }

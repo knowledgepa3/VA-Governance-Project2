@@ -20,7 +20,7 @@ import { Router, Request, Response } from 'express';
 import { AuthenticatedRequest } from '../auth/middleware';
 import { logger } from '../logger';
 import * as govStore from '../governance/governanceLibrary.store';
-import { seedGovernanceLibrary } from '../governance/governanceLibrary.seed';
+import { seedGovernanceLibrary, seedExpandedLibrary } from '../governance/governanceLibrary.seed';
 import type { PolicyQueryContext } from '../governance/governanceLibrary.schema';
 
 const log = logger.child({ component: 'GovernanceRouter' });
@@ -254,12 +254,17 @@ export function createGovernanceRouter(): Router {
         return;
       }
 
+      // Seed base pack (18 controls, 6 families)
       const result = await seedGovernanceLibrary(tenantId);
 
-      if (result.policiesCreated === 0) {
+      // Seed expanded pack (92+ controls, 14 additional families)
+      const expanded = await seedExpandedLibrary(tenantId);
+
+      if (result.policiesCreated === 0 && expanded.policiesCreated === 0) {
         res.json({
           message: 'Governance library already seeded',
           packId: result.packId,
+          expandedPackId: expanded.packId,
           alreadySeeded: true,
         });
         return;
@@ -267,15 +272,25 @@ export function createGovernanceRouter(): Router {
 
       log.info('Governance library seeded', {
         tenantId,
-        packId: result.packId,
-        policies: result.policiesCreated,
-        templates: result.templatesCreated,
+        basePackId: result.packId,
+        basePolicies: result.policiesCreated,
+        expandedPackId: expanded.packId,
+        expandedPolicies: expanded.policiesCreated,
+        expandedFamilies: expanded.familiesAdded,
+        templates: result.templatesCreated + expanded.templatesCreated,
         roles: result.rolesCreated,
       });
 
       res.json({
         message: 'Governance library seeded successfully',
-        ...result,
+        base: result,
+        expanded: {
+          packId: expanded.packId,
+          policiesCreated: expanded.policiesCreated,
+          templatesCreated: expanded.templatesCreated,
+          familiesAdded: expanded.familiesAdded,
+        },
+        totalPolicies: result.policiesCreated + expanded.policiesCreated,
         alreadySeeded: false,
       });
     } catch (err: any) {

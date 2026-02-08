@@ -43,6 +43,12 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { createHash, randomUUID } from "node:crypto";
+import {
+  fetchBoot,
+  fetchGovernanceSummary,
+  fetchPolicies,
+  fetchAnalytics,
+} from "./api-bridge.js";
 
 // ═══════════════════════════════════════════════════════════════════
 // CORE TYPES
@@ -743,6 +749,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       // ── classify_decision ──
       case "classify_decision": {
         const result = classifyDecision(args as any);
+
+        // Enrich with real governance data (fail-open)
+        const policyData = await fetchPolicies({
+          domain: (args as any).domain,
+        });
+        const enrichment: Record<string, unknown> = {};
+        if (policyData) {
+          enrichment.governance_context = {
+            active_policies: policyData.count,
+            source: "live_governance_library",
+          };
+          // If many MANDATORY policies apply, boost confidence
+          const mandatoryCount = policyData.policies.filter(p => p.maiLevel === "MANDATORY").length;
+          if (mandatoryCount > 0 && result.classification === "MANDATORY") {
+            result.confidence = Math.min(result.confidence + 0.03, 0.99);
+            result.rationale += ` [${mandatoryCount} MANDATORY policies active in governance library]`;
+          }
+        }
+
         ledger.append("CLASSIFY_DECISION", result.classification, {
           decision: (args as any).decision?.slice(0, 100),
           domain: (args as any).domain,
@@ -767,7 +792,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               {
                 type: "text" as const,
                 text: JSON.stringify(
-                  { ...result, pending_gate_id: gateId, gate_status: "AWAITING_APPROVAL" },
+                  { ...result, ...enrichment, pending_gate_id: gateId, gate_status: "AWAITING_APPROVAL" },
                   null,
                   2
                 ),
@@ -776,7 +801,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
 
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return { content: [{ type: "text" as const, text: JSON.stringify({ ...result, ...enrichment }, null, 2) }] };
       }
 
       // ── score_governance ──
@@ -788,7 +813,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pass: result.pass,
           grade: result.grade,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+
+        // Enrich with real analytics data (fail-open)
+        const analyticsData = await fetchAnalytics();
+        const scoringContext: Record<string, unknown> = {};
+        if (analyticsData) {
+          scoringContext.system_compliance = {
+            compliance_rate: analyticsData.complianceRate,
+            trend: analyticsData.complianceTrend,
+            metrics_recorded: analyticsData.totalMetricsRecorded,
+            source: "live_analytics",
+          };
+        }
+
+        return { content: [{ type: "text" as const, text: JSON.stringify({ ...result, ...scoringContext }, null, 2) }] };
       }
 
       // ── evaluate_threshold ──
@@ -798,7 +836,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           rate: result.escalation_rate,
           status: result.status,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+
+        // Enrich with system-wide compliance metrics (fail-open)
+        const thresholdAnalytics = await fetchAnalytics();
+        const thresholdEnrichment: Record<string, unknown> = {};
+        if (thresholdAnalytics) {
+          thresholdEnrichment.system_wide = {
+            compliance_rate: thresholdAnalytics.complianceRate,
+            trend: thresholdAnalytics.complianceTrend,
+            anomalies_detected: thresholdAnalytics.anomaliesDetected,
+            top_risk_family: thresholdAnalytics.topRiskFamily,
+            source: "live_analytics",
+          };
+        }
+
+        return { content: [{ type: "text" as const, text: JSON.stringify({ ...result, ...thresholdEnrichment }, null, 2) }] };
       }
 
       // ── assess_risk_tier ──
@@ -841,12 +893,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
         const implemented = fw.controls.filter((c) => c.implemented).length;
         const total = fw.controls.length;
-        const result = {
+        const result: Record<string, unknown> = {
           framework: fw.name,
           framework_id: fwId,
           coverage: `${implemented}/${total} (${Math.round((implemented / total) * 100)}%)`,
           controls: fw.controls,
         };
+
+        // Enrich with real governance library stats (fail-open)
+        const govSummary = await fetchGovernanceSummary();
+        if (govSummary) {
+          result.governance_library = {
+            active_policies: govSummary.policiesActive,
+            control_families: govSummary.controlFamilies,
+            family_breakdown: govSummary.familyBreakdown,
+            packs: govSummary.packsActive,
+            source: "live_governance_library",
+          };
+        }
+
         ledger.append("MAP_COMPLIANCE", "INFORMATIONAL", {
           framework: fwId,
           coverage: `${implemented}/${total}`,
@@ -946,6 +1011,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "monitor_agents": {
         const activeCount = agents.filter((a) => a.status === "active").length;
         const errorCount = agents.filter((a) => a.status === "error").length;
+
+        // Enrich with real system data (fail-open)
+        const monitorBoot = await fetchBoot();
+        const systemData: Record<string, unknown> = {};
+        if (monitorBoot) {
+          systemData.system = {
+            health: monitorBoot.health.status,
+            db: monitorBoot.health.db,
+            ai: monitorBoot.health.ai,
+            registered_workers: monitorBoot.agents.workers,
+            pipelines: monitorBoot.pipelines,
+            source: "live_backend",
+          };
+        }
+
         return {
           content: [
             {
@@ -958,6 +1038,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                   error: errorCount,
                   health: errorCount === 0 ? "HEALTHY" : errorCount < 3 ? "DEGRADED" : "CRITICAL",
                   agents,
+                  ...systemData,
                 },
                 null,
                 2
@@ -980,7 +1061,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           return { id, name: fw.name, coverage: `${impl}/${fw.controls.length}` };
         });
 
-        const report = {
+        // Fetch real data from backend (fail-open)
+        const [reportBoot, reportAnalytics, reportGovSummary] = await Promise.all([
+          fetchBoot(),
+          fetchAnalytics(),
+          fetchGovernanceSummary(),
+        ]);
+
+        const report: Record<string, unknown> = {
           title: "GIA Governance Status Report",
           generated: new Date().toISOString(),
           system: {
@@ -1007,6 +1095,39 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pending_gates: pendingGates.size,
         };
 
+        // Add live data sections
+        if (reportBoot) {
+          report.live_system = {
+            health: reportBoot.health.status,
+            uptime_seconds: reportBoot.health.uptime,
+            db_healthy: reportBoot.health.db,
+            ai_healthy: reportBoot.health.ai,
+            pipelines: reportBoot.pipelines,
+            cost: reportBoot.cost,
+            source: "live_backend",
+          };
+        }
+        if (reportAnalytics) {
+          report.live_analytics = {
+            compliance_rate: reportAnalytics.complianceRate,
+            trend: reportAnalytics.complianceTrend,
+            metrics_recorded: reportAnalytics.totalMetricsRecorded,
+            anomalies: reportAnalytics.anomaliesDetected,
+            top_risk_family: reportAnalytics.topRiskFamily,
+            policy_effectiveness: reportAnalytics.policyEffectivenessAvg,
+            source: "live_analytics",
+          };
+        }
+        if (reportGovSummary) {
+          report.governance_library = {
+            packs: reportGovSummary.packsActive,
+            policies: reportGovSummary.policiesActive,
+            control_families: reportGovSummary.controlFamilies,
+            evidence_templates: reportGovSummary.evidenceTemplates,
+            source: "live_governance_library",
+          };
+        }
+
         ledger.append("GENERATE_REPORT", "INFORMATIONAL", { format: (args as any).format || "summary" });
         return { content: [{ type: "text" as const, text: JSON.stringify(report, null, 2) }] };
       }
@@ -1017,7 +1138,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const chainState = ledger.getState();
         const chainVerify = ledger.verifyChain();
 
-        const status = {
+        const status: Record<string, unknown> = {
           engine: "GIA MCP Server",
           version: "1.0.0",
           status: "OPERATIONAL",
@@ -1042,6 +1163,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           },
           pending_gates: pendingGates.size,
         };
+
+        // Enrich with real backend status (fail-open)
+        const statusBoot = await fetchBoot();
+        if (statusBoot) {
+          status.backend = {
+            health: statusBoot.health.status,
+            uptime_seconds: statusBoot.health.uptime,
+            db: statusBoot.health.db,
+            ai: statusBoot.health.ai,
+            pipelines: statusBoot.pipelines,
+            governance: statusBoot.governance ? {
+              packs: statusBoot.governance.packsActive,
+              policies: statusBoot.governance.policiesTotal,
+              families: statusBoot.governance.controlFamilies,
+            } : null,
+            analytics: statusBoot.analytics,
+            cost: statusBoot.cost,
+            source: "live_backend",
+          };
+        }
 
         return { content: [{ type: "text" as const, text: JSON.stringify(status, null, 2) }] };
       }

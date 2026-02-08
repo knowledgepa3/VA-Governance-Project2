@@ -59,6 +59,7 @@ import {
 } from './evidenceBundler';
 import { logger } from '../logger';
 import * as govStore from '../governance/governanceLibrary.store';
+import { routePolicies } from '../governance/policyRouter';
 import { captureRunMetrics } from '../analytics';
 
 const log = logger.child({ component: 'Supervisor' });
@@ -324,26 +325,44 @@ async function executeFromNode(
       return { runId, status: 'failed', error, capsUsed: caps, workerResults: results };
     }
 
-    // ─── GOVERNANCE: Query applicable policies (fail-open) ────
+    // ─── GOVERNANCE: Context-aware policy routing (fail-open) ────
     let applicablePolicies: any[] = [];
+    let routingCtx: { routingDecision?: string; escalatedFamilies?: string[]; activeAlerts?: string[]; enrichedPoliciesAdded?: number } = {};
     try {
-      applicablePolicies = await govStore.queryEffectivePolicies(
+      const routed = await routePolicies(
         config.tenantId,
         { workerType: node.type, domain: plan.domain }
       );
+      applicablePolicies = routed.policies;
+      routingCtx = routed.routingContext;
       if (applicablePolicies.length > 0) {
-        log.info('Governance policies applied', {
+        log.info('Governance policies routed', {
           runId,
           nodeId: node.id,
           workerType: node.type,
           policiesApplied: applicablePolicies.length,
           controlFamilies: [...new Set(applicablePolicies.map((p: any) => p.controlFamily))],
+          routingDecision: routingCtx.routingDecision,
+          escalatedFamilies: routingCtx.escalatedFamilies,
+          activeAlerts: routingCtx.activeAlerts,
+          enrichedPoliciesAdded: routingCtx.enrichedPoliciesAdded,
         });
       }
     } catch (err) {
-      log.warn('Governance policy query failed — proceeding without policies', {
+      // Fail-open: fall back to basic query
+      log.warn('Policy routing failed — falling back to direct query', {
         runId, nodeId: node.id, error: (err as Error).message,
       });
+      try {
+        applicablePolicies = await govStore.queryEffectivePolicies(
+          config.tenantId,
+          { workerType: node.type, domain: plan.domain }
+        );
+      } catch (innerErr) {
+        log.warn('Fallback policy query also failed — proceeding without policies', {
+          runId, nodeId: node.id, error: (innerErr as Error).message,
+        });
+      }
     }
 
     // ─── SPAWN WORKER (#1: only Supervisor calls this) ────────

@@ -85,8 +85,10 @@ export interface BootResponse {
     packsActive: number;
     policiesTotal: number;
     controlFamilies: string[];
+    controlFamiliesTotal: number;
     evidenceTemplates: number;
     approvalRoles: number;
+    expandedPackActive: boolean;
     lastUpdated: string;
   } | null;
   security: {

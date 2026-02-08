@@ -224,8 +224,10 @@ export function createOperatorRouter(): Router {
           packsActive: govSummary.packsActive,
           policiesTotal: govSummary.policiesActive,
           controlFamilies: govSummary.controlFamilies,
+          controlFamiliesTotal: govSummary.controlFamilies.length,
           evidenceTemplates: govSummary.evidenceTemplates,
           approvalRoles: govSummary.approvalRoles,
+          expandedPackActive: govSummary.packsActive > 1,
           lastUpdated: govSummary.lastUpdated,
         } : null,
         security: secPosture ? {
