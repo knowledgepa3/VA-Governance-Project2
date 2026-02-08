@@ -4813,6 +4813,61 @@ OUTPUT: Clean, professional proposal ready to send to the client. One page. Conf
         return;
       }
 
+      // Governance Library command
+      if (lowerText === 'governance' || lowerText === 'gov' || lowerText === 'library') {
+        addLine('human', 'you:', text);
+        addSpacer();
+        addLine('system', '*', '<span class="hl-accent">GOVERNANCE LIBRARY</span>');
+        addSpacer();
+
+        try {
+          const token = sessionStorage.getItem('gia_token');
+          if (!token) throw new Error('Not authenticated');
+
+          const res = await fetch('/api/governance/summary', {
+            headers: { 'Authorization': 'Bearer ' + token }
+          });
+
+          if (!res.ok) {
+            if (res.status === 404) {
+              addLine('output', ' ', '<span class="hl-yellow">Governance Library not yet seeded</span>');
+              addLine('output', ' ', '<span class="hl-dim">Run POST /api/governance/seed to initialize</span>');
+            } else {
+              throw new Error('HTTP ' + res.status);
+            }
+          } else {
+            const data = await res.json();
+            const families = data.controlFamilies?.join(', ') || 'none';
+            const packNames = data.packBreakdown?.map(p => p.name).join(', ') || 'none';
+
+            addLine('output', ' ', '      <span class="hl-cyan">Active Packs</span> .......... ' + (data.packsActive || 0) + (packNames !== 'none' ? ' (' + packNames + ')' : ''));
+            addLine('output', ' ', '      <span class="hl-cyan">Total Policies</span> ........ ' + (data.policiesActive || 0));
+            addLine('output', ' ', '      <span class="hl-cyan">Control Families</span> ...... ' + families);
+            addLine('output', ' ', '      <span class="hl-cyan">Evidence Templates</span> .... ' + (data.evidenceTemplates || 0));
+            addLine('output', ' ', '      <span class="hl-cyan">Approval Roles</span> ........ ' + (data.approvalRoles || 0));
+
+            if (data.familyBreakdown) {
+              addSpacer();
+              addLine('output', ' ', '      <span class="hl-dim">POLICY DISTRIBUTION</span>');
+              for (const [family, count] of Object.entries(data.familyBreakdown)) {
+                addLine('output', ' ', '      ' + family + ' ' + '.'.repeat(20 - family.length) + ' ' + count);
+              }
+            }
+
+            addSpacer();
+            addLine('output', ' ', '      <span class="hl-dim">Last Updated: ' + (data.lastUpdated || 'N/A') + '</span>');
+          }
+        } catch (e) {
+          addLine('error', '!', '<span class="hl-yellow">Failed to fetch governance data: ' + e.message + '</span>');
+          addLine('output', ' ', '<span class="hl-dim">Server may be offline or library not seeded</span>');
+        }
+
+        addSpacer();
+        inputField.value = '';
+        inputField.style.height = 'auto';
+        return;
+      }
+
       // Export audit trail
       if (lowerText === 'audit' || lowerText === 'export audit' || lowerText === 'audit trail') {
         addLine('human', 'you:', text);
@@ -12788,12 +12843,29 @@ Return only the selector, no explanation.`;
       await sleep(150);
 
       // ════════════════════════════════════════════════════════════
+      // PHASE 3.5: GOVERNANCE LIBRARY
+      // ════════════════════════════════════════════════════════════
+      if (boot?.governance && boot.governance.policiesTotal > 0) {
+        addLine('system', '*', '<span class="hl-cyan">GOVERNANCE LIBRARY</span>');
+        await sleep(100);
+        const g = boot.governance;
+        addLine('output', ' ', `<span class="hl-dim">├─ Active Packs .......... </span><span class="hl-green">${g.packsActive}</span>`);
+        addLine('output', ' ', `<span class="hl-dim">├─ Total Policies ........ </span><span class="hl-dim">${g.policiesTotal}</span>`);
+        addLine('output', ' ', `<span class="hl-dim">├─ Control Families ...... </span><span class="hl-dim">${g.controlFamilies.join(', ')}</span>`);
+        addLine('output', ' ', `<span class="hl-dim">├─ Evidence Templates .... </span><span class="hl-dim">${g.evidenceTemplates}</span>`);
+        addLine('output', ' ', `<span class="hl-dim">└─ Approval Roles ........ </span><span class="hl-dim">${g.approvalRoles}</span>`);
+        addSpacer();
+        await sleep(150);
+      }
+
+      // ════════════════════════════════════════════════════════════
       // PHASE 4: QUICK ACTIONS
       // ════════════════════════════════════════════════════════════
       addLine('system', '*', '<span class="hl-cyan">READY</span> — Type a command or launch a workflow.');
       addSpacer();
       addLine('output', ' ', `<span class="hl-accent">+ AGENT</span>  Launch a governed workflow`);
       addLine('output', ' ', `<span class="hl-accent">pending</span>  Review pending gate approvals${pendingGates > 0 ? ' <span class="hl-yellow">(' + pendingGates + ')</span>' : ''}`);
+      addLine('output', ' ', `<span class="hl-accent">governance</span> View governance library`);
       addLine('output', ' ', `<span class="hl-accent">audit</span>    View audit chain status`);
       addLine('output', ' ', `<span class="hl-accent">modules</span>  List registered modules`);
       addLine('output', ' ', `<span class="hl-accent">help</span>     Show all commands`);

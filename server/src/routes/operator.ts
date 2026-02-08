@@ -29,6 +29,7 @@ import {
 } from '../security';
 
 import type { BootResponse, IntegrityResponse, AlertEntry } from '../types/operatorEvents';
+import * as govStore from '../governance/governanceLibrary.store';
 
 const log = logger.child({ component: 'OperatorRouter' });
 
@@ -98,12 +99,14 @@ export function createOperatorRouter(): Router {
         auditState,
         allRuns,
         user,
+        govSummary,
       ] = await Promise.all([
         securityHealthCheck(),
         secureAuditStore.verifyChain().catch(() => ({ valid: false, entriesChecked: 0 })),
         Promise.resolve(secureAuditStore.getChainState()),
         runStore.listRuns(tenantId, { limit: 200 }).catch(() => []),
         userRepository.findById(authReq.userId).catch(() => null),
+        govStore.getGovernanceSummary(tenantId).catch(() => null),
       ]);
 
       // Aggregate pipeline counts
@@ -202,6 +205,14 @@ export function createOperatorRouter(): Router {
           mtd: sumCost(mtdRuns),
         },
         alerts,
+        governance: govSummary ? {
+          packsActive: govSummary.packsActive,
+          policiesTotal: govSummary.policiesActive,
+          controlFamilies: govSummary.controlFamilies,
+          evidenceTemplates: govSummary.evidenceTemplates,
+          approvalRoles: govSummary.approvalRoles,
+          lastUpdated: govSummary.lastUpdated,
+        } : null,
       };
 
       res.json(boot);

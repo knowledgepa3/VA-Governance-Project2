@@ -81,6 +81,14 @@ export interface BootResponse {
     mtd: { tokens: number; usd: number };
   };
   alerts: AlertEntry[];
+  governance: {
+    packsActive: number;
+    policiesTotal: number;
+    controlFamilies: string[];
+    evidenceTemplates: number;
+    approvalRoles: number;
+    lastUpdated: string;
+  } | null;
 }
 
 export interface AlertEntry {
