@@ -26,10 +26,12 @@ import {
   securityHealthCheck,
   complianceMode,
   getBreakGlassPendingReviews,
+  getSecurityPosture,
 } from '../security';
 
 import type { BootResponse, IntegrityResponse, AlertEntry } from '../types/operatorEvents';
 import * as govStore from '../governance/governanceLibrary.store';
+import { getKnowledgeInventory } from '../knowledge/knowledgeInventory';
 
 const log = logger.child({ component: 'OperatorRouter' });
 
@@ -100,6 +102,8 @@ export function createOperatorRouter(): Router {
         allRuns,
         user,
         govSummary,
+        secPosture,
+        kbInventory,
       ] = await Promise.all([
         securityHealthCheck(),
         secureAuditStore.verifyChain().catch(() => ({ valid: false, entriesChecked: 0 })),
@@ -107,6 +111,8 @@ export function createOperatorRouter(): Router {
         runStore.listRuns(tenantId, { limit: 200 }).catch(() => []),
         userRepository.findById(authReq.userId).catch(() => null),
         govStore.getGovernanceSummary(tenantId).catch(() => null),
+        getSecurityPosture(tenantId).catch(() => null),
+        Promise.resolve((() => { try { return getKnowledgeInventory(); } catch { return null; } })()),
       ]);
 
       // Aggregate pipeline counts
@@ -212,6 +218,30 @@ export function createOperatorRouter(): Router {
           evidenceTemplates: govSummary.evidenceTemplates,
           approvalRoles: govSummary.approvalRoles,
           lastUpdated: govSummary.lastUpdated,
+        } : null,
+        security: secPosture ? {
+          complianceLevel: secPosture.complianceLevel,
+          keyManagerHealthy: secPosture.keyManager.healthy,
+          keyManagerProvider: secPosture.keyManager.provider,
+          breakGlassActive: secPosture.breakGlass.activeSessions,
+          breakGlassPendingReviews: secPosture.breakGlass.pendingReviews,
+          rateLimiterActiveKeys: secPosture.rateLimiter.activeKeys,
+          egressMode: secPosture.egressControl.mode,
+          egressAllowedDomains: secPosture.egressControl.allowedDomains,
+          overallStatus: secPosture.overallStatus,
+          flags: {
+            enforceHTTPS: secPosture.flags.enforceHTTPS,
+            requireMFA: secPosture.flags.requireMFA,
+            strictPIIDetection: secPosture.flags.strictPIIDetection,
+            enforceTenantIsolation: secPosture.flags.enforceTenantIsolation,
+            auditRetentionDays: secPosture.flags.auditRetentionDays,
+          },
+        } : null,
+        knowledge: kbInventory ? {
+          basesLoaded: kbInventory.bases.length,
+          totalEntries: kbInventory.totalEntries,
+          categories: kbInventory.categories,
+          queryFunctions: kbInventory.queryFunctions.length,
         } : null,
       };
 

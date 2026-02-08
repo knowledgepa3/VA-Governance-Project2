@@ -89,6 +89,30 @@ export interface BootResponse {
     approvalRoles: number;
     lastUpdated: string;
   } | null;
+  security: {
+    complianceLevel: string;
+    keyManagerHealthy: boolean;
+    keyManagerProvider: string;
+    breakGlassActive: number;
+    breakGlassPendingReviews: number;
+    rateLimiterActiveKeys: number;
+    egressMode: string;
+    egressAllowedDomains: number;
+    overallStatus: 'SECURE' | 'WARNINGS' | 'CRITICAL';
+    flags: {
+      enforceHTTPS: boolean;
+      requireMFA: boolean;
+      strictPIIDetection: boolean;
+      enforceTenantIsolation: boolean;
+      auditRetentionDays: number;
+    };
+  } | null;
+  knowledge: {
+    basesLoaded: number;
+    totalEntries: number;
+    categories: string[];
+    queryFunctions: number;
+  } | null;
 }
 
 export interface AlertEntry {

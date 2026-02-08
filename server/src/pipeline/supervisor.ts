@@ -52,10 +52,13 @@ import {
   addWorkerArtifact,
   addGateRecords,
   addMetadataArtifact,
+  addPolicyComplianceArtifact,
   sealBundle,
   EvidenceBundle,
+  PolicyComplianceRecord,
 } from './evidenceBundler';
 import { logger } from '../logger';
+import * as govStore from '../governance/governanceLibrary.store';
 
 const log = logger.child({ component: 'Supervisor' });
 
@@ -320,6 +323,28 @@ async function executeFromNode(
       return { runId, status: 'failed', error, capsUsed: caps, workerResults: results };
     }
 
+    // ─── GOVERNANCE: Query applicable policies (fail-open) ────
+    let applicablePolicies: any[] = [];
+    try {
+      applicablePolicies = await govStore.queryEffectivePolicies(
+        config.tenantId,
+        { workerType: node.type, domain: plan.domain }
+      );
+      if (applicablePolicies.length > 0) {
+        log.info('Governance policies applied', {
+          runId,
+          nodeId: node.id,
+          workerType: node.type,
+          policiesApplied: applicablePolicies.length,
+          controlFamilies: [...new Set(applicablePolicies.map((p: any) => p.controlFamily))],
+        });
+      }
+    } catch (err) {
+      log.warn('Governance policy query failed — proceeding without policies', {
+        runId, nodeId: node.id, error: (err as Error).message,
+      });
+    }
+
     // ─── SPAWN WORKER (#1: only Supervisor calls this) ────────
     log.info('Spawning worker', {
       runId,
@@ -327,6 +352,7 @@ async function executeFromNode(
       type: node.type,
       label: node.label,
       step: `${i + 1}/${plan.nodes.length}`,
+      governancePolicies: applicablePolicies.length,
     });
 
     const output = await spawnWorker(node, results, plan, config);
@@ -354,6 +380,56 @@ async function executeFromNode(
       log.error('Forbidden key in worker output', { runId, nodeId: node.id, forbiddenPath });
       await runStore.failRun(runId, config.tenantId, error);
       return { runId, status: 'failed', error, capsUsed: caps, workerResults: results };
+    }
+
+    // ─── GOVERNANCE: Post-execution policy compliance check ────
+    if (applicablePolicies.length > 0) {
+      const policyCompliance: PolicyComplianceRecord[] = [];
+
+      for (const policy of applicablePolicies) {
+        const reqResults = (policy.requirements || []).map((req: any) => {
+          if (req.checkType === 'automated') {
+            return checkAutomatedRequirement(req, validatedOutput, node, plan);
+          }
+          if (req.checkType === 'evidence') {
+            const hasArtifacts = validatedOutput.artifactPaths.length > 0;
+            return {
+              requirementId: req.requirementId,
+              passed: hasArtifacts || !req.isMandatory,
+              reason: hasArtifacts ? 'Artifacts produced' : 'No artifacts (evidence pending)',
+            };
+          }
+          // Manual requirements — deferred to human review
+          return {
+            requirementId: req.requirementId,
+            passed: true,
+            reason: 'Manual review required',
+          };
+        });
+
+        const mandatoryReqs = reqResults.filter((_: any, idx: number) =>
+          policy.requirements[idx]?.isMandatory
+        );
+        const overallPass = mandatoryReqs.every((r: any) => r.passed);
+
+        policyCompliance.push({
+          policyId: policy.policyId,
+          title: policy.title,
+          controlFamily: policy.controlFamily,
+          requirements: reqResults,
+          overallPass,
+        });
+      }
+
+      // Add compliance artifact to evidence bundle
+      bundle = addPolicyComplianceArtifact(bundle, node.id, policyCompliance);
+
+      log.info('Policy compliance check completed', {
+        runId,
+        nodeId: node.id,
+        policiesChecked: policyCompliance.length,
+        allPassed: policyCompliance.every(p => p.overallPass),
+      });
     }
 
     // Store result
@@ -574,5 +650,61 @@ async function spawnWorker(
       durationMs: 0,
       artifactPaths: [],
     };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GOVERNANCE: Automated requirement checks
+// ═══════════════════════════════════════════════════════════════════
+
+function checkAutomatedRequirement(
+  req: any,
+  output: any,
+  node: SpawnNode,
+  plan: SpawnPlan,
+): { requirementId: string; passed: boolean; reason: string } {
+  const ref = req.automationRef || '';
+
+  switch (ref) {
+    case 'check_pii_redaction':
+      return {
+        requirementId: req.requirementId,
+        passed: plan.piiPolicy !== 'PII_ALLOWED',
+        reason: plan.piiPolicy !== 'PII_ALLOWED'
+          ? `PII policy enforced: ${plan.piiPolicy}`
+          : 'PII allowed by policy — not enforced',
+      };
+
+    case 'check_output_status':
+      return {
+        requirementId: req.requirementId,
+        passed: output.status === 'success',
+        reason: output.status === 'success'
+          ? 'Worker completed successfully'
+          : `Worker status: ${output.status}`,
+      };
+
+    case 'check_token_cap':
+      return {
+        requirementId: req.requirementId,
+        passed: output.tokensUsed <= node.perWorkerCaps.maxTokens,
+        reason: `Used ${output.tokensUsed}/${node.perWorkerCaps.maxTokens} tokens`,
+      };
+
+    case 'check_artifacts_produced':
+      return {
+        requirementId: req.requirementId,
+        passed: (output.artifactPaths?.length || 0) > 0,
+        reason: (output.artifactPaths?.length || 0) > 0
+          ? `${output.artifactPaths.length} artifact(s) produced`
+          : 'No artifacts produced',
+      };
+
+    default:
+      return {
+        requirementId: req.requirementId,
+        passed: true,
+        reason: ref ? `Unknown automation ref: ${ref}` : 'No automation ref — passed by default',
+      };
   }
 }

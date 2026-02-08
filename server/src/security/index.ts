@@ -81,6 +81,10 @@ export {
 } from './egressControl';
 export type { EgressDecision, EgressPolicy } from './egressControl';
 
+// Security Posture Aggregation
+export { getSecurityPosture } from './securityPosture';
+export type { SecurityPosture } from './securityPosture';
+
 /**
  * Initialize all security modules
  * Call this during server startup

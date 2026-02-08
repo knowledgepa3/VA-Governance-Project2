@@ -4393,6 +4393,11 @@ OUTPUT: Clean, professional proposal ready to send to the client. One page. Conf
         addLine('output', ' ', '  approve/deny — respond to gate prompts');
         addLine('output', ' ', '  done — complete assist mode step');
         addSpacer();
+        addLine('output', ' ', '<span class="hl-cyan">Governance OS:</span>');
+        addLine('output', ' ', '  governance       — view governance library');
+        addLine('output', ' ', '  security posture — security department overview');
+        addLine('output', ' ', '  kb               — knowledge base inventory');
+        addSpacer();
         addLine('output', ' ', '<span class="hl-cyan">Terminal:</span>');
         addLine('output', ' ', '  help        — show this message');
         addLine('output', ' ', '  clear       — clear terminal');
@@ -4591,11 +4596,40 @@ OUTPUT: Clean, professional proposal ready to send to the client. One page. Conf
         } else if (subCommand === 'revoke') {
           GIASecurityContext.revokeAll();
           addLine('warning', '!', 'All tokens revoked');
+        } else if (subCommand === 'posture' || subCommand === 'dept' || subCommand === 'department') {
+          addLine('system', '*', '<span class="hl-accent">SECURITY DEPARTMENT</span>');
+          addSpacer();
+          try {
+            const token = sessionStorage.getItem('gia_token');
+            if (!token) throw new Error('Not authenticated');
+            const res = await fetch('/api/operator/boot', { headers: { 'Authorization': 'Bearer ' + token } });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            const sec = data.security;
+            if (!sec) {
+              addLine('output', ' ', '<span class="hl-yellow">Security posture data not available</span>');
+            } else {
+              const secColor = sec.overallStatus === 'SECURE' ? 'hl-green' : sec.overallStatus === 'WARNINGS' ? 'hl-yellow' : 'hl-red';
+              addLine('output', ' ', `<span class="hl-dim">├─ Compliance Level ...... </span><span class="hl-green">${sec.complianceLevel.toUpperCase()}</span>`);
+              addLine('output', ' ', `<span class="hl-dim">├─ Key Manager ........... </span><span class="${sec.keyManagerHealthy ? 'hl-green' : 'hl-red'}">${sec.keyManagerProvider} (${sec.keyManagerHealthy ? 'HEALTHY' : 'DEGRADED'})</span>`);
+              addLine('output', ' ', `<span class="hl-dim">├─ Break Glass ........... </span><span class="${sec.breakGlassActive > 0 ? 'hl-yellow' : 'hl-dim'}">${sec.breakGlassActive} active, ${sec.breakGlassPendingReviews} pending</span>`);
+              addLine('output', ' ', `<span class="hl-dim">├─ Rate Limiter .......... </span><span class="hl-dim">${sec.rateLimiterActiveKeys} active keys</span>`);
+              addLine('output', ' ', `<span class="hl-dim">├─ Egress Control ........ </span><span class="hl-dim">${sec.egressMode} (${sec.egressAllowedDomains} domains)</span>`);
+              addLine('output', ' ', `<span class="hl-dim">├─ HTTPS ................. </span><span class="${sec.flags.enforceHTTPS ? 'hl-green' : 'hl-yellow'}">${sec.flags.enforceHTTPS ? 'ENFORCED' : 'OFF'}</span>`);
+              addLine('output', ' ', `<span class="hl-dim">├─ MFA ................... </span><span class="${sec.flags.requireMFA ? 'hl-green' : 'hl-dim'}">${sec.flags.requireMFA ? 'REQUIRED' : 'OFF'}</span>`);
+              addLine('output', ' ', `<span class="hl-dim">├─ PII Detection ......... </span><span class="${sec.flags.strictPIIDetection ? 'hl-green' : 'hl-dim'}">${sec.flags.strictPIIDetection ? 'STRICT' : 'STANDARD'}</span>`);
+              addLine('output', ' ', `<span class="hl-dim">├─ Audit Retention ....... </span><span class="hl-dim">${sec.flags.auditRetentionDays} days</span>`);
+              addLine('output', ' ', `<span class="hl-dim">└─ Overall ............... </span><span class="${secColor}">${sec.overallStatus}</span>`);
+            }
+          } catch (e) {
+            addLine('error', '!', 'Failed to fetch security posture: ' + e.message);
+          }
         } else if (subCommand === 'help') {
           addLine('system', '*', '<span class="hl-accent">SECURITY COMMANDS</span>');
-          addLine('output', ' ', '  security status  — show token status');
-          addLine('output', ' ', '  security token   — request terminal token (gesture required)');
-          addLine('output', ' ', '  security revoke  — revoke all tokens');
+          addLine('output', ' ', '  security status   — show token status');
+          addLine('output', ' ', '  security posture  — security department overview');
+          addLine('output', ' ', '  security token    — request terminal token (gesture required)');
+          addLine('output', ' ', '  security revoke   — revoke all tokens');
         } else {
           addLine('warning', '!', `Unknown security command: ${subCommand}`);
         }
@@ -4807,6 +4841,36 @@ OUTPUT: Clean, professional proposal ready to send to the client. One page. Conf
             addLine('output', '   ', `<span class="hl-dim">${t.description}</span>`);
           });
         });
+        addSpacer();
+        inputField.value = '';
+        inputField.style.height = 'auto';
+        return;
+      }
+
+      // Knowledge Base command
+      if (lowerText === 'kb' || lowerText === 'knowledge' || lowerText === 'knowledge base') {
+        addLine('human', 'you:', text);
+        addSpacer();
+        addLine('system', '*', '<span class="hl-accent">KNOWLEDGE BASE</span>');
+        addSpacer();
+        try {
+          const token = sessionStorage.getItem('gia_token');
+          if (!token) throw new Error('Not authenticated');
+          const res = await fetch('/api/operator/boot', { headers: { 'Authorization': 'Bearer ' + token } });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const data = await res.json();
+          const kb = data.knowledge;
+          if (!kb) {
+            addLine('output', ' ', '<span class="hl-yellow">Knowledge base data not available</span>');
+          } else {
+            addLine('output', ' ', `<span class="hl-dim">├─ Bases Loaded .......... </span><span class="hl-green">${kb.basesLoaded}</span>`);
+            addLine('output', ' ', `<span class="hl-dim">├─ Total Entries ......... </span><span class="hl-dim">${kb.totalEntries}</span>`);
+            addLine('output', ' ', `<span class="hl-dim">├─ Categories ............ </span><span class="hl-dim">${kb.categories.join(', ')}</span>`);
+            addLine('output', ' ', `<span class="hl-dim">└─ Query Functions ....... </span><span class="hl-dim">${kb.queryFunctions}</span>`);
+          }
+        } catch (e) {
+          addLine('error', '!', 'Failed to fetch knowledge data: ' + e.message);
+        }
         addSpacer();
         inputField.value = '';
         inputField.style.height = 'auto';
@@ -12859,16 +12923,55 @@ Return only the selector, no explanation.`;
       }
 
       // ════════════════════════════════════════════════════════════
+      // PHASE 3.6: SECURITY DEPARTMENT
+      // ════════════════════════════════════════════════════════════
+      if (boot?.security) {
+        addLine('system', '*', '<span class="hl-cyan">SECURITY DEPARTMENT</span>');
+        await sleep(100);
+        const sec = boot.security;
+        const secStatus = sec.overallStatus === 'SECURE' ? 'hl-green' : sec.overallStatus === 'WARNINGS' ? 'hl-yellow' : 'hl-red';
+        addLine('output', ' ', `<span class="hl-dim">├─ Compliance Level ...... </span><span class="hl-green">${sec.complianceLevel.toUpperCase()}</span>`);
+        addLine('output', ' ', `<span class="hl-dim">├─ Key Manager ........... </span><span class="${sec.keyManagerHealthy ? 'hl-green' : 'hl-red'}">${sec.keyManagerProvider} (${sec.keyManagerHealthy ? 'HEALTHY' : 'DEGRADED'})</span>`);
+        addLine('output', ' ', `<span class="hl-dim">├─ Break Glass ........... </span><span class="${sec.breakGlassActive > 0 ? 'hl-yellow' : 'hl-dim'}">${sec.breakGlassActive} active, ${sec.breakGlassPendingReviews} pending</span>`);
+        addLine('output', ' ', `<span class="hl-dim">├─ Rate Limiter .......... </span><span class="hl-dim">${sec.rateLimiterActiveKeys} active keys</span>`);
+        addLine('output', ' ', `<span class="hl-dim">├─ Egress Control ........ </span><span class="hl-dim">${sec.egressMode} (${sec.egressAllowedDomains} domains)</span>`);
+        addLine('output', ' ', `<span class="hl-dim">├─ HTTPS ................. </span><span class="${sec.flags.enforceHTTPS ? 'hl-green' : 'hl-yellow'}">${sec.flags.enforceHTTPS ? 'ENFORCED' : 'OFF'}</span>`);
+        addLine('output', ' ', `<span class="hl-dim">├─ MFA ................... </span><span class="${sec.flags.requireMFA ? 'hl-green' : 'hl-dim'}">${sec.flags.requireMFA ? 'REQUIRED' : 'OFF'}</span>`);
+        addLine('output', ' ', `<span class="hl-dim">├─ PII Detection ......... </span><span class="${sec.flags.strictPIIDetection ? 'hl-green' : 'hl-dim'}">${sec.flags.strictPIIDetection ? 'STRICT' : 'STANDARD'}</span>`);
+        addLine('output', ' ', `<span class="hl-dim">├─ Audit Retention ....... </span><span class="hl-dim">${sec.flags.auditRetentionDays} days</span>`);
+        addLine('output', ' ', `<span class="hl-dim">└─ Overall ............... </span><span class="${secStatus}">${sec.overallStatus}</span>`);
+        addSpacer();
+        await sleep(150);
+      }
+
+      // ════════════════════════════════════════════════════════════
+      // PHASE 3.7: KNOWLEDGE BASE
+      // ════════════════════════════════════════════════════════════
+      if (boot?.knowledge) {
+        addLine('system', '*', '<span class="hl-cyan">KNOWLEDGE BASE</span>');
+        await sleep(100);
+        const kb = boot.knowledge;
+        addLine('output', ' ', `<span class="hl-dim">├─ Bases Loaded .......... </span><span class="hl-green">${kb.basesLoaded}</span>`);
+        addLine('output', ' ', `<span class="hl-dim">├─ Total Entries ......... </span><span class="hl-dim">${kb.totalEntries}</span>`);
+        addLine('output', ' ', `<span class="hl-dim">├─ Categories ............ </span><span class="hl-dim">${kb.categories.join(', ')}</span>`);
+        addLine('output', ' ', `<span class="hl-dim">└─ Query Functions ....... </span><span class="hl-dim">${kb.queryFunctions}</span>`);
+        addSpacer();
+        await sleep(150);
+      }
+
+      // ════════════════════════════════════════════════════════════
       // PHASE 4: QUICK ACTIONS
       // ════════════════════════════════════════════════════════════
       addLine('system', '*', '<span class="hl-cyan">READY</span> — Type a command or launch a workflow.');
       addSpacer();
-      addLine('output', ' ', `<span class="hl-accent">+ AGENT</span>  Launch a governed workflow`);
-      addLine('output', ' ', `<span class="hl-accent">pending</span>  Review pending gate approvals${pendingGates > 0 ? ' <span class="hl-yellow">(' + pendingGates + ')</span>' : ''}`);
+      addLine('output', ' ', `<span class="hl-accent">+ AGENT</span>    Launch a governed workflow`);
+      addLine('output', ' ', `<span class="hl-accent">pending</span>    Review pending gate approvals${pendingGates > 0 ? ' <span class="hl-yellow">(' + pendingGates + ')</span>' : ''}`);
       addLine('output', ' ', `<span class="hl-accent">governance</span> View governance library`);
-      addLine('output', ' ', `<span class="hl-accent">audit</span>    View audit chain status`);
-      addLine('output', ' ', `<span class="hl-accent">modules</span>  List registered modules`);
-      addLine('output', ' ', `<span class="hl-accent">help</span>     Show all commands`);
+      addLine('output', ' ', `<span class="hl-accent">security posture</span> Security department overview`);
+      addLine('output', ' ', `<span class="hl-accent">kb</span>         Knowledge base inventory`);
+      addLine('output', ' ', `<span class="hl-accent">audit</span>      View audit chain status`);
+      addLine('output', ' ', `<span class="hl-accent">modules</span>    List registered modules`);
+      addLine('output', ' ', `<span class="hl-accent">help</span>       Show all commands`);
       addSpacer();
 
       // Server status indicator

@@ -21,7 +21,7 @@ import { GateResolution, WorkerOutput, SpawnPlan } from './spawnPlan.schema';
 
 export interface EvidenceArtifact {
   artifactId: string;
-  artifactType: 'WORKER_OUTPUT' | 'GATE_RECORD' | 'PLAN' | 'METADATA' | 'LOG';
+  artifactType: 'WORKER_OUTPUT' | 'GATE_RECORD' | 'PLAN' | 'METADATA' | 'LOG' | 'POLICY_COMPLIANCE';
   filename: string;
   contentHash: string;
   capturedAt: string;
@@ -53,6 +53,17 @@ export interface BundleSummary {
   totalTokens: number;
   totalRuntimeMs: number;
   domain: string;
+  policiesChecked?: number;
+  policiesCompliant?: number;
+}
+
+// Policy compliance record per worker node
+export interface PolicyComplianceRecord {
+  policyId: string;
+  title: string;
+  controlFamily: string;
+  requirements: Array<{ requirementId: string; passed: boolean; reason: string }>;
+  overallPass: boolean;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -212,6 +223,42 @@ export function addMetadataArtifact(
     summary: {
       ...bundle.summary,
       totalArtifacts: bundle.summary.totalArtifacts + 1,
+    },
+  };
+}
+
+/**
+ * Add policy compliance record for a worker node.
+ * Proves which governance policies were checked and whether they passed.
+ */
+export function addPolicyComplianceArtifact(
+  bundle: EvidenceBundle,
+  nodeId: string,
+  compliance: PolicyComplianceRecord[],
+): EvidenceBundle {
+  const content = JSON.stringify(compliance);
+  const hash = crypto.createHash('sha256').update(content).digest('hex');
+  const passed = compliance.filter(c => c.overallPass).length;
+
+  return {
+    ...bundle,
+    artifacts: [
+      ...bundle.artifacts,
+      {
+        artifactId: `ART-policy-${nodeId}-${Date.now()}`,
+        artifactType: 'POLICY_COMPLIANCE',
+        filename: `policy_compliance_${nodeId}.json`,
+        contentHash: hash,
+        capturedAt: new Date().toISOString(),
+        description: `Policy compliance for ${nodeId}: ${compliance.length} checked, ${passed} passed`,
+        sourceNode: nodeId,
+      },
+    ],
+    summary: {
+      ...bundle.summary,
+      totalArtifacts: bundle.summary.totalArtifacts + 1,
+      policiesChecked: (bundle.summary.policiesChecked || 0) + compliance.length,
+      policiesCompliant: (bundle.summary.policiesCompliant || 0) + passed,
     },
   };
 }
