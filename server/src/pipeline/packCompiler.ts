@@ -14,7 +14,7 @@
  *   Pipeline JSON (design-time) → Pack Compiler → Spawn Plan JSON (runtime)
  */
 
-import { v4 as uuidv4 } from 'uuid';
+import { generateUUID } from '../utils/crypto';
 import {
   SpawnPlan,
   SpawnNode,
@@ -94,8 +94,8 @@ export function compilePipeline(request: CompileRequest): CompileResult {
   const caps: PolicyCaps = DEFAULT_CAPS[governanceLevel] || DEFAULT_CAPS.Advisory;
 
   // Build the plan based on domain
-  const planId = uuidv4();
-  const runId = uuidv4();  // pre-generated for IO path scoping
+  const planId = generateUUID();
+  const runId = generateUUID();  // pre-generated for IO path scoping
 
   // Select the right plan builder
   const builder = getPlanBuilder(domain);
