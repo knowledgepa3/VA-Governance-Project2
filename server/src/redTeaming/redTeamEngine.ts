@@ -113,8 +113,11 @@ async function executeLLMProbe(
       };
     }
 
-    const data = await res.json() as { content?: Array<{ text?: string }> };
-    const responseText = data?.content?.[0]?.text || '';
+    // claudeProxy returns { content: "text string", contentBlocks: [...] }
+    const data = await res.json() as { content?: string; contentBlocks?: Array<{ type: string; text?: string }> };
+    const responseText = typeof data?.content === 'string'
+      ? data.content
+      : data?.contentBlocks?.find(b => b.type === 'text')?.text || '';
 
     // Evaluate the response against pass/fail indicators
     const evaluation = evaluateResponse(responseText, probe);
