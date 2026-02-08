@@ -39,6 +39,7 @@ import {
   getWorkerRiskProfile,
   generateDriftAlerts,
 } from '../analytics';
+import { getRedTeamStats } from '../redTeaming';
 
 const log = logger.child({ component: 'OperatorRouter' });
 
@@ -112,6 +113,7 @@ export function createOperatorRouter(): Router {
         secPosture,
         kbInventory,
         analyticsOverview,
+        redTeamStatsResult,
       ] = await Promise.all([
         securityHealthCheck(),
         secureAuditStore.verifyChain().catch(() => ({ valid: false, entriesChecked: 0 })),
@@ -122,6 +124,7 @@ export function createOperatorRouter(): Router {
         getSecurityPosture(tenantId).catch(() => null),
         Promise.resolve((() => { try { return getKnowledgeInventory(); } catch { return null; } })()),
         getComplianceOverview(tenantId).catch(() => null),
+        getRedTeamStats(tenantId).catch(() => null),
       ]);
 
       // Aggregate pipeline counts
@@ -261,6 +264,12 @@ export function createOperatorRouter(): Router {
           anomaliesDetected: analyticsOverview.anomaliesDetected,
           topRiskFamily: analyticsOverview.topRiskFamily,
           policyEffectivenessAvg: analyticsOverview.policyEffectivenessAvg,
+        } : null,
+        redTeam: redTeamStatsResult ? {
+          totalFindings: redTeamStatsResult.totalFindings,
+          openFindings: redTeamStatsResult.openFindings,
+          bySeverity: redTeamStatsResult.bySeverity,
+          lastRunAt: redTeamStatsResult.lastRunAt,
         } : null,
       };
 

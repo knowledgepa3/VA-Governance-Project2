@@ -4986,6 +4986,94 @@ OUTPUT: Clean, professional proposal ready to send to the client. One page. Conf
         return;
       }
 
+      // Red Team command — server-side findings dashboard + run trigger
+      if (lowerText === 'red-team' || lowerText === 'redteam' || lowerText.startsWith('red-team ')) {
+        addLine('human', 'you:', text);
+        addSpacer();
+
+        const parts = text.trim().split(/\s+/);
+        const subCommand = parts[1]?.toLowerCase() || 'findings';
+
+        try {
+          const token = sessionStorage.getItem('gia_token');
+          if (!token) throw new Error('Not authenticated');
+
+          if (subCommand === 'findings' || subCommand === 'list') {
+            addLine('system', '*', '<span class="hl-red">RED TEAM FINDINGS</span>');
+            const res = await fetch('/api/red-team/findings', {
+              headers: { 'Authorization': 'Bearer ' + token },
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+
+            if (data.findings.length === 0) {
+              addLine('output', ' ', '<span class="hl-dim">No findings recorded yet. Run: red-team run</span>');
+            } else {
+              addLine('output', ' ', `<span class="hl-dim">Total: ${data.count} finding(s)</span>`);
+              addSpacer();
+              for (const f of data.findings.slice(0, 20)) {
+                const sevColor = f.severity === 'CRITICAL' ? 'hl-red' : f.severity === 'HIGH' ? 'hl-yellow' : 'hl-dim';
+                const statusIcon = f.status === 'discovered' ? '●' : f.status === 'in_review' ? '◐' : f.status === 'remediated' ? '◑' : '✓';
+                addLine('output', ' ', `<span class="${sevColor}">[${f.severity}]</span> ${statusIcon} <span class="hl-accent">${f.probeName}</span> → ${f.controlFamily} | <span class="hl-dim">${f.status}</span>`);
+                if (f.responseSnippet) {
+                  addLine('output', ' ', `  <span class="hl-dim">${f.responseSnippet.slice(0, 100)}${f.responseSnippet.length > 100 ? '...' : ''}</span>`);
+                }
+              }
+            }
+          } else if (subCommand === 'run') {
+            addLine('system', '*', '<span class="hl-red">LAUNCHING RED TEAM SCAN</span>');
+            addLine('output', ' ', '<span class="hl-dim">Executing 9 adversarial probes (6 LLM + 3 structural)...</span>');
+            const res = await fetch('/api/red-team/run', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+              body: JSON.stringify({}),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            addSpacer();
+            addLine('output', ' ', `<span class="hl-dim">Run ID:</span> ${data.runId}`);
+            addLine('output', ' ', `<span class="hl-dim">Probes:</span> ${data.totalProbes} total`);
+            addLine('output', ' ', `<span class="hl-green">Passed:</span> ${data.passed}`);
+            addLine('output', ' ', `<span class="${data.failed > 0 ? 'hl-red' : 'hl-dim'}">Failed:</span> ${data.failed}`);
+            if (data.findings > 0) {
+              addLine('warning', '!', `${data.findings} new finding(s) persisted. Run: red-team findings`);
+            }
+            addLine('output', ' ', `<span class="hl-dim">Duration: ${data.durationMs}ms</span>`);
+
+          } else if (subCommand === 'stats') {
+            const res = await fetch('/api/red-team/stats', {
+              headers: { 'Authorization': 'Bearer ' + token },
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const stats = await res.json();
+            addLine('system', '*', '<span class="hl-red">RED TEAM STATS</span>');
+            addLine('output', ' ', `<span class="hl-dim">Total Findings ........ </span>${stats.totalFindings}`);
+            addLine('output', ' ', `<span class="hl-dim">Open Findings ......... </span><span class="${stats.openFindings > 0 ? 'hl-red' : 'hl-green'}">${stats.openFindings}</span>`);
+            const sev = Object.entries(stats.bySeverity || {}).map(([k, v]) => `${k}:${v}`).join(' ');
+            if (sev) addLine('output', ' ', `<span class="hl-dim">By Severity ........... </span>${sev}`);
+            const cat = Object.entries(stats.byCategory || {}).map(([k, v]) => `${k}:${v}`).join(' ');
+            if (cat) addLine('output', ' ', `<span class="hl-dim">By Category ........... </span>${cat}`);
+            addLine('output', ' ', `<span class="hl-dim">Last Run .............. </span>${stats.lastRunAt ? new Date(stats.lastRunAt).toLocaleString() : 'never'}`);
+
+          } else if (subCommand === 'help') {
+            addLine('system', '*', '<span class="hl-accent">RED TEAM COMMANDS</span>');
+            addLine('output', ' ', '  red-team            — list server-side findings');
+            addLine('output', ' ', '  red-team run        — trigger 9-probe adversarial scan');
+            addLine('output', ' ', '  red-team stats      — summary statistics');
+            addLine('output', ' ', '  red-team help       — this help');
+          } else {
+            addLine('warning', '!', `Unknown red-team command: ${subCommand}`);
+            addLine('output', ' ', '<span class="hl-dim">Try: red-team help</span>');
+          }
+        } catch (e) {
+          addLine('error', '!', 'Red team command failed: ' + e.message);
+        }
+        addSpacer();
+        inputField.value = '';
+        inputField.style.height = 'auto';
+        return;
+      }
+
       // Governance Library command — supports subcommands: families, search <term>
       if (lowerText === 'governance' || lowerText === 'gov' || lowerText === 'library' ||
           lowerText.startsWith('library ') || lowerText.startsWith('gov ')) {
@@ -13174,6 +13262,23 @@ Return only the selector, no explanation.`;
       }
 
       // ════════════════════════════════════════════════════════════
+      // PHASE 3.9: RED TEAM STATUS
+      // ════════════════════════════════════════════════════════════
+      if (boot?.redTeam) {
+        addLine('system', '*', '<span class="hl-red">RED TEAM</span>');
+        await sleep(100);
+        const rt = boot.redTeam;
+        const openColor = rt.openFindings > 0 ? 'hl-red' : 'hl-green';
+        addLine('output', ' ', `<span class="hl-dim">├─ Total Findings ........ </span><span class="hl-dim">${rt.totalFindings}</span>`);
+        addLine('output', ' ', `<span class="hl-dim">├─ Open Findings ......... </span><span class="${openColor}">${rt.openFindings}</span>`);
+        const sevParts = Object.entries(rt.bySeverity || {}).map(([k, v]) => `${k}:${v}`).join(' ');
+        if (sevParts) addLine('output', ' ', `<span class="hl-dim">├─ By Severity ........... </span><span class="hl-dim">${sevParts}</span>`);
+        addLine('output', ' ', `<span class="hl-dim">└─ Last Run .............. </span><span class="hl-dim">${rt.lastRunAt ? new Date(rt.lastRunAt).toLocaleString() : 'never'}</span>`);
+        addSpacer();
+        await sleep(150);
+      }
+
+      // ════════════════════════════════════════════════════════════
       // PHASE 4: QUICK ACTIONS
       // ════════════════════════════════════════════════════════════
       addLine('system', '*', '<span class="hl-cyan">READY</span> — Type a command or launch a workflow.');
@@ -15413,6 +15518,33 @@ ${hasApiKey ? 'Real adversarial probes executed via Claude API.' : 'Enable API k
         addLine('system', '*', `<span class="hl-dim">feedback stored: ${history.length} historical runs</span>`);
       } catch (e) {
         console.warn('[AAL] Could not store feedback:', e);
+      }
+
+      // ============================================
+      // PHASE 5: INGEST TO SERVER (fail-open)
+      // ============================================
+      try {
+        const ingestToken = sessionStorage.getItem('gia_token');
+        if (ingestToken && findings.length > 0) {
+          const ingestResults = findings.map(f => ({
+            name: f.probe || f.name || 'unknown',
+            category: f.category || 'UNKNOWN',
+            passed: false,
+            responseSnippet: (f.response || f.detail || '').slice(0, 500),
+            severity: f.severity || 'MEDIUM',
+            controlFamily: f.controlFamily || '',
+            targetWorker: f.targetWorker || '',
+          }));
+          fetch('/api/red-team/ingest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ingestToken },
+            body: JSON.stringify({ results: ingestResults }),
+          }).then(r => {
+            if (r.ok) addLine('system', '*', '<span class="hl-dim">findings synced to server</span>');
+          }).catch(() => { /* fail-open */ });
+        }
+      } catch (e) {
+        console.warn('[AAL] Server ingest failed (non-blocking):', e);
       }
 
       // ============================================

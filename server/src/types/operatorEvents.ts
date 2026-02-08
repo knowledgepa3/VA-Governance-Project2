@@ -123,6 +123,12 @@ export interface BootResponse {
     topRiskFamily: string | null;
     policyEffectivenessAvg: number;
   } | null;
+  redTeam: {
+    totalFindings: number;
+    openFindings: number;
+    bySeverity: Record<string, number>;
+    lastRunAt: string | null;
+  } | null;
 }
 
 export interface AlertEntry {

@@ -194,3 +194,18 @@ export function fetchPolicies(params?: {
 export function fetchAnalytics(): Promise<AnalyticsOverview | null> {
   return apiFetch<AnalyticsOverview>('/api/operator/analytics/overview');
 }
+
+/** Red team stats shape */
+export interface RedTeamStatsResponse {
+  totalFindings: number;
+  openFindings: number;
+  bySeverity: Record<string, number>;
+  byStatus: Record<string, number>;
+  byCategory: Record<string, number>;
+  lastRunAt: string | null;
+}
+
+/** Fetch red team stats */
+export function fetchRedTeamStats(): Promise<RedTeamStatsResponse | null> {
+  return apiFetch<RedTeamStatsResponse>('/api/red-team/stats');
+}

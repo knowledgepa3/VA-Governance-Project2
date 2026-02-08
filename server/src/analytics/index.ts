@@ -2,6 +2,8 @@
  * Analytics Module Exports
  *
  * Compliance feedback loop + ML scoring engine.
+ * Phase 5: getWorkerRiskProfile + generateDriftAlerts now enriched
+ * with red team findings (risk boost + drift synthesis).
  */
 
 // Capture (fire-and-forget, called from supervisor)

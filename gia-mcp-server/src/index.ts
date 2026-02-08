@@ -48,6 +48,7 @@ import {
   fetchGovernanceSummary,
   fetchPolicies,
   fetchAnalytics,
+  fetchRedTeamStats,
 } from "./api-bridge.js";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -516,7 +517,7 @@ const FRAMEWORKS: Record<
       { id: "MAP-1", name: "Context and risk identification", gia_component: "Risk Assessment", implemented: true },
       { id: "MAP-2", name: "AI categorization", gia_component: "MAI Classification", implemented: true },
       { id: "MEASURE-1", name: "Performance metrics", gia_component: "Governance Scoring", implemented: true },
-      { id: "MEASURE-2", name: "Bias and fairness testing", gia_component: "Red Team Agent", implemented: false },
+      { id: "MEASURE-2", name: "Bias and fairness testing", gia_component: "Red Team Engine (9 probes, server-side)", implemented: true },
       { id: "MANAGE-1", name: "Risk treatment", gia_component: "Storey Threshold", implemented: true },
       { id: "MANAGE-2", name: "Incident response", gia_component: "Break-Glass System", implemented: true },
     ],
@@ -867,7 +868,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             prohibited: result.prohibited,
           }
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+
+        // Phase 5: Enrich with red team finding context (fail-open)
+        const rtStats = await fetchRedTeamStats();
+        const riskEnrichment: Record<string, unknown> = {};
+        if (rtStats) {
+          riskEnrichment.red_team = {
+            total_findings: rtStats.totalFindings,
+            open_findings: rtStats.openFindings,
+            severity_breakdown: rtStats.bySeverity,
+            last_run: rtStats.lastRunAt,
+            source: "live_red_team",
+          };
+          // If open findings exist, add warning
+          if (rtStats.openFindings > 0) {
+            result.governance_requirements.push(
+              `Red team: ${rtStats.openFindings} open finding(s) require remediation`
+            );
+          }
+        }
+
+        return { content: [{ type: "text" as const, text: JSON.stringify({ ...result, ...riskEnrichment }, null, 2) }] };
       }
 
       // ── map_compliance ──

@@ -17,6 +17,7 @@ import { query } from '../db/connection';
 import { logger } from '../logger';
 import type { EvidenceBundle } from '../pipeline/evidenceBundler';
 import type { SpawnPlan, WorkerOutput } from '../pipeline/spawnPlan.schema';
+import { getOpenFindingCounts, getWorkerFindingCounts } from '../redTeaming/redTeamStore';
 
 const log = logger.child({ component: 'ComplianceAnalytics' });
 
@@ -95,6 +96,8 @@ export interface WorkerRiskEntry {
   avgDurationMs: number;
   bayesianRisk: number;
   topFailFamily: string | null;
+  /** Open red team findings targeting this worker (added Phase 5) */
+  openRedTeamFindings: number;
 }
 
 export interface DriftAlert {
@@ -497,17 +500,33 @@ export async function getWorkerRiskProfile(tenantId: string): Promise<WorkerRisk
     [tenantId]
   );
 
+  // Phase 5: Get red team finding counts per worker for risk boost
+  const workerFindings = await getWorkerFindingCounts(tenantId).catch(() => []);
+  const findingsMap = new Map<string, { targetWorker: string; total: number; critical: number; high: number }>(
+    workerFindings.map(wf => [wf.targetWorker, wf] as [string, typeof wf])
+  );
+
   return result.rows.map((row: any) => {
     const total = parseInt(row.total_checks, 10);
     const failures = parseInt(row.failures, 10);
+    let risk = Math.round(bayesianRisk(failures, total) * 100);
+
+    // Phase 5: Red team risk boost — each open HIGH/CRITICAL finding adds +5%
+    // Capped at +30% boost, total capped at 95%
+    const wfData = findingsMap.get(row.worker_type);
+    const openFindings = wfData ? (wfData.critical + wfData.high) : 0;
+    const redTeamBoost = Math.min(openFindings * 5, 30);
+    risk = Math.min(risk + redTeamBoost, 95);
+
     return {
       workerType: row.worker_type,
       totalChecks: total,
       failRate: total > 0 ? Math.round((failures / total) * 100) : 0,
       avgTokens: Math.round(parseFloat(row.avg_tokens) || 0),
       avgDurationMs: Math.round(parseFloat(row.avg_duration) || 0),
-      bayesianRisk: Math.round(bayesianRisk(failures, total) * 100),
+      bayesianRisk: risk,
       topFailFamily: row.top_fail_family || null,
+      openRedTeamFindings: wfData?.total || 0,
     };
   });
 }
@@ -577,6 +596,34 @@ export async function generateDriftAlerts(tenantId: string): Promise<DriftAlert[
         detectedAt: new Date().toISOString(),
       });
     }
+  }
+
+  // Phase 5: Synthesize drift alerts from open red team findings
+  // Open HIGH/CRITICAL findings by control family → degradation alerts
+  // policyRouter already escalates families with medium/high drift alerts,
+  // so this integration triggers automatic policy escalation with zero router changes.
+  try {
+    const openFindings = await getOpenFindingCounts(tenantId);
+    for (const finding of openFindings) {
+      if (finding.severity !== 'HIGH' && finding.severity !== 'CRITICAL') continue;
+      if (!finding.controlFamily) continue;
+
+      const severity = finding.severity === 'CRITICAL' ? 'high' : 'medium';
+
+      alerts.push({
+        id: `RT-DRIFT-${finding.controlFamily}-${Date.now()}`,
+        type: 'degradation',
+        severity,
+        controlFamily: finding.controlFamily,
+        message: `Red team: ${finding.count} open ${finding.severity} finding(s) in ${finding.controlFamily} — adversarial vulnerability detected`,
+        zScore: severity === 'high' ? -3.5 : -2.5, // Synthetic z-score for ranking
+        currentRate: 0, // Not rate-based — finding-based
+        baselineRate: 100,
+        detectedAt: new Date().toISOString(),
+      });
+    }
+  } catch (err) {
+    log.debug('Red team drift synthesis skipped', { error: (err as Error).message });
   }
 
   return alerts.sort((a, b) => Math.abs(b.zScore) - Math.abs(a.zScore));
