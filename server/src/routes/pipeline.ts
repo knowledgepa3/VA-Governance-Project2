@@ -363,6 +363,33 @@ export function createPipelineRouter(): Router {
         return;
       }
 
+      // ─── SEPARATION OF DUTIES (SOD) ───────────────────────
+      // For MANDATORY gates: the approver must have a governance role.
+      // This prevents the person who compiled/started the run from
+      // rubber-stamping their own gates without oversight.
+      const gate = run.spawnPlan.gates.find((g: any) => g.id === req.params.gateId);
+      if (gate?.maiLevel === 'MANDATORY') {
+        const GATE_APPROVAL_ROLES = [
+          'ISSO / ACE Architect',
+          'Chief Compliance Officer',
+          'Federal Auditor',
+          'Governance Reviewer',
+        ];
+        if (!GATE_APPROVAL_ROLES.includes(authReq.role)) {
+          log.warn('Gate approval denied — insufficient role for MANDATORY gate', {
+            runId: req.params.id,
+            gateId: req.params.gateId,
+            userId: authReq.userId,
+            role: authReq.role,
+          });
+          res.status(403).json({
+            error: 'MANDATORY gates require a governance role (ISSO, CCO, Federal Auditor, or Governance Reviewer)',
+            requiredRoles: GATE_APPROVAL_ROLES,
+          });
+          return;
+        }
+      }
+
       // Resolve the gate
       const resolved = await runStore.resolveGate(
         req.params.id,
@@ -438,15 +465,48 @@ export function createPipelineRouter(): Router {
       }
 
       // Build the evidence package from worker results + gate resolutions
+      // PII POLICY: If NO_RAW_PII, strip worker output data (return summaries only)
+      const piiPolicy = run.spawnPlan.piiPolicy;
+      let safeWorkerResults = run.workerResults;
+
+      if (piiPolicy === 'NO_RAW_PII') {
+        // Strip raw data from worker outputs — only return summaries and metadata
+        safeWorkerResults = Object.fromEntries(
+          Object.entries(run.workerResults).map(([k, v]) => [k, {
+            nodeId: (v as any).nodeId,
+            type: (v as any).type,
+            status: (v as any).status,
+            summary: (v as any).summary,
+            tokensUsed: (v as any).tokensUsed,
+            durationMs: (v as any).durationMs,
+            artifactPaths: (v as any).artifactPaths,
+            // data field intentionally omitted — may contain PII/PHI
+            data: { redacted: true, reason: 'NO_RAW_PII policy — raw worker data omitted from evidence download' },
+          }])
+        );
+      }
+
+      // Strip instruction prompts from plan (may reference specific patient data)
+      const safePlan = {
+        ...run.spawnPlan,
+        nodes: run.spawnPlan.nodes.map((n: any) => ({
+          ...n,
+          instruction: piiPolicy === 'NO_RAW_PII'
+            ? { systemPrompt: '[REDACTED]', taskDescription: n.instruction.taskDescription, constraints: n.instruction.constraints, outputFormat: n.instruction.outputFormat }
+            : n.instruction,
+        })),
+      };
+
       res.json({
         runId: run.id,
         planHash: run.spawnPlanHash,
         status: run.status,
+        piiPolicy,
         capsUsed: run.capsUsed,
         gateResolutions: run.gateResolutions,
-        workerResults: run.workerResults,
+        workerResults: safeWorkerResults,
         evidenceBundleId: run.evidenceBundleId,
-        plan: run.spawnPlan,
+        plan: safePlan,
       });
     } catch (error) {
       log.error('Evidence download failed', {}, error as Error);

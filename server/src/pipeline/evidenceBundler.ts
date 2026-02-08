@@ -35,6 +35,7 @@ export interface EvidenceBundle {
   planHash: string;
   startedAt: string;
   completedAt?: string;
+  sealedAt?: string;       // Persisted so sealHash can be independently recomputed
   status: 'COLLECTING' | 'COMPLETE' | 'SEALED';
   artifacts: EvidenceArtifact[];
   gateRecords: GateResolution[];
@@ -236,20 +237,24 @@ export function sealBundle(bundle: EvidenceBundle): EvidenceBundle {
 
   const manifestHash = crypto.createHash('sha256').update(manifest).digest('hex');
 
+  // Seal timestamp — persisted in bundle so sealHash can be independently recomputed
+  const sealedAt = new Date().toISOString();
+
   // Seal hash chains everything together
   const sealContent = [
     bundle.bundleId,
     bundle.runId,
     bundle.planHash,
     manifestHash,
-    new Date().toISOString(),
+    sealedAt,
   ].join('|');
 
   const sealHash = crypto.createHash('sha256').update(sealContent).digest('hex');
 
   return {
     ...bundle,
-    completedAt: new Date().toISOString(),
+    completedAt: sealedAt,
+    sealedAt,
     status: 'SEALED',
     manifestHash,
     sealHash,
@@ -258,28 +263,60 @@ export function sealBundle(bundle: EvidenceBundle): EvidenceBundle {
 
 /**
  * Verify a sealed bundle's integrity.
- * Re-computes manifest hash from artifacts and checks against stored hash.
+ *
+ * Two-level verification:
+ * 1. Manifest hash: recomputed from artifact IDs + content hashes
+ * 2. Seal hash: recomputed from bundleId + runId + planHash + manifestHash + sealedAt
+ *
+ * An auditor can independently verify this bundle without trusting the system.
+ * All inputs to the hash are stored in the bundle itself.
  */
-export function verifyBundle(bundle: EvidenceBundle): { valid: boolean; reason: string } {
+export function verifyBundle(bundle: EvidenceBundle): { valid: boolean; reason: string; checks: Record<string, boolean> } {
+  const checks: Record<string, boolean> = {
+    isSealed: false,
+    hasRequiredFields: false,
+    manifestIntegrity: false,
+    sealIntegrity: false,
+  };
+
   if (bundle.status !== 'SEALED') {
-    return { valid: false, reason: 'Bundle is not sealed' };
+    return { valid: false, reason: 'Bundle is not sealed', checks };
   }
+  checks.isSealed = true;
 
-  if (!bundle.manifestHash || !bundle.sealHash) {
-    return { valid: false, reason: 'Missing manifest or seal hash' };
+  if (!bundle.manifestHash || !bundle.sealHash || !bundle.sealedAt) {
+    return { valid: false, reason: 'Missing manifest hash, seal hash, or sealedAt timestamp', checks };
   }
+  checks.hasRequiredFields = true;
 
-  // Recompute manifest hash
+  // Step 1: Recompute manifest hash from artifacts
   const manifest = bundle.artifacts
     .sort((a, b) => a.artifactId.localeCompare(b.artifactId))
     .map(a => `${a.artifactId}:${a.contentHash}`)
     .join('|');
 
-  const recomputedHash = crypto.createHash('sha256').update(manifest).digest('hex');
+  const recomputedManifest = crypto.createHash('sha256').update(manifest).digest('hex');
 
-  if (recomputedHash !== bundle.manifestHash) {
-    return { valid: false, reason: 'Manifest hash mismatch — artifacts may have been tampered with' };
+  if (recomputedManifest !== bundle.manifestHash) {
+    return { valid: false, reason: 'Manifest hash mismatch — artifacts may have been tampered with', checks };
   }
+  checks.manifestIntegrity = true;
 
-  return { valid: true, reason: 'Bundle integrity verified' };
+  // Step 2: Recompute seal hash from stored components
+  const sealContent = [
+    bundle.bundleId,
+    bundle.runId,
+    bundle.planHash,
+    recomputedManifest,
+    bundle.sealedAt,
+  ].join('|');
+
+  const recomputedSeal = crypto.createHash('sha256').update(sealContent).digest('hex');
+
+  if (recomputedSeal !== bundle.sealHash) {
+    return { valid: false, reason: 'Seal hash mismatch — bundle metadata may have been tampered with', checks };
+  }
+  checks.sealIntegrity = true;
+
+  return { valid: true, reason: 'Bundle integrity verified (manifest + seal)', checks };
 }

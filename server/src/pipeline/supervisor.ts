@@ -42,6 +42,7 @@ import {
   WorkerContext,
   CapsUsed,
   containsForbiddenKeys,
+  hashSpawnPlan,
 } from './spawnPlan.schema';
 import { isAllowedWorkerType, getWorker } from './workers/registry';
 import * as runStore from './runState.store';
@@ -146,10 +147,29 @@ export async function startExecution(
 ): Promise<ExecutionResult> {
   const { spawnPlan: plan } = run;
 
+  // ─── PLAN INTEGRITY CHECK ──────────────────────────────────
+  // Re-hash the plan from DB and compare against stored hash.
+  // If they don't match, the plan was tampered with after compilation.
+  // This closes the gap between compile-time and execution-time.
+  const recomputedHash = hashSpawnPlan(plan);
+  if (recomputedHash !== run.spawnPlanHash) {
+    const error = `PLAN INTEGRITY VIOLATION: stored hash "${run.spawnPlanHash.substring(0, 16)}..." does not match recomputed hash "${recomputedHash.substring(0, 16)}..." — plan may have been tampered with`;
+    log.error('Plan hash mismatch — refusing to execute', { runId: run.id, storedHash: run.spawnPlanHash, recomputedHash });
+    await runStore.failRun(run.id, config.tenantId, error);
+    return {
+      runId: run.id,
+      status: 'failed',
+      error,
+      capsUsed: { tokens: 0, costCents: 0, runtimeMs: 0, workersSpawned: 0 },
+      workerResults: {},
+    };
+  }
+
   log.info('Supervisor starting execution', {
     runId: run.id,
     nodes: plan.nodes.length,
     gates: plan.gates.length,
+    planHashVerified: true,
   });
 
   // Pre-flight checks (all invariants)
@@ -272,6 +292,14 @@ async function executeFromNode(
     if (caps.tokens >= plan.caps.maxTokens) {
       const error = `Token cap exceeded: used ${caps.tokens} >= maxTokens ${plan.caps.maxTokens}`;
       log.warn('Token cap exceeded', { runId, error });
+      await runStore.failRun(runId, config.tenantId, error);
+      return { runId, status: 'failed', error, capsUsed: caps, workerResults: results };
+    }
+
+    // INVARIANT #4: Cost cap enforcement
+    if (caps.costCents >= plan.caps.maxCostCents) {
+      const error = `Cost cap exceeded: ${caps.costCents}¢ >= maxCostCents ${plan.caps.maxCostCents}¢ ($${(plan.caps.maxCostCents / 100).toFixed(2)})`;
+      log.warn('Cost cap exceeded', { runId, costCents: caps.costCents, maxCostCents: plan.caps.maxCostCents });
       await runStore.failRun(runId, config.tenantId, error);
       return { runId, status: 'failed', error, capsUsed: caps, workerResults: results };
     }
@@ -404,10 +432,11 @@ async function executeFromNode(
   // Seal the bundle
   bundle = sealBundle(bundle);
 
-  // Complete the run
+  // Complete the run, then immediately seal it (immutable from this point)
   await runStore.completeRun(runId, config.tenantId, bundle.bundleId, results, caps);
+  await runStore.sealRun(runId, config.tenantId);
 
-  log.info('Execution complete — bundle sealed', {
+  log.info('Execution complete — run sealed (immutable)', {
     runId,
     bundleId: bundle.bundleId,
     sealHash: bundle.sealHash,
@@ -519,9 +548,20 @@ async function spawnWorker(
         nodeId: node.id,
         tokensUsed: result.tokensUsed,
         maxTokens: node.perWorkerCaps.maxTokens,
+        governanceLevel: plan.governanceLevel,
       });
-      // We allow it to complete but log the violation
-      // In Strict/Regulated mode, this could be a hard stop
+      // In Strict/Regulated mode, per-worker cap violation is a HARD STOP
+      if (plan.governanceLevel !== 'Advisory') {
+        return {
+          status: 'error',
+          data: { error: `Per-worker token cap exceeded: ${result.tokensUsed} > ${node.perWorkerCaps.maxTokens} (governance: ${plan.governanceLevel})` },
+          summary: `Worker "${node.id}" terminated — per-worker token cap violation under ${plan.governanceLevel} governance`,
+          tokensUsed: result.tokensUsed,
+          durationMs: result.durationMs,
+          artifactPaths: [],
+        };
+      }
+      // Advisory mode: allow completion but log the violation
     }
 
     return result;
