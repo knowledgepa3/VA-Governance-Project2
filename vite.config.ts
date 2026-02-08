@@ -102,7 +102,8 @@ export default defineConfig(({ mode }) => {
             console: path.resolve(__dirname, 'console.html'),
             bd: path.resolve(__dirname, 'bd.html'),
             va: path.resolve(__dirname, 'index.html'),
-            login: path.resolve(__dirname, 'login.html')
+            login: path.resolve(__dirname, 'login.html'),
+            workspace: path.resolve(__dirname, 'workspace.html')
           }
         }
       }
